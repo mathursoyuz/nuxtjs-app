@@ -1,10 +1,9 @@
 <template>
     <DialogsConfirmDialog
         v-model="isOpen"
-        title="Log out all tabs?"
-        message="This will end your Winery Support session in every open tab in this browser."
-        details="Sessions on other devices will not be affected."
-        confirm-text="Log out all tabs"
+        title="Log out everywhere?"
+        message="This will end all your Winery Support sessions across browsers and devices."
+        confirm-text="Log out everywhere"
         confirm-color="error"
         icon="mdi-logout-variant"
         icon-color="error"

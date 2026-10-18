@@ -29,6 +29,7 @@
                 </v-col>
                 <v-col cols="12" md="8">
                     <GalleryUpload
+                        :can-remove-existing="access.can(PRODUCT_PERMISSIONS.DELETE)"
                         :model-value="images.gallery"
                         :existing-gallery="existingGallery"
                         @update:model-value="updateImages({ gallery: $event })"
@@ -77,14 +78,27 @@
                         label="Track stock"
                         color="primary"
                         hide-details
-                        @update:model-value="updateVariant({ stockManaged: Boolean($event) })"
+                        @update:model-value="setStockManaged(Boolean($event))"
                     />
                 </v-col>
-                <v-col v-if="variant.stockManaged" cols="12" md="8">
-                    <v-alert type="info" variant="tonal" density="compact">
-                        Inventory is managed from the mapped client product and its client
-                        locations.
-                    </v-alert>
+                <v-col
+                    v-if="variant.stockManaged && canManageInventory"
+                    cols="12"
+                    md="8"
+                    class="d-flex align-center"
+                >
+                    <v-btn
+                        color="primary"
+                        variant="tonal"
+                        prepend-icon="mdi-warehouse"
+                        @click="emit('manage-inventory')"
+                    >
+                        {{
+                            inventoryIsDraft || !variant.id
+                                ? `Opening inventory (${inventoryCount})`
+                                : 'Manage inventory'
+                        }}
+                    </v-btn>
                 </v-col>
 
                 <v-col cols="12" md="4">
@@ -235,6 +249,10 @@
 </template>
 
 <script setup lang="ts">
+import { PRODUCT_PERMISSIONS } from '~/components/products/products.permissions'
+
+import { useAccessStore } from '~/stores/access.store'
+const access = useAccessStore()
 import { computed } from 'vue'
 import GalleryUpload from '~/components/products/GalleryUpload.vue'
 import ThumbnailUpload from '~/components/products/ThumbnailUpload.vue'
@@ -259,12 +277,18 @@ interface Props {
     index: number
     canRemove: boolean
     componentVariants: ComponentVariantOption[]
+    canManageInventory?: boolean
+    inventoryIsDraft?: boolean
+    inventoryCount?: number
     existingGallery?: string[]
     existingThumbnail?: string | null
     errors?: Record<string, string | undefined>
 }
 
 const props = withDefaults(defineProps<Props>(), {
+    canManageInventory: false,
+    inventoryIsDraft: false,
+    inventoryCount: 0,
     existingGallery: () => [],
     existingThumbnail: null,
     errors: () => ({}),
@@ -274,6 +298,7 @@ const variant = defineModel<ProductVariantFormData>({ required: true })
 const emit = defineEmits<{
     'update:images': [value: ImageFiles]
     'make-default': []
+    'manage-inventory': []
     remove: []
 }>()
 
@@ -293,6 +318,13 @@ const existingThumbnailUrl = computed(() =>
 
 const updateVariant = (patch: Partial<ProductVariantFormData>): void => {
     variant.value = { ...variant.value, ...patch }
+}
+
+const setStockManaged = (stockManaged: boolean): void => {
+    updateVariant({
+        stockManaged,
+        ...(!stockManaged ? { inventory: [] } : {}),
+    })
 }
 
 const updateImages = (patch: Partial<ImageFiles>): void => {

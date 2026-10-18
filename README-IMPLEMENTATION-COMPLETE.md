@@ -23,13 +23,13 @@
   - Store and composable
 
 - ✅ **Customers Module** - Complete
-  - List page (with clientId routing)
+  - List page (with organisationId routing)
   - Create page (with tabs for billing/shipping)
   - Edit page (with shipping address management)
   - View page (with tabs)
   - Store and composable
 
-- ✅ **Clients Module** - Complete
+- ✅ **Organisations Module** - Complete
   - List page
   - Create page
   - Edit page
@@ -38,7 +38,7 @@
 
 ### Phase 3: System Modules ✅
 - ✅ **Locations Module** - Complete
-  - List page with client filtering
+  - List page with organisation filtering
   - Create page
   - Edit page
   - Store and composable
@@ -120,7 +120,7 @@ winerysupport-frontend/
 │           ├── product.api.ts ✅
 │           ├── category.api.ts ✅
 │           ├── customer.api.ts ✅
-│           ├── client.api.ts ✅
+│           ├── organisation.api.ts ✅
 │           ├── location.api.ts ✅
 │           ├── country.api.ts ✅
 │           ├── quickbooks.api.ts ✅
@@ -131,7 +131,7 @@ winerysupport-frontend/
 ├── types/
 │   ├── product.types.ts ✅
 │   ├── category.types.ts ✅
-│   ├── client.types.ts ✅
+│   ├── organisation.types.ts ✅
 │   ├── location.types.ts ✅
 │   ├── country.types.ts ✅
 │   ├── quickbooks.types.ts ✅
@@ -142,7 +142,7 @@ winerysupport-frontend/
 ├── schemas/
 │   ├── product.schema.ts ✅
 │   ├── category.schema.ts ✅
-│   ├── client.schema.ts ✅
+│   ├── organisation.schema.ts ✅
 │   ├── location.schema.ts ✅
 │   ├── customer.schema.ts ✅
 │   └── auth.schema.ts ✅
@@ -150,7 +150,7 @@ winerysupport-frontend/
 │   ├── product.store.ts ✅
 │   ├── category.store.ts ✅
 │   ├── customer.store.ts ✅
-│   ├── client.store.ts ✅
+│   ├── organisation.store.ts ✅
 │   ├── location.store.ts ✅
 │   ├── quickbooks.store.ts ✅
 │   └── auth.store.ts ✅
@@ -158,7 +158,7 @@ winerysupport-frontend/
 │   ├── useProduct.ts ✅
 │   ├── useCategory.ts ✅
 │   ├── useCustomer.ts ✅
-│   ├── useClient.ts ✅
+│   ├── useOrganisation.ts ✅
 │   ├── useLocation.ts ✅
 │   ├── useCountry.ts ✅
 │   ├── useQuickbooks.ts ✅
@@ -179,14 +179,14 @@ winerysupport-frontend/
 │   │   ├── create.vue ✅
 │   │   └── [id]/
 │   │       └── edit.vue ✅
-│   ├── [clientId]/
+│   ├── [organisationId]/
 │   │   └── customers/
 │   │       ├── index.vue ✅
 │   │       ├── create.vue ✅
 │   │       └── [id]/
 │   │           ├── edit.vue ✅
 │   │           └── view.vue ✅
-│   ├── clients/
+│   ├── organisations/
 │   │   ├── index.vue ✅
 │   │   ├── create.vue ✅
 │   │   └── [id]/

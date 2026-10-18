@@ -111,6 +111,9 @@
                                 <v-col cols="12" md="8">
                                     <div class="text-subtitle-2 mb-2">Gallery</div>
                                     <GalleryUpload
+                                        :can-remove-existing="
+                                            access.can(PRODUCT_PERMISSIONS.DELETE)
+                                        "
                                         :model-value="productImages.gallery"
                                         :existing-gallery="visibleProductGallery"
                                         @update:model-value="
@@ -142,14 +145,21 @@
                         :model-value="variant"
                         :images="variantImages[index] ?? emptyImageFiles()"
                         :index="index"
-                        :can-remove="values.variants.length > 1"
+                        :can-remove="
+                            values.variants.length > 1 &&
+                            (!values.variants[index]?.id || access.can(PRODUCT_PERMISSIONS.DELETE))
+                        "
                         :component-variants="componentVariantOptions"
+                        :can-manage-inventory="canManageInventory"
+                        :inventory-count="variant.inventory.length"
+                        :inventory-is-draft="isOpeningInventory(index)"
                         :existing-thumbnail="existingVariantThumbnail(index)"
                         :existing-gallery="existingVariantGallery(index)"
                         :errors="errors"
                         @update:model-value="updateVariant(index, $event)"
                         @update:images="updateVariantImages(index, $event)"
                         @make-default="makeDefault(index)"
+                        @manage-inventory="openInventory(index)"
                         @remove="removeVariant(index)"
                     />
                 </v-form>
@@ -171,15 +181,45 @@
             </v-card-actions>
         </v-card>
     </v-dialog>
+
+    <PlatformSupplyInventoryManagementDialog
+        v-if="
+            selectedInventoryVariant?.id &&
+            !selectedInventoryIsDraft &&
+            product &&
+            access.platformOrganisationId
+        "
+        v-model="inventoryDialogOpen"
+        :product-id="product.id"
+        :product-variant-id="selectedInventoryVariant.id"
+        :platform-organisation-id="access.platformOrganisationId"
+        :title="`${product.name} — ${selectedInventoryVariant.sku}`"
+        @saved="handleInventorySaved"
+    />
+    <PlatformOpeningInventoryDialog
+        v-else-if="selectedInventoryVariant"
+        v-model="inventoryDialogOpen"
+        :title="selectedInventoryVariant.sku || 'New platform variant'"
+        :locations="locations"
+        :draft-balances="selectedInventoryVariant.inventory"
+        @update:draft-balances="updateSelectedInventory"
+    />
 </template>
 
 <script setup lang="ts">
+import { PRODUCT_PERMISSIONS } from '~/components/products/products.permissions'
+
+import { useAccessStore } from '~/stores/access.store'
+const access = useAccessStore()
 import { computed, ref, watch } from 'vue'
 import { toTypedSchema } from '@vee-validate/zod'
 import { useFieldArray, useForm } from 'vee-validate'
 import GalleryUpload from '~/components/products/GalleryUpload.vue'
 import ProductVariantEditor from '~/components/products/ProductVariantEditor.vue'
+import PlatformOpeningInventoryDialog from '~/components/inventory/PlatformOpeningInventoryDialog.vue'
+import PlatformSupplyInventoryManagementDialog from '~/components/inventory/PlatformSupplyInventoryManagementDialog.vue'
 import ThumbnailUpload from '~/components/products/ThumbnailUpload.vue'
+import { INVENTORY_PERMISSIONS } from '~/components/inventory/inventory.permissions'
 import { useProductForm } from '~/composables/useProductForm'
 import { useToast } from '~/composables/useToast'
 import { PRODUCT_MESSAGES } from '~/constants/messages.constants'
@@ -190,6 +230,7 @@ import {
 } from '~/schemas/product.schema'
 import type { ImageFiles } from '~/services/product/ProductFormService'
 import type { CreateProductDTO, Product } from '~/types/product.types'
+import type { InventoryDraftBalance } from '~/types/inventory.types'
 
 interface SelectOption {
     title: string
@@ -216,6 +257,12 @@ const emit = defineEmits<{
     submit: [product: Product]
 }>()
 
+const canManageInventory = computed(
+    () =>
+        access.platformOrganisationId !== null &&
+        access.can(INVENTORY_PERMISSIONS.WRITE, access.platformOrganisationId)
+)
+
 const config = useRuntimeConfig()
 const { saveProduct, validateAvailability, saving } = useProductForm()
 const toast = useToast()
@@ -223,6 +270,8 @@ const productImages = ref<ImageFiles>(emptyImageFiles())
 const variantImages = ref<ImageFiles[]>([])
 const visibleProductGallery = ref<string[]>([])
 const slugWasEdited = ref(true)
+const inventoryDialogOpen = ref(false)
+const inventoryVariantIndex = ref<number | null>(null)
 const componentVariantOptions = computed(() =>
     props.availableProducts.flatMap((candidate) =>
         candidate.variants
@@ -267,10 +316,10 @@ function emptyVariant(isDefault = false): ProductVariantFormData {
         price: 0,
         cog: 0,
         stockManaged: true,
-        lowStockThreshold: 10,
         color: '',
         size: '',
         attributes: {},
+        inventory: [],
         isDefault,
         isActive: true,
         bundleComponents: [],
@@ -304,10 +353,10 @@ function editableProduct(): CreateProductFormData {
             price: variant.price,
             cog: variant.cog,
             stockManaged: variant.stockManaged,
-            lowStockThreshold: variant.lowStockThreshold,
             color: variant.color,
             size: variant.size,
             attributes: { ...variant.attributes },
+            inventory: [],
             isDefault: variant.isDefault,
             isActive: variant.isActive,
             bundleComponents: variant.bundleComponents.map((component) => ({
@@ -326,6 +375,8 @@ function resetDialog(): void {
     variantImages.value = formValues.variants.map((variant) => emptyImageFiles(variant.id))
     visibleProductGallery.value = [...(props.product?.gallery ?? [])]
     slugWasEdited.value = true
+    inventoryDialogOpen.value = false
+    inventoryVariantIndex.value = null
 }
 
 function setName(name: string): void {
@@ -372,6 +423,42 @@ function updateVariant(index: number, variant: ProductVariantFormData): void {
     updateVariantAt(index, variant)
 }
 
+const selectedInventoryVariant = computed(() =>
+    inventoryVariantIndex.value === null
+        ? null
+        : (values.variants[inventoryVariantIndex.value] ?? null)
+)
+function isOpeningInventory(index: number): boolean {
+    const current = values.variants[index]
+    if (!current?.id) return true
+    return (
+        props.product?.variants.find((variant) => variant.id === current.id)?.stockManaged === false
+    )
+}
+const selectedInventoryIsDraft = computed(() => {
+    if (inventoryVariantIndex.value === null || !selectedInventoryVariant.value) return false
+    return isOpeningInventory(inventoryVariantIndex.value)
+})
+
+function openInventory(index: number): void {
+    const current = values.variants[index]
+    if (!current) return
+    inventoryVariantIndex.value = index
+    inventoryDialogOpen.value = true
+}
+
+function updateSelectedInventory(inventory: InventoryDraftBalance[]): void {
+    if (inventoryVariantIndex.value === null) return
+    const current = values.variants[inventoryVariantIndex.value]
+    if (!current || !selectedInventoryIsDraft.value) return
+    updateVariantAt(inventoryVariantIndex.value, { ...current, inventory })
+}
+
+function handleInventorySaved(): void {
+    inventoryDialogOpen.value = false
+    inventoryVariantIndex.value = null
+}
+
 function updateVariantImages(index: number, images: ImageFiles): void {
     variantImages.value = variantImages.value.map((current, currentIndex) =>
         currentIndex === index ? images : current
@@ -385,6 +472,7 @@ function addVariant(): void {
 
 function removeVariant(index: number): void {
     if (values.variants.length === 1) return
+    if (values.variants[index]?.id && !access.can(PRODUCT_PERMISSIONS.DELETE)) return
     const removedWasDefault = values.variants[index]?.isDefault ?? false
     removeVariantAt(index)
     if (removedWasDefault && values.variants[0]) {
@@ -442,7 +530,7 @@ const submitForm = handleSubmit(async (data) => {
         )
         toast.success(PRODUCT_MESSAGES.UPDATE_SUCCESS)
         emit('submit', savedProduct)
-        emit('update:modelValue', false)
+        close()
     } catch (error) {
         toast.errorFromError(error, PRODUCT_MESSAGES.UPDATE_ERROR)
     }
@@ -453,6 +541,8 @@ function save(): void {
 }
 
 function close(): void {
+    inventoryDialogOpen.value = false
+    inventoryVariantIndex.value = null
     emit('update:modelValue', false)
 }
 
@@ -463,4 +553,8 @@ watch(
     },
     { immediate: true }
 )
+
+watch(inventoryDialogOpen, (isOpen) => {
+    if (!isOpen) inventoryVariantIndex.value = null
+})
 </script>

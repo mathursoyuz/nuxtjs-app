@@ -1,14 +1,16 @@
-import type { ApiClient } from './ApiClient';
-import type { CacheService } from '../cache/CacheService';
-import type { ApiResponse, RequestConfig } from '~/types/api.types';
+import type { ApiClient } from './ApiClient'
+import type { CacheService } from '../cache/CacheService'
+import type { ApiResponse, RequestConfig } from '~/types/api.types'
 
 /**
  * Wrapper around ApiClient that adds smart caching with invalidation
  */
 export class CachedApiClient {
+    private contextRevision = 0
+    private authToken: string | null = null
     constructor(
         private readonly apiClient: ApiClient,
-        private readonly cacheService: CacheService,
+        private readonly cacheService: CacheService
     ) {}
 
     /**
@@ -24,27 +26,32 @@ export class CachedApiClient {
         config?: RequestConfig,
         cacheKey?: string,
         ttl?: number,
-        skipCache = false,
+        skipCache = false
     ): Promise<ApiResponse<T>> {
-        const key = cacheKey || this.generateCacheKey('GET', url, config?.params);
+        const revision = this.contextRevision
+        const key = cacheKey || this.generateCacheKey('GET', url, config?.params)
+        skipCache ||=
+            /^\/(auth|access|products)(\/|$)/.test(url) || /\/organisation-products(\/|$)/.test(url)
 
         // Check cache first (unless skipCache is true)
         if (!skipCache) {
-            const cached = this.cacheService.get<ApiResponse<T>>(key);
+            const cached = this.cacheService.get<ApiResponse<T>>(key)
             if (cached) {
-                return cached;
+                return cached
             }
         }
 
         // Fetch from API
-        const response = await this.apiClient.get<T>(url, config);
+        const response = await this.apiClient.get<T>(url, config)
+        if (revision !== this.contextRevision)
+            throw new Error('Organisation or account changed while loading data.')
 
         // Cache successful responses
-        if (response.data) {
-            this.cacheService.set(key, response, ttl);
+        if (response.data && !skipCache) {
+            this.cacheService.set(key, response, ttl)
         }
 
-        return response;
+        return response
     }
 
     /**
@@ -58,19 +65,19 @@ export class CachedApiClient {
         url: string,
         data?: unknown,
         config?: RequestConfig,
-        invalidatePattern?: string,
+        invalidatePattern?: string
     ): Promise<ApiResponse<T>> {
-        const response = await this.apiClient.post<T>(url, data, config);
+        const response = await this.apiClient.post<T>(url, data, config)
 
         // Invalidate related caches
         if (invalidatePattern) {
-            this.cacheService.invalidatePattern(invalidatePattern);
+            this.cacheService.invalidatePattern(invalidatePattern)
         } else {
             // Default: invalidate all GET requests for this endpoint
-            this.cacheService.invalidatePattern(`GET:${url}.*`);
+            this.cacheService.invalidatePattern(`GET:${url}.*`)
         }
 
-        return response;
+        return response
     }
 
     /**
@@ -80,17 +87,17 @@ export class CachedApiClient {
         url: string,
         data?: unknown,
         config?: RequestConfig,
-        invalidatePattern?: string,
+        invalidatePattern?: string
     ): Promise<ApiResponse<T>> {
-        const response = await this.apiClient.put<T>(url, data, config);
+        const response = await this.apiClient.put<T>(url, data, config)
 
         if (invalidatePattern) {
-            this.cacheService.invalidatePattern(invalidatePattern);
+            this.cacheService.invalidatePattern(invalidatePattern)
         } else {
-            this.cacheService.invalidatePattern(`GET:${url}.*`);
+            this.cacheService.invalidatePattern(`GET:${url}.*`)
         }
 
-        return response;
+        return response
     }
 
     /**
@@ -100,17 +107,17 @@ export class CachedApiClient {
         url: string,
         data?: unknown,
         config?: RequestConfig,
-        invalidatePattern?: string,
+        invalidatePattern?: string
     ): Promise<ApiResponse<T>> {
-        const response = await this.apiClient.patch<T>(url, data, config);
+        const response = await this.apiClient.patch<T>(url, data, config)
 
         if (invalidatePattern) {
-            this.cacheService.invalidatePattern(invalidatePattern);
+            this.cacheService.invalidatePattern(invalidatePattern)
         } else {
-            this.cacheService.invalidatePattern(`GET:${url}.*`);
+            this.cacheService.invalidatePattern(`GET:${url}.*`)
         }
 
-        return response;
+        return response
     }
 
     /**
@@ -119,54 +126,61 @@ export class CachedApiClient {
     async delete<T>(
         url: string,
         config?: RequestConfig,
-        invalidatePattern?: string,
+        invalidatePattern?: string
     ): Promise<ApiResponse<T>> {
-        const response = await this.apiClient.delete<T>(url, config);
+        const response = await this.apiClient.delete<T>(url, config)
 
         if (invalidatePattern) {
-            this.cacheService.invalidatePattern(invalidatePattern);
+            this.cacheService.invalidatePattern(invalidatePattern)
         } else {
-            this.cacheService.invalidatePattern(`GET:${url}.*`);
+            this.cacheService.invalidatePattern(`GET:${url}.*`)
         }
 
-        return response;
+        return response
     }
 
     /**
      * Manually invalidate cache by key
      */
     invalidate(key: string): void {
-        this.cacheService.invalidate(key);
+        this.cacheService.invalidate(key)
     }
 
     /**
      * Manually invalidate cache by pattern
      */
     invalidatePattern(pattern: string): void {
-        this.cacheService.invalidatePattern(pattern);
+        this.cacheService.invalidatePattern(pattern)
     }
 
     /**
      * Clear all cache
      */
     clearCache(): void {
-        this.cacheService.clear();
+        this.contextRevision++
+        this.cacheService.clear()
     }
 
     /**
      * Generate cache key from method, URL, and params
      */
-    private generateCacheKey(method: string, url: string, params?: Record<string, string | number | boolean>): string {
-        const paramsStr = params ? `?${JSON.stringify(params)}` : '';
-        return `${method}:${url}${paramsStr}`;
+    private generateCacheKey(
+        method: string,
+        url: string,
+        params?: Record<string, string | number | boolean>
+    ): string {
+        const paramsStr = params ? `?${JSON.stringify(params)}` : ''
+        return `${method}:${url}${paramsStr}`
     }
 
-    // Expose underlying API client methods
+    // Expose underlying API organisation methods
     setAuthToken(token: string | null): void {
-        this.apiClient.setAuthToken(token);
+        if (token !== this.authToken) this.clearCache()
+        this.authToken = token
+        this.apiClient.setAuthToken(token)
     }
 
     setBearerToken(token: string | null): void {
-        this.apiClient.setBearerToken(token);
+        this.apiClient.setBearerToken(token)
     }
 }

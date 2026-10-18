@@ -20,6 +20,8 @@ export default defineNuxtPlugin(async () => {
     // Authentication is scoped to this browser tab. It survives refreshes but is
     // not automatically shared with other tabs.
     const storageService = new StorageServiceImpl(sessionStorage)
+    // Acting-organisation selection is a browser preference, not authentication state.
+    const contextStorageService = new StorageServiceImpl(localStorage)
     const authRepository = new AuthRepositoryImpl(cachedApiClient)
     const authService = new AuthServiceImpl(authRepository, storageService, cachedApiClient)
 
@@ -38,12 +40,13 @@ export default defineNuxtPlugin(async () => {
 
     // Initialize API wrapper services
     const { ProductApiService } = await import('~/services/api/wrappers/product.api')
+    const { AccessApiService } = await import('~/services/api/wrappers/access.api')
     const { CategoryApiService } = await import('~/services/api/wrappers/category.api')
     const { CustomerApiService } = await import('~/services/api/wrappers/customer.api')
-    const { ClientApiService } = await import('~/services/api/wrappers/client.api')
-    const { ClientProductApiService } = await import('~/services/api/wrappers/client-product.api')
-    const { ClientCreditCardApiService } =
-        await import('~/services/api/wrappers/client-credit-card.api')
+    const { OrganisationApiService } = await import('~/services/api/wrappers/organisation.api')
+    const { OrganisationProductApiService } = await import('~/services/api/wrappers/organisation-product.api')
+    const { OrganisationCreditCardApiService } =
+        await import('~/services/api/wrappers/organisation-credit-card.api')
     const { CustomerCreditCardApiService } =
         await import('~/services/api/wrappers/customer-credit-card.api')
     const { OrderApiService } = await import('~/services/api/wrappers/order.api')
@@ -58,11 +61,12 @@ export default defineNuxtPlugin(async () => {
     const { AuthorizeNetApiService } = await import('~/services/api/wrappers/authorize-net.api')
 
     const productApi = new ProductApiService(cachedApiClient)
+    const accessApi = new AccessApiService(cachedApiClient)
     const categoryApi = new CategoryApiService(cachedApiClient)
     const customerApi = new CustomerApiService(cachedApiClient)
-    const clientApi = new ClientApiService(cachedApiClient)
-    const clientProductApi = new ClientProductApiService(cachedApiClient)
-    const clientCreditCardApi = new ClientCreditCardApiService(cachedApiClient)
+    const organisationApi = new OrganisationApiService(cachedApiClient)
+    const organisationProductApi = new OrganisationProductApiService(cachedApiClient)
+    const organisationCreditCardApi = new OrganisationCreditCardApiService(cachedApiClient)
     const customerCreditCardApi = new CustomerCreditCardApiService(cachedApiClient)
     const orderApi = new OrderApiService(cachedApiClient)
     const inventoryApi = new InventoryApiService(cachedApiClient)
@@ -80,14 +84,16 @@ export default defineNuxtPlugin(async () => {
             apiClient: cachedApiClient,
             api: apiClient, // Keep for backward compatibility
             storage: storageService,
+            contextStorage: contextStorageService,
             authService,
             // API wrapper services
             productApi,
+            accessApi,
             categoryApi,
             customerApi,
-            clientApi,
-            clientProductApi,
-            clientCreditCardApi,
+            organisationApi,
+            organisationProductApi,
+            organisationCreditCardApi,
             customerCreditCardApi,
             orderApi,
             inventoryApi,

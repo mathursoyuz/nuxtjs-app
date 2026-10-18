@@ -3,6 +3,7 @@
 ## My Understanding of Current Architecture
 
 ### Architecture Pattern
+
 Your current project follows a **layered architecture** with **SOLID principles**:
 
 1. **Interface-Based Design**: All services use interfaces (ApiClient, StorageService, AuthService, etc.)
@@ -14,6 +15,7 @@ Your current project follows a **layered architecture** with **SOLID principles*
 7. **Type Safety**: Full TypeScript with ZOD validation
 
 ### Current Structure
+
 ```
 app/
 ├── services/          # Core services (interfaces + implementations)
@@ -30,6 +32,7 @@ app/
 ```
 
 ### Issues Identified
+
 1. **Timing Issues**: Stores/composables accessed before Pinia initialization
 2. **Path Resolution**: `~` alias issues in `app.vue` during build
 3. **Plugin Ordering**: Dependencies between plugins not clearly defined
@@ -43,6 +46,7 @@ app/
 ### PHASE 1: Basic Project Architecture
 
 #### Prompt 1.1: Project Setup & Configuration
+
 ```
 Create a new Nuxt 4 project with TypeScript, Pinia, Vuetify 3, Axios, and Zod.
 
@@ -71,6 +75,7 @@ Important: Use manual Vuetify setup (not @nuxtjs/vuetify module) to avoid Nuxt 4
 ```
 
 #### Prompt 1.2: Core Services - Storage & Cache
+
 ```
 Create the foundational services layer with interfaces and implementations.
 
@@ -99,6 +104,7 @@ Follow SOLID principles - use interfaces, not concrete classes in type hints.
 ```
 
 #### Prompt 1.3: API Client with Axios & Interceptors
+
 ```
 Create a robust API client with Axios, interceptors, and error handling.
 
@@ -140,6 +146,7 @@ Important: All error handling should be consistent and typed.
 ```
 
 #### Prompt 1.4: JWT Utilities
+
 ```
 Create JWT utility functions for token management.
 
@@ -163,6 +170,7 @@ Important: These utilities should be pure functions with no side effects.
 ```
 
 #### Prompt 1.5: Plugin Setup - Dependency Injection
+
 ```
 Create the main plugin for dependency injection and service initialization.
 
@@ -186,7 +194,7 @@ File structure:
 - plugins/api.client.ts
 - plugins/vuetify.client.ts
 
-Important: 
+Important:
 - Use async plugin for API client (for dynamic imports if needed)
 - All services should be injected via $ prefix
 - Document which services are available in app context
@@ -197,6 +205,7 @@ Important:
 ### PHASE 2: Authentication & Authorization
 
 #### Prompt 2.1: Auth Types & Schemas
+
 ```
 Create authentication types and ZOD validation schemas.
 
@@ -220,6 +229,7 @@ Important: Types should match backend API exactly.
 ```
 
 #### Prompt 2.2: Auth Repository & Service
+
 ```
 Create authentication repository and service layer.
 
@@ -262,6 +272,7 @@ Important: Follow repository pattern - repository handles data access, service h
 ```
 
 #### Prompt 2.3: Auth Store (Pinia)
+
 ```
 Create Pinia store for authentication state management.
 
@@ -290,6 +301,7 @@ Important: Store should NOT directly call API - use AuthService instead.
 ```
 
 #### Prompt 2.4: Auth Composable
+
 ```
 Create composable for authentication operations.
 
@@ -313,6 +325,7 @@ Important: Composables should be the primary way components interact with auth.
 ```
 
 #### Prompt 2.5: Auth Middleware & Route Guards
+
 ```
 Create authentication and role-based route guards.
 
@@ -356,6 +369,7 @@ Important: Middleware should be composable and work together (auth then role).
 ```
 
 #### Prompt 2.6: Component-Level Guards
+
 ```
 Create component-level guards for conditional rendering.
 
@@ -379,6 +393,7 @@ Important: These are for UI-level access control, not security (that's middlewar
 ```
 
 #### Prompt 2.7: Auth Initialization Plugin
+
 ```
 Create plugin to initialize authentication on app start.
 
@@ -404,8 +419,9 @@ Important: This should run in onMounted or after all plugins are ready. Use next
 ### PHASE 3: Business Modules (Categories, Products, Customers, etc.)
 
 #### Prompt 3.1: Module Pattern Template
+
 ```
-For each business module (Category, Product, Customer, Client, Location), follow this pattern:
+For each business module (Category, Product, Customer, Organisation, Location), follow this pattern:
 
 1. **Types** (types/{module}.types.ts):
    - Entity interface (Category, Product, etc.)
@@ -451,6 +467,7 @@ Important: Follow this exact pattern for consistency across all modules.
 ```
 
 #### Prompt 3.2: Category Module
+
 ```
 Implement the Category module following the pattern from Prompt 3.1.
 
@@ -464,6 +481,7 @@ Create all files following the module pattern.
 ```
 
 #### Prompt 3.3: Product Module
+
 ```
 Implement the Product module following the pattern from Prompt 3.1.
 
@@ -478,41 +496,44 @@ Create all files following the module pattern.
 ```
 
 #### Prompt 3.4: Customer Module
+
 ```
 Implement the Customer module following the pattern from Prompt 3.1.
 
 Customer-specific requirements:
-- Customers belong to a Client
+- Customers belong to an Organisation
 - Customers have: billing address, shipping addresses (multiple)
-- Need: getCustomersByClient(clientId)
+- Need: getCustomersByOrganisation(organisationId)
 - Address management (add, edit, delete shipping addresses)
 - Customer detail view with tabs
 
 Create all files following the module pattern.
 ```
 
-#### Prompt 3.5: Client Module
-```
-Implement the Client module following the pattern from Prompt 3.1.
+#### Prompt 3.5: Organisation Module
 
-Client-specific requirements:
-- Clients are top-level entities
-- Clients have: name, contact info, settings
-- Need: getAllClients, getClientById
-- Client detail view
+```
+Implement the Organisation module following the pattern from Prompt 3.1.
+
+Organisation-specific requirements:
+- Organisations are top-level entities
+- Organisations have: name, contact info, settings
+- Need: getAllOrganisations, getOrganisationById
+- Organisation detail view
 
 Create all files following the module pattern.
 ```
 
 #### Prompt 3.6: Location Module
+
 ```
 Implement the Location module following the pattern from Prompt 3.1.
 
 Location-specific requirements:
-- Locations belong to a Client
+- Locations belong to an Organisation
 - Locations have: name, address, type, settings
-- Need: getLocationsByClient(clientId)
-- Location filtering by client
+- Need: getLocationsByOrganisation(organisationId)
+- Location filtering by organisation
 
 Create all files following the module pattern.
 ```
@@ -535,6 +556,7 @@ Create all files following the module pattern.
 ## Testing Each Phase
 
 After each phase, test:
+
 1. ✅ Project builds without errors
 2. ✅ Dev server starts successfully
 3. ✅ No TypeScript errors

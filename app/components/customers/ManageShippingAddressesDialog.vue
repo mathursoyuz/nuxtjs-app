@@ -243,7 +243,7 @@ type EditableShippingAddress = CustomerShippingAddress & {
 interface Props {
     modelValue: boolean
     customer: Customer | null
-    clientId: number
+    organisationId: number
 }
 
 const props = defineProps<Props>()

@@ -85,6 +85,8 @@
 </template>
 
 <script setup lang="ts">
+import { CATEGORY_PERMISSIONS } from '~/components/categories/category.permissions'
+
 import { ref, computed } from 'vue'
 import { useLoadingStore } from '~/stores/loading.store'
 import { useCategory } from '~/composables/useCategory'
@@ -97,8 +99,8 @@ import { createCategorySchema } from '~/schemas/category.schema'
 import type { CreateCategoryFormData } from '~/schemas/category.schema'
 
 definePageMeta({
-    middleware: ['auth', 'role'],
-    roles: ['admin', 'sales_manager'],
+    middleware: ['auth', 'permission'],
+    access: { permission: CATEGORY_PERMISSIONS.WRITE },
 })
 
 const { createCategory, loading, fetchCategories, uploadImage, categories } = useCategory()

@@ -1,6 +1,7 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import type { Customer, CustomerShippingAddress } from '~/services/api/wrappers/customer.api'
+import { registerOrganisationContextReset } from '~/services/context/organisation-context-reset.registry'
 
 interface PaginationState {
     total: number
@@ -117,6 +118,16 @@ export const useCustomerStore = defineStore('customer', () => {
         pagination.value = null
     }
 
+    function resetForOrganisationContext(): void {
+        customers.value = []
+        currentCustomer.value = null
+        pagination.value = null
+        loading.value = false
+        error.value = null
+    }
+
+    registerOrganisationContextReset('customers', resetForOrganisationContext)
+
     return {
         customers,
         currentCustomer,
@@ -138,5 +149,6 @@ export const useCustomerStore = defineStore('customer', () => {
         clearError,
         setPagination,
         clearPagination,
+        resetForOrganisationContext,
     }
 })

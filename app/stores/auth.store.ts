@@ -2,163 +2,136 @@ import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import type { AuthService } from '~/services/auth/AuthService'
 import type { AuthResponse, LoginCredentials, RegisterData, User } from '~/types/auth.types'
-import { decodeJwt } from '~/utils/jwt.util'
 import { publishLogoutAll } from '~/utils/auth-sync.client'
 
 type AuthStatus = 'idle' | 'initializing' | 'authenticated' | 'unauthenticated'
-
 interface LogoutOptions {
     broadcast?: boolean
     redirect?: boolean
 }
 
 export const useAuthStore = defineStore('auth', () => {
-    const nuxtApp = useNuxtApp()
+    const authService = useNuxtApp().$authService as AuthService
     const router = useRouter()
-    const authService = nuxtApp.$authService as AuthService
-
-    const user = ref<User | null>(null)
+    const sessionUser = ref<User | null>(null)
+    const user = computed(() => sessionUser.value)
     const token = ref<string | null>(null)
     const status = ref<AuthStatus>('idle')
     const isLoggingOut = ref(false)
-
+    let revision = 0
     let initializationPromise: Promise<void> | null = null
     let logoutPromise: Promise<void> | null = null
-
     const isInitialized = computed(() => !['idle', 'initializing'].includes(status.value))
     const isAuthenticated = computed(
         () => status.value === 'authenticated' && user.value !== null && token.value !== null
     )
-
-    const tokenPayload = computed(() => (token.value ? decodeJwt(token.value) : null))
-    const userRole = computed(() => tokenPayload.value?.role ?? user.value?.role.name ?? null)
-    const userRoleId = computed(() => tokenPayload.value?.roleId ?? user.value?.role.id ?? null)
-    const userId = computed(() => tokenPayload.value?.sub ?? user.value?.id ?? null)
-
-    const canAccess = (roles: string | string[]): boolean => {
-        if (!userRole.value) {
-            return false
-        }
-        return Array.isArray(roles) ? roles.includes(userRole.value) : userRole.value === roles
-    }
-
-    const canView = (_resource: string): boolean => isAuthenticated.value
-
-    const canCreate = (_resource: string): boolean =>
-        userRole.value !== null && ['admin', 'sales_manager'].includes(userRole.value)
-
-    const canEdit = (_resource: string, ownerId?: number): boolean => {
-        if (userRole.value === 'admin' || userRole.value === 'sales_manager') {
-            return true
-        }
-        return userRole.value === 'sales_rep' && ownerId !== undefined && userId.value === ownerId
-    }
-
-    const canDelete = (_resource: string, ownerId?: number): boolean => canEdit(_resource, ownerId)
-
-    const setAuth = (nextUser: User, accessToken: string): void => {
-        const payload = decodeJwt(accessToken)
-        if (!payload) {
-            throw new Error('Invalid token: unable to decode JWT')
-        }
-
-        user.value =
-            payload.role && payload.role !== nextUser.role.name
-                ? { ...nextUser, role: { ...nextUser.role, name: payload.role } }
-                : nextUser
+    const userId = computed(() => user.value?.id ?? null)
+    function setAuth(nextUser: User, accessToken: string) {
+        sessionUser.value = nextUser
         token.value = accessToken
         status.value = 'authenticated'
     }
-
-    const clearAuth = (): void => {
-        user.value = null
+    function clearAuth() {
+        revision++
+        initializationPromise = null
+        sessionUser.value = null
         token.value = null
         status.value = 'unauthenticated'
     }
-
-    const login = async (credentials: LoginCredentials): Promise<AuthResponse> => {
-        const response = await authService.login(credentials)
-        setAuth(response.user, response.accessToken)
-        return response
-    }
-
-    const register = async (data: RegisterData): Promise<AuthResponse> => {
-        const response = await authService.register(data)
-        setAuth(response.user, response.accessToken)
-        return response
-    }
-
-    const initAuth = async (): Promise<void> => {
-        if (isInitialized.value) {
-            return
+    async function authenticate(operation: () => Promise<AuthResponse>): Promise<AuthResponse> {
+        const current = ++revision
+        let response: AuthResponse | undefined
+        try {
+            response = await operation()
+            if (current !== revision) throw new Error('Authentication request was superseded.')
+            setAuth(response.user, response.accessToken)
+            if (current !== revision) throw new Error('Authentication request was superseded.')
+            return response
+        } catch (error) {
+            if (response) authService.clearSession(response.accessToken)
+            if (current === revision) clearAuth()
+            throw error
         }
-        if (initializationPromise) {
-            return initializationPromise
-        }
-
+    }
+    const login = (credentials: LoginCredentials) =>
+        authenticate(() => authService.login(credentials))
+    const register = (data: RegisterData) => authenticate(() => authService.register(data))
+    async function initAuth(): Promise<void> {
+        if (initializationPromise) return initializationPromise
+        if (isInitialized.value) return
+        const current = ++revision
         status.value = 'initializing'
-        initializationPromise = (async () => {
+        const pending = (async () => {
             try {
                 const session = await authService.restoreSession()
-                if (session) {
-                    setAuth(session.user, session.accessToken)
+                if (current !== revision) return
+                if (!session) {
+                    clearAuth()
                     return
                 }
-            } catch (error) {
-                console.error('Failed to initialize authentication:', error)
-            } finally {
-                if (status.value !== 'authenticated') {
+                setAuth(session.user, session.accessToken)
+            } catch {
+                if (current === revision) {
+                    authService.clearSession()
                     clearAuth()
                 }
             }
         })()
-
+        initializationPromise = pending
         try {
-            await initializationPromise
+            await pending
         } finally {
-            initializationPromise = null
+            if (initializationPromise === pending) initializationPromise = null
         }
     }
-
-    const logout = (options: LogoutOptions = {}): Promise<void> => {
-        if (logoutPromise) {
-            return logoutPromise
-        }
-
+    async function redirectToLogin() {
+        if (router.currentRoute.value.path !== '/login') await router.push('/login')
+    }
+    function logout(options: LogoutOptions = {}): Promise<void> {
+        if (logoutPromise) return logoutPromise
         const { broadcast = false, redirect = true } = options
+        const current = ++revision
+        const accountId = userId.value
         isLoggingOut.value = true
-        logoutPromise = (async () => {
-            await authService.logout()
-            clearAuth()
-
-            if (broadcast) {
-                publishLogoutAll()
-            }
-
-            if (redirect && router.currentRoute.value.path !== '/login') {
-                await router.push('/login')
+        const pending = (async () => {
+            try {
+                await authService.logout(broadcast)
+                if (broadcast && accountId) publishLogoutAll(accountId)
+            } finally {
+                if (current === revision) {
+                    clearAuth()
+                    if (redirect) await redirectToLogin()
+                }
             }
         })().finally(() => {
             isLoggingOut.value = false
             logoutPromise = null
         })
-
-        return logoutPromise
+        logoutPromise = pending
+        return pending
     }
-
-    const logoutAllTabs = (): Promise<void> => logout({ broadcast: true })
-    const handleExternalLogout = (): Promise<void> => logout()
-    const handleUnauthorized = (): Promise<void> => logout()
-
-    const refreshUser = async (): Promise<void> => {
-        const refreshedUser = await authService.refreshUser()
-        if (refreshedUser) {
-            user.value = refreshedUser
-        } else {
-            clearAuth()
-        }
+    const logoutAllTabs = () => logout({ broadcast: true })
+    async function handleExternalLogout(accountId: number) {
+        if (accountId !== userId.value) return
+        authService.clearSession()
+        clearAuth()
+        await redirectToLogin()
     }
-
+    async function handleUnauthorized(requestToken: string) {
+        if (!authService.clearSession(requestToken)) return
+        clearAuth()
+        await redirectToLogin()
+    }
+    async function refreshUser() {
+        const current = revision
+        const refreshed = await authService.refreshUser()
+        if (current !== revision || !refreshed) return
+        sessionUser.value = refreshed
+    }
+    function discardSession(accessToken?: string) {
+        authService.clearSession(accessToken)
+        clearAuth()
+    }
     return {
         user,
         token,
@@ -166,14 +139,7 @@ export const useAuthStore = defineStore('auth', () => {
         isLoggingOut,
         isInitialized,
         isAuthenticated,
-        userRole,
-        userRoleId,
         userId,
-        canAccess,
-        canView,
-        canCreate,
-        canEdit,
-        canDelete,
         login,
         register,
         logout,
@@ -182,5 +148,7 @@ export const useAuthStore = defineStore('auth', () => {
         handleUnauthorized,
         initAuth,
         refreshUser,
+        clearAuth,
+        discardSession,
     }
 })

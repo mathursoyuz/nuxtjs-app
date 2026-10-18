@@ -7,13 +7,15 @@ import type {
     CustomerSaleOrder,
     ProcurementOrder,
     ProcurementOrderPage,
+    RefundCustomerOrderDTO,
+    UpdatePendingCustomerOrderDTO,
 } from '~/types/order.types'
 
 export class OrderApiService {
     constructor(private readonly cachedApi: CachedApiClient) {}
 
     async getProcurementOrders(params?: {
-        clientId?: number
+        organisationId?: number
         status?: string
         cursor?: number
         limit?: number
@@ -48,7 +50,8 @@ export class OrderApiService {
     }
 
     async getCustomerOrders(params?: {
-        clientId?: number
+        organisationId?: number
+        customerId?: number
         status?: string
         cursor?: number
         limit?: number
@@ -57,19 +60,42 @@ export class OrderApiService {
             '/customer-orders',
             { params },
             `orders:customers:${JSON.stringify(params ?? {})}`,
-            60 * 1000
+            60 * 1000,
+            true
         )
     }
 
     async createCustomerOrder(
-        clientId: number,
+        organisationId: number,
         data: CreateCustomerOrderDTO
     ): Promise<ApiResponse<CustomerSaleOrder>> {
         return this.cachedApi.post<CustomerSaleOrder>(
-            `/clients/${clientId}/orders`,
+            `/organisations/${organisationId}/orders`,
             data,
             undefined,
-            '(orders|client-products):.*'
+            '(orders|organisation-products):.*'
+        )
+    }
+
+    async getCustomerOrder(orderId: number): Promise<ApiResponse<CustomerSaleOrder>> {
+        return this.cachedApi.get<CustomerSaleOrder>(
+            `/customer-orders/${orderId}`,
+            undefined,
+            `orders:customers:${orderId}`,
+            60 * 1000,
+            true
+        )
+    }
+
+    async updatePendingCustomerOrder(
+        orderId: number,
+        data: UpdatePendingCustomerOrderDTO
+    ): Promise<ApiResponse<CustomerSaleOrder>> {
+        return this.cachedApi.patch<CustomerSaleOrder>(
+            `/customer-orders/${orderId}`,
+            data,
+            undefined,
+            '(orders|organisation-products):.*'
         )
     }
 
@@ -81,7 +107,37 @@ export class OrderApiService {
             `/customer-orders/${orderId}/charge`,
             data,
             undefined,
-            '(orders|client-products):.*'
+            '(orders|organisation-products):.*'
+        )
+    }
+
+    async cancelCustomerOrder(orderId: number): Promise<ApiResponse<CustomerSaleOrder>> {
+        return this.cachedApi.post<CustomerSaleOrder>(
+            `/customer-orders/${orderId}/cancel`,
+            {},
+            undefined,
+            '(orders|organisation-products):.*'
+        )
+    }
+
+    async completeCustomerOrder(orderId: number): Promise<ApiResponse<CustomerSaleOrder>> {
+        return this.cachedApi.post<CustomerSaleOrder>(
+            `/customer-orders/${orderId}/complete`,
+            {},
+            undefined,
+            '(orders|organisation-products):.*'
+        )
+    }
+
+    async refundCustomerOrder(
+        orderId: number,
+        data: RefundCustomerOrderDTO
+    ): Promise<ApiResponse<CustomerSaleOrder>> {
+        return this.cachedApi.post<CustomerSaleOrder>(
+            `/customer-orders/${orderId}/refund`,
+            data,
+            undefined,
+            '(orders|organisation-products):.*'
         )
     }
 }

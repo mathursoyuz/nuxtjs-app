@@ -12,10 +12,17 @@ export type InventoryMovementType =
     | 'LOST_OR_STOLEN'
     | 'RETURN_TO_VENDOR'
 
+export interface InventoryLocation {
+    id: number
+    organisationId: number
+    name: string
+}
+
 export interface InventoryBalance {
     id: number
-    clientId: number
-    productVariantId: number
+    organisationId: number
+    organisationProductId: number
+    organisationProductVariantId: number
     locationId: number
     locationName: string
     onHand: number
@@ -29,8 +36,9 @@ export interface InventoryBalance {
 
 export interface InventoryMovement {
     id: number
-    clientId: number
-    productVariantId: number
+    organisationId: number
+    organisationProductId: number
+    organisationProductVariantId: number
     locationId: number
     locationName: string
     movementType: string

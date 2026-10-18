@@ -23,7 +23,7 @@ export interface ShippingAddress {
 
 export interface Customer {
     id: number
-    clientId: number
+    organisationId: number
     email: string
     firstName: string
     lastName: string
@@ -69,7 +69,7 @@ export interface CustomerShippingAddress {
 }
 
 export interface CreateCustomerDTO {
-    clientId: number
+    organisationId: number
     firstName: string
     lastName: string
     email: string
@@ -144,23 +144,23 @@ export class CustomerApiService {
     constructor(private readonly cachedApi: CachedApiClient) {}
 
     async getAllCustomers(
-        clientId: number | null | undefined,
+        organisationId: number | null | undefined,
         page: number = 1,
         limit: number = 25,
         search?: string
     ): Promise<ApiResponse<PaginatedCustomersResponse>> {
-        const params: { page: number; limit: number; clientId?: number; search?: string } = {
+        const params: { page: number; limit: number; organisationId?: number; search?: string } = {
             page,
             limit,
         }
-        if (clientId) {
-            params.clientId = clientId
+        if (organisationId) {
+            params.organisationId = organisationId
         }
         if (search?.trim()) {
             params.search = search.trim()
         }
-        const cacheKey = clientId
-            ? `customers:client:${clientId}:page:${page}:limit:${limit}:search:${search ?? ''}`
+        const cacheKey = organisationId
+            ? `customers:organisation:${organisationId}:page:${page}:limit:${limit}:search:${search ?? ''}`
             : `customers:all:page:${page}:limit:${limit}:search:${search ?? ''}`
         return this.cachedApi.get<PaginatedCustomersResponse>(
             `/customers`,
@@ -184,9 +184,9 @@ export class CustomerApiService {
             `/customers`,
             data,
             undefined,
-            `customers:client:${data.clientId}.*`
+            `customers:organisation:${data.organisationId}.*`
         )
-        this.cachedApi.invalidatePattern(`customers:client:${data.clientId}.*`)
+        this.cachedApi.invalidatePattern(`customers:organisation:${data.organisationId}.*`)
         this.cachedApi.invalidatePattern('customers:all.*')
         return response
     }
@@ -199,11 +199,11 @@ export class CustomerApiService {
             `/customers/${customerId}`,
             data,
             undefined,
-            `customers:client:${data.clientId}.*`
+            `customers:organisation:${data.organisationId}.*`
         )
         this.cachedApi.invalidate(`customers:${customerId}`)
-        if (data.clientId) {
-            this.cachedApi.invalidatePattern(`customers:client:${data.clientId}.*`)
+        if (data.organisationId) {
+            this.cachedApi.invalidatePattern(`customers:organisation:${data.organisationId}.*`)
         }
         this.cachedApi.invalidatePattern('customers:all.*')
         return response
@@ -290,16 +290,16 @@ export class CustomerApiService {
     }
 
     async refreshCustomers(
-        clientId: number | null | undefined,
+        organisationId: number | null | undefined,
         page: number = 1,
         limit: number = 10
     ): Promise<ApiResponse<PaginatedCustomersResponse>> {
-        const params: { page: number; limit: number; clientId?: number } = { page, limit }
-        if (clientId) {
-            params.clientId = clientId
+        const params: { page: number; limit: number; organisationId?: number } = { page, limit }
+        if (organisationId) {
+            params.organisationId = organisationId
         }
-        const cacheKey = clientId
-            ? `customers:client:${clientId}:page:${page}:limit:${limit}`
+        const cacheKey = organisationId
+            ? `customers:organisation:${organisationId}:page:${page}:limit:${limit}`
             : `customers:all:page:${page}:limit:${limit}`
         return this.cachedApi.get<PaginatedCustomersResponse>(
             `/customers`,

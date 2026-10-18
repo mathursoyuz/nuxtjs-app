@@ -15,7 +15,7 @@
                     </div>
                 </div>
                 <div class="d-flex ga-2">
-                    <RoleGuard roles="admin">
+                    <template v-if="access.can(PRODUCT_PERMISSIONS.WRITE)">
                         <v-btn
                             color="primary"
                             prepend-icon="mdi-pencil"
@@ -24,8 +24,8 @@
                         >
                             Edit
                         </v-btn>
-                    </RoleGuard>
-                    <RoleGuard roles="admin">
+                    </template>
+                    <template v-if="access.can(PRODUCT_PERMISSIONS.DELETE)">
                         <v-btn
                             color="error"
                             prepend-icon="mdi-delete"
@@ -34,7 +34,7 @@
                         >
                             Delete
                         </v-btn>
-                    </RoleGuard>
+                    </template>
                     <v-btn
                         icon="mdi-close"
                         variant="text"
@@ -199,8 +199,8 @@
                                                                 variant.stockManaged ? 'Yes' : 'No'
                                                             }}
                                                         </td>
-                                                        <th>Low-stock threshold</th>
-                                                        <td>{{ variant.lowStockThreshold }}</td>
+                                                        <th>Inventory threshold</th>
+                                                        <td>Managed per location</td>
                                                     </tr>
                                                     <tr>
                                                         <th>Active</th>
@@ -361,8 +361,11 @@
 </template>
 
 <script setup lang="ts">
+import { PRODUCT_PERMISSIONS } from '~/components/products/products.permissions'
+
 import { computed, ref, watch } from 'vue'
-import RoleGuard from '~/components/guards/RoleGuard.vue'
+import { useAccessStore } from '~/stores/access.store'
+const access = useAccessStore()
 import { useCategory } from '~/composables/useCategory'
 import { useLocation } from '~/composables/useLocation'
 import { useProduct } from '~/composables/useProduct'

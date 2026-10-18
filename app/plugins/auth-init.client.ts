@@ -1,11 +1,11 @@
 import { subscribeToLogoutAll } from '~/utils/auth-sync.client'
 
 export default defineNuxtPlugin(async () => {
-    const authStore = useAuthStore()
-    const unsubscribe = subscribeToLogoutAll(() => {
-        void authStore.handleExternalLogout()
+    const session = useSessionStore()
+    const unsubscribe = subscribeToLogoutAll((userId) => {
+        void session.handleExternalLogout(userId)
     })
 
     import.meta.hot?.dispose(unsubscribe)
-    await authStore.initAuth()
+    await session.initialize()
 })

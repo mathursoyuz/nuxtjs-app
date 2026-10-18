@@ -6,9 +6,9 @@
                     <h1 class="text-h4">Square Import - Inventory</h1>
                     <div class="d-flex align-center ga-3">
                         <v-select
-                            v-model="selectedClientId"
-                            :items="clientOptions"
-                            label="Client"
+                            v-model="selectedOrganisationId"
+                            :items="organisationOptions"
+                            label="Organisation"
                             density="compact"
                             variant="outlined"
                             hide-details
@@ -141,12 +141,14 @@
 </template>
 
 <script setup lang="ts">
+import { SYSTEM_ROLE } from '~/constants/access.constants'
+
 import { ref, computed, onMounted } from 'vue';
 import { useNuxtApp } from '#app';
 
 definePageMeta({
     middleware: ['auth', 'role'],
-    roles: ['admin', 'sales_manager'],
+    roles: [SYSTEM_ROLE.PLATFORM_ADMIN],
 });
 
 interface InventoryRecord {
@@ -221,10 +223,10 @@ interface GroupedInventoryItem {
 
 const nuxtApp = useNuxtApp();
 const squareImportApi = nuxtApp.$squareImportApi as import('~/services/api/wrappers/square-import.api').SquareImportApiService;
-const { clients, fetchClients } = useClient();
+const { organisations, fetchOrganisations } = useOrganisation();
 
 const loading = ref(false);
-const selectedClientId = ref(1);
+const selectedOrganisationId = ref(1);
 const inventoryRecords = ref<InventoryRecord[]>([]);
 const detailsDialog = ref(false);
 const selectedItem = ref<GroupedInventoryItem | null>(null);
@@ -239,8 +241,8 @@ const headers = [
     { title: 'Actions', key: 'actions', sortable: false },
 ];
 
-const clientOptions = computed(() =>
-    clients.value.map((client) => ({ title: client.name, value: client.id }))
+const organisationOptions = computed(() =>
+    organisations.value.map((organisation) => ({ title: organisation.name, value: organisation.id }))
 );
 
 const groupedInventory = computed<GroupedInventoryItem[]>(() => {
@@ -298,7 +300,7 @@ const groupedInventory = computed<GroupedInventoryItem[]>(() => {
 const fetchData = async () => {
     loading.value = true;
     try {
-        const response = await squareImportApi.getAllInventory(selectedClientId.value);
+        const response = await squareImportApi.getAllInventory(selectedOrganisationId.value);
         if (response.success && response.data) {
             inventoryRecords.value = response.data;
         }
@@ -315,7 +317,7 @@ const viewDetails = (item: GroupedInventoryItem) => {
 };
 
 onMounted(async () => {
-    await fetchClients();
+    await fetchOrganisations();
     await fetchData();
 });
 </script>

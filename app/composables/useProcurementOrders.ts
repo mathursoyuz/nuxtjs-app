@@ -8,45 +8,45 @@ const PROCUREMENT_ORDER_LOAD_ERROR = 'Failed to load procurement orders'
 export function useProcurementOrders() {
     const nuxtApp = useNuxtApp()
     const procurementOrderStore = useProcurementOrderStore()
-    const clientProductApi =
-        nuxtApp.$clientProductApi as import('~/services/api/wrappers/client-product.api').ClientProductApiService
+    const organisationProductApi =
+        nuxtApp.$organisationProductApi as import('~/services/api/wrappers/organisation-product.api').OrganisationProductApiService
     const { errorFromError } = useToast()
 
-    if (!clientProductApi) {
-        throw new Error('ClientProductApiService is not available')
+    if (!organisationProductApi) {
+        throw new Error('OrganisationProductApiService is not available')
     }
 
     async function fetchProcurementOrders(
-        clientId: number,
+        organisationId: number,
         forceRefresh = false
     ): Promise<ProcurementOrder[]> {
-        procurementOrderStore.setLoading(clientId, true)
-        procurementOrderStore.setError(clientId, null)
+        procurementOrderStore.setLoading(organisationId, true)
+        procurementOrderStore.setError(organisationId, null)
 
         try {
-            const response = await clientProductApi.getProcurementOrders(
-                clientId,
+            const response = await organisationProductApi.getProcurementOrders(
+                organisationId,
                 undefined,
                 forceRefresh
             )
             const orders = response.data?.data ?? []
-            procurementOrderStore.setOrders(clientId, orders)
+            procurementOrderStore.setOrders(organisationId, orders)
             return orders
         } catch (error) {
             const message = error instanceof Error ? error.message : PROCUREMENT_ORDER_LOAD_ERROR
-            procurementOrderStore.setOrders(clientId, [])
-            procurementOrderStore.setError(clientId, message)
+            procurementOrderStore.setOrders(organisationId, [])
+            procurementOrderStore.setError(organisationId, message)
             errorFromError(error, PROCUREMENT_ORDER_LOAD_ERROR)
             return []
         } finally {
-            procurementOrderStore.setLoading(clientId, false)
+            procurementOrderStore.setLoading(organisationId, false)
         }
     }
 
     return {
-        ordersForClient: procurementOrderStore.ordersForClient,
-        isLoadingClient: procurementOrderStore.isLoadingClient,
-        errorForClient: procurementOrderStore.errorForClient,
+        ordersForOrganisation: procurementOrderStore.ordersForOrganisation,
+        isLoadingOrganisation: procurementOrderStore.isLoadingOrganisation,
+        errorForOrganisation: procurementOrderStore.errorForOrganisation,
         fetchProcurementOrders,
     }
 }

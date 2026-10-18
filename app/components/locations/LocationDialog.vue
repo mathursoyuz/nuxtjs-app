@@ -25,9 +25,9 @@
                     <v-row>
                         <v-col cols="12" md="6">
                             <v-select
-                                v-model="formData.clientId"
-                                label="Client"
-                                :items="clientOptions"
+                                v-model="formData.organisationId"
+                                label="Organisation"
+                                :items="organisationOptions"
                                 :rules="[rules.required]"
                                 variant="outlined"
                                 density="compact"
@@ -174,7 +174,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from 'vue';
 import { useLocation } from '~/composables/useLocation';
-import { useClient } from '~/composables/useClient';
+import { useOrganisation } from '~/composables/useOrganisation';
 import { useCountry } from '~/composables/useCountry';
 import { useToast } from '~/composables/useToast';
 import { LOCATION_MESSAGES } from '~/constants/messages.constants';
@@ -195,7 +195,7 @@ const emit = defineEmits<{
 }>();
 
 const { createLocation, updateLocation, fetchLocationById } = useLocation();
-const { clients, fetchClients } = useClient();
+const { organisations, fetchOrganisations } = useOrganisation();
 const { countries, countryOptions, fetchCountries, fetchStates, getStateOptions } = useCountry();
 const { successFromResponse, errorFromError } = useToast();
 
@@ -207,7 +207,7 @@ const isLoading = ref(false);
 const isEditMode = computed(() => !!props.location);
 
 const formData = ref<CreateLocationFormData | UpdateLocationFormData>({
-    clientId: 0,
+    organisationId: 0,
     name: '',
     address: undefined,
     city: undefined,
@@ -219,8 +219,8 @@ const formData = ref<CreateLocationFormData | UpdateLocationFormData>({
     isActive: true,
 });
 
-const clientOptions = computed(() => {
-    return clients.value.map((c) => ({
+const organisationOptions = computed(() => {
+    return organisations.value.map((c) => ({
         title: c.name,
         value: c.id,
     }));
@@ -267,14 +267,14 @@ watch(() => props.modelValue, async (isOpen, wasOpen) => {
         isLoading.value = true;
         try {
             await Promise.all([
-                fetchClients(),
+                fetchOrganisations(),
                 fetchCountries(),
             ]);
 
             if (isEditMode.value && props.location) {
                 // Load location data for editing
                 formData.value = {
-                    clientId: props.location.clientId,
+                    organisationId: props.location.organisationId,
                     name: props.location.name,
                     address: props.location.address || undefined,
                     city: props.location.city || undefined,
@@ -293,7 +293,7 @@ watch(() => props.modelValue, async (isOpen, wasOpen) => {
             } else {
                 // Reset form for new location
                 formData.value = {
-                    clientId: 0,
+                    organisationId: 0,
                     name: '',
                     address: undefined,
                     city: undefined,
@@ -311,7 +311,7 @@ watch(() => props.modelValue, async (isOpen, wasOpen) => {
     } else if (!isOpen && wasOpen) {
         // Reset form when dialog closes
         formData.value = {
-            clientId: 0,
+            organisationId: 0,
             name: '',
             address: undefined,
             city: undefined,
@@ -337,7 +337,7 @@ const handleSubmit = async () => {
         // Clean and format the data before submission
         const submitData = {
             ...formData.value,
-            clientId: Number(formData.value.clientId),
+            organisationId: Number(formData.value.organisationId),
             // Convert lat/long to strings and ensure they're properly formatted
             // Round to 8 decimal places to match database scale
             lat: formData.value.lat

@@ -8,10 +8,16 @@ import type {
     UpdateInventoryThresholdDTO,
 } from '~/types/inventory.types'
 import type { InventoryMovementFormData } from '~/schemas/inventory.schema'
+import {
+    organisationContextRevision,
+    isOrganisationContextCurrent,
+} from '~/services/context/organisation-context-reset.registry'
 
 export interface InventoryContext {
     entityId: number
-    clientId: number
+    organisationId: number
+    scope?: 'organisation' | 'platform'
+    productId?: number
 }
 
 export function useInventory() {
@@ -19,53 +25,65 @@ export function useInventory() {
     const inventoryStore = useInventoryStore()
     const inventoryApi =
         nuxtApp.$inventoryApi as import('~/services/api/wrappers/inventory.api').InventoryApiService
-    const locationApi =
-        nuxtApp.$locationApi as import('~/services/api/wrappers/location.api').LocationApiService
     const { successFromResponse, errorFromError } = useToast()
 
-    if (!inventoryApi || !locationApi) {
+    if (!inventoryApi) {
         throw new Error('Inventory services are not available')
     }
 
     function inventoryKey(context: InventoryContext): string {
-        return `client:${context.clientId}:${context.entityId}`
+        if (context.scope === 'platform')
+            return `platform:${context.productId ?? 0}:${context.entityId}`
+        return `organisation:${context.organisationId}:${context.entityId}`
     }
 
     function ownerKey(context: InventoryContext): string {
-        return `client:${context.clientId}`
+        return `organisation:${context.organisationId}`
     }
 
     async function fetchInventory(context: InventoryContext): Promise<InventorySnapshot> {
+        const contextRevision = organisationContextRevision()
         const key = inventoryKey(context)
         inventoryStore.setLoading(key, true)
         inventoryStore.setError(key, null)
         try {
             const [inventoryResponse, locationResponse] = await Promise.all([
-                inventoryApi.getClientInventory(context.clientId, context.entityId),
-                locationApi.getAllLocations(context.clientId),
+                context.scope === 'platform'
+                    ? inventoryApi.getPlatformSupplyInventory(
+                          requireProductId(context),
+                          context.entityId
+                      )
+                    : inventoryApi.getOrganisationInventory(context.organisationId, context.entityId),
+                inventoryApi.getInventoryLocations(context.organisationId),
             ])
             const snapshot = inventoryResponse.data ?? {
                 balances: [],
                 movements: [],
                 nextCursor: null,
             }
-            inventoryStore.setSnapshot(key, snapshot)
-            inventoryStore.setLocations(ownerKey(context), locationResponse.data ?? [])
+            if (isOrganisationContextCurrent(contextRevision)) {
+                inventoryStore.setSnapshot(key, snapshot)
+                inventoryStore.setLocations(ownerKey(context), locationResponse.data ?? [])
+            }
             return snapshot
         } catch (error) {
             const message = error instanceof Error ? error.message : INVENTORY_MESSAGES.FETCH_ERROR
-            inventoryStore.setError(key, message)
-            errorFromError(error, INVENTORY_MESSAGES.FETCH_ERROR)
+            if (isOrganisationContextCurrent(contextRevision)) {
+                inventoryStore.setError(key, message)
+                errorFromError(error, INVENTORY_MESSAGES.FETCH_ERROR)
+            }
             throw error
         } finally {
-            inventoryStore.setLoading(key, false)
+            if (isOrganisationContextCurrent(contextRevision)) inventoryStore.setLoading(key, false)
         }
     }
 
     async function fetchOwnerLocations(context: InventoryContext) {
-        const response = await locationApi.getAllLocations(context.clientId)
+        const contextRevision = organisationContextRevision()
+        const response = await inventoryApi.getInventoryLocations(context.organisationId)
         const locations = response.data ?? []
-        inventoryStore.setLocations(ownerKey(context), locations)
+        if (isOrganisationContextCurrent(contextRevision))
+            inventoryStore.setLocations(ownerKey(context), locations)
         return locations
     }
 
@@ -81,11 +99,18 @@ export function useInventory() {
                 notes: form.notes || undefined,
                 idempotencyKey: createIdempotencyKey('inventory'),
             }
-            const response = await inventoryApi.recordClientMovement(
-                context.clientId,
-                context.entityId,
-                payload
-            )
+            const response =
+                context.scope === 'platform'
+                    ? await inventoryApi.recordPlatformSupplyMovement(
+                          requireProductId(context),
+                          context.entityId,
+                          payload
+                      )
+                    : await inventoryApi.recordOrganisationMovement(
+                          context.organisationId,
+                          context.entityId,
+                          payload
+                      )
             const snapshot = requireSnapshot(response.data)
             inventoryStore.setSnapshot(key, snapshot)
             successFromResponse(response, INVENTORY_MESSAGES.MOVEMENT_SUCCESS)
@@ -110,11 +135,18 @@ export function useInventory() {
                 notes: data.notes || undefined,
                 idempotencyKey: createIdempotencyKey('threshold'),
             }
-            const response = await inventoryApi.updateClientThreshold(
-                context.clientId,
-                context.entityId,
-                payload
-            )
+            const response =
+                context.scope === 'platform'
+                    ? await inventoryApi.updatePlatformSupplyThreshold(
+                          requireProductId(context),
+                          context.entityId,
+                          payload
+                      )
+                    : await inventoryApi.updateOrganisationThreshold(
+                          context.organisationId,
+                          context.entityId,
+                          payload
+                      )
             const snapshot = requireSnapshot(response.data)
             inventoryStore.setSnapshot(key, snapshot)
             successFromResponse(response, INVENTORY_MESSAGES.THRESHOLD_SUCCESS)
@@ -134,6 +166,11 @@ export function useInventory() {
 
     function createIdempotencyKey(prefix: string): string {
         return `${prefix}-${crypto.randomUUID()}`
+    }
+
+    function requireProductId(context: InventoryContext): number {
+        if (!context.productId) throw new Error('Platform product is required')
+        return context.productId
     }
 
     return {

@@ -10,9 +10,9 @@
                             <v-row>
                                 <v-col cols="12" md="6">
                                     <v-select
-                                        v-model="formData.clientId"
-                                        label="Client"
-                                        :items="clientOptions"
+                                        v-model="formData.organisationId"
+                                        label="Organisation"
+                                        :items="organisationOptions"
                                         :rules="[rules.required]"
                                     />
                                 </v-col>
@@ -101,30 +101,32 @@
 </template>
 
 <script setup lang="ts">
+import { LOCATION_PERMISSIONS } from '~/components/locations/location.permissions'
+
 import { ref, onMounted, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { useLocation } from '~/composables/useLocation';
-import { useClient } from '~/composables/useClient';
+import { useOrganisation } from '~/composables/useOrganisation';
 import FormField from '~/components/forms/FormField.vue';
 import { updateLocationSchema } from '~/schemas/location.schema';
 import type { UpdateLocationFormData } from '~/schemas/location.schema';
 
 definePageMeta({
-    middleware: ['auth', 'role'],
-    roles: ['admin', 'sales_manager'],
+    middleware: ['auth', 'permission'],
+    access: { permission: LOCATION_PERMISSIONS.WRITE },
 });
 
 const route = useRoute();
 const locationId = computed(() => Number(route.params.id));
 
 const { currentLocation, loading, fetchLocationById, updateLocation } = useLocation();
-const { clients, fetchClients } = useClient();
+const { organisations, fetchOrganisations } = useOrganisation();
 
 const formRef = ref();
 const valid = ref(false);
 
 const formData = ref<UpdateLocationFormData>({
-    clientId: 0,
+    organisationId: 0,
     name: '',
     address: undefined,
     city: undefined,
@@ -137,8 +139,8 @@ const formData = ref<UpdateLocationFormData>({
     isActive: true,
 });
 
-const clientOptions = computed(() => {
-    return clients.value.map((c) => ({
+const organisationOptions = computed(() => {
+    return organisations.value.map((c) => ({
         title: c.name,
         value: c.id,
     }));
@@ -154,7 +156,7 @@ const handleSubmit = async () => {
     try {
         const submitData = {
             ...formData.value,
-            clientId: Number(formData.value.clientId),
+            organisationId: Number(formData.value.organisationId),
         };
         updateLocationSchema.parse(submitData);
         await updateLocation(locationId.value, submitData);
@@ -166,13 +168,13 @@ const handleSubmit = async () => {
 
 onMounted(async () => {
     await Promise.all([
-        fetchClients(),
+        fetchOrganisations(),
         fetchLocationById(locationId.value),
     ]);
     
     if (currentLocation.value) {
         formData.value = {
-            clientId: currentLocation.value.clientId,
+            organisationId: currentLocation.value.organisationId,
             name: currentLocation.value.name,
             address: currentLocation.value.address || undefined,
             city: currentLocation.value.city || undefined,

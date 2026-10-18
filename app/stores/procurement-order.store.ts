@@ -1,54 +1,64 @@
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
 import type { ProcurementOrder } from '~/types/order.types'
+import { registerOrganisationContextReset } from '~/services/context/organisation-context-reset.registry'
 
 export const useProcurementOrderStore = defineStore('procurement-order', () => {
-    const ordersByClientId = ref<Record<number, ProcurementOrder[]>>({})
-    const loadingByClientId = ref<Record<number, boolean>>({})
-    const errorByClientId = ref<Record<number, string | null>>({})
+    const ordersByOrganisationId = ref<Record<number, ProcurementOrder[]>>({})
+    const loadingByOrganisationId = ref<Record<number, boolean>>({})
+    const errorByOrganisationId = ref<Record<number, string | null>>({})
 
-    function ordersForClient(clientId: number): ProcurementOrder[] {
-        return ordersByClientId.value[clientId] ?? []
+    function ordersForOrganisation(organisationId: number): ProcurementOrder[] {
+        return ordersByOrganisationId.value[organisationId] ?? []
     }
 
-    function isLoadingClient(clientId: number): boolean {
-        return loadingByClientId.value[clientId] ?? false
+    function isLoadingOrganisation(organisationId: number): boolean {
+        return loadingByOrganisationId.value[organisationId] ?? false
     }
 
-    function errorForClient(clientId: number): string | null {
-        return errorByClientId.value[clientId] ?? null
+    function errorForOrganisation(organisationId: number): string | null {
+        return errorByOrganisationId.value[organisationId] ?? null
     }
 
-    function setOrders(clientId: number, orders: ProcurementOrder[]): void {
-        ordersByClientId.value = {
-            ...ordersByClientId.value,
-            [clientId]: orders,
+    function setOrders(organisationId: number, orders: ProcurementOrder[]): void {
+        ordersByOrganisationId.value = {
+            ...ordersByOrganisationId.value,
+            [organisationId]: orders,
         }
     }
 
-    function setLoading(clientId: number, loading: boolean): void {
-        loadingByClientId.value = {
-            ...loadingByClientId.value,
-            [clientId]: loading,
+    function setLoading(organisationId: number, loading: boolean): void {
+        loadingByOrganisationId.value = {
+            ...loadingByOrganisationId.value,
+            [organisationId]: loading,
         }
     }
 
-    function setError(clientId: number, error: string | null): void {
-        errorByClientId.value = {
-            ...errorByClientId.value,
-            [clientId]: error,
+    function setError(organisationId: number, error: string | null): void {
+        errorByOrganisationId.value = {
+            ...errorByOrganisationId.value,
+            [organisationId]: error,
         }
     }
+
+    function resetForOrganisationContext(): void {
+        ordersByOrganisationId.value = {}
+        loadingByOrganisationId.value = {}
+        errorByOrganisationId.value = {}
+    }
+
+    registerOrganisationContextReset('procurement-orders', resetForOrganisationContext)
 
     return {
-        ordersByClientId,
-        loadingByClientId,
-        errorByClientId,
-        ordersForClient,
-        isLoadingClient,
-        errorForClient,
+        ordersByOrganisationId,
+        loadingByOrganisationId,
+        errorByOrganisationId,
+        ordersForOrganisation,
+        isLoadingOrganisation,
+        errorForOrganisation,
         setOrders,
         setLoading,
         setError,
+        resetForOrganisationContext,
     }
 })

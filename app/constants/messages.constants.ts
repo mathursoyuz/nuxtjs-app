@@ -1,34 +1,34 @@
 /**
  * Centralized message constants for API responses
- * Structure: MODULE_ACTION_TYPE (e.g., CLIENT_CREATE_SUCCESS)
+ * Structure: MODULE_ACTION_TYPE (e.g., ORGANISATION_CREATE_SUCCESS)
  *
  * Usage:
- * - Import: import { CLIENT_MESSAGES } from '~/constants/messages.constants'
+ * - Import: import { ORGANISATION_MESSAGES } from '~/constants/messages.constants'
  * - Use with useApiMessage composable for API response fallback
  */
 
 // ============================================
-// CLIENT MESSAGES
+// ORGANISATION MESSAGES
 // ============================================
-export const CLIENT_MESSAGES = {
+export const ORGANISATION_MESSAGES = {
     // Success messages
-    CREATE_SUCCESS: 'Client created successfully',
-    UPDATE_SUCCESS: 'Client updated successfully',
-    DELETE_SUCCESS: 'Client deleted successfully',
-    ACTIVATE_SUCCESS: 'Client activated successfully',
-    DEACTIVATE_SUCCESS: 'Client deactivated successfully',
-    FETCH_SUCCESS: 'Clients fetched successfully',
+    CREATE_SUCCESS: 'Organisation created successfully',
+    UPDATE_SUCCESS: 'Organisation updated successfully',
+    DELETE_SUCCESS: 'Organisation deleted successfully',
+    ACTIVATE_SUCCESS: 'Organisation activated successfully',
+    DEACTIVATE_SUCCESS: 'Organisation deactivated successfully',
+    FETCH_SUCCESS: 'Organisations fetched successfully',
 
     // Error messages
-    CREATE_ERROR: 'Failed to create client',
-    UPDATE_ERROR: 'Failed to update client',
-    DELETE_ERROR: 'Failed to delete client',
-    FETCH_ERROR: 'Failed to fetch clients',
-    NOT_FOUND: 'Client not found',
+    CREATE_ERROR: 'Failed to create organisation',
+    UPDATE_ERROR: 'Failed to update organisation',
+    DELETE_ERROR: 'Failed to delete organisation',
+    FETCH_ERROR: 'Failed to fetch organisations',
+    NOT_FOUND: 'Organisation not found',
 
     // Warning messages
-    LOGO_UPLOAD_FAILED: 'Client created but logo upload failed',
-    LOGO_UPDATE_FAILED: 'Client updated but logo upload failed',
+    LOGO_UPLOAD_FAILED: 'Organisation created but logo upload failed',
+    LOGO_UPDATE_FAILED: 'Organisation updated but logo upload failed',
 
     // Credit card messages
     CREDIT_CARD_ADD_SUCCESS: 'Billing and credit card added successfully',
@@ -107,7 +107,7 @@ export const CUSTOMER_MESSAGES = {
     CREDIT_CARD_DEACTIVATE_SUCCESS: 'Credit card deactivated',
 
     // Validation
-    CLIENT_ID_REQUIRED: 'Client ID is required',
+    ORGANISATION_ID_REQUIRED: 'Organisation ID is required',
     NO_CHANGES: 'No changes detected',
     FILE_SIZE_ERROR: 'File size must be less than 2MB',
     FILE_TYPE_ERROR: 'Please select an image file',
@@ -229,16 +229,16 @@ export const ORDER_MESSAGES = {
 } as const
 
 // ============================================
-// CLIENT PRODUCT MESSAGES
+// ORGANISATION PRODUCT MESSAGES
 // ============================================
-export const CLIENT_PRODUCT_MESSAGES = {
-    CREATE_SUCCESS: 'Client product created successfully',
-    CREATE_ERROR: 'Failed to create client product',
-    UPDATE_SUCCESS: 'Client product updated successfully',
-    UPDATE_ERROR: 'Failed to update client product',
+export const ORGANISATION_PRODUCT_MESSAGES = {
+    CREATE_SUCCESS: 'Organisation product created successfully',
+    CREATE_ERROR: 'Failed to create organisation product',
+    UPDATE_SUCCESS: 'Organisation product updated successfully',
+    UPDATE_ERROR: 'Failed to update organisation product',
     DELETE_SUCCESS: 'Product deleted successfully',
     DELETE_ERROR: 'Failed to delete product',
-    FETCH_ERROR: 'Failed to fetch client products',
+    FETCH_ERROR: 'Failed to fetch organisation products',
     TOGGLE_ERROR: 'Failed to toggle product status',
     EDIT_COMING_SOON: 'Edit functionality coming soon',
     ADD_COMING_SOON: 'Add product functionality coming soon',
@@ -335,7 +335,7 @@ export const GENERAL_MESSAGES = {
 // ============================================
 // TYPE EXPORTS
 // ============================================
-export type ClientMessageKey = keyof typeof CLIENT_MESSAGES
+export type OrganisationMessageKey = keyof typeof ORGANISATION_MESSAGES
 export type CustomerMessageKey = keyof typeof CUSTOMER_MESSAGES
 export type ProductMessageKey = keyof typeof PRODUCT_MESSAGES
 export type CategoryMessageKey = keyof typeof CATEGORY_MESSAGES

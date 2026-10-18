@@ -9,6 +9,10 @@ import type {
     CustomerShippingAddressDTO,
     PaginatedCustomersResponse,
 } from '~/services/api/wrappers/customer.api'
+import {
+    organisationContextRevision,
+    isOrganisationContextCurrent,
+} from '~/services/context/organisation-context-reset.registry'
 
 export function useCustomer() {
     const nuxtApp = useNuxtApp()
@@ -22,17 +26,19 @@ export function useCustomer() {
     }
 
     const fetchCustomers = async (
-        clientId: number | null | undefined,
+        organisationId: number | null | undefined,
         page: number = 1,
         limit: number = 25,
         search?: string
     ): Promise<PaginatedCustomersResponse> => {
+        const contextRevision = organisationContextRevision()
         customerStore.setLoading(true)
         customerStore.clearError()
 
         try {
-            const response = await customerApi.getAllCustomers(clientId, page, limit, search)
+            const response = await customerApi.getAllCustomers(organisationId, page, limit, search)
             if (response.success && response.data) {
+                if (!isOrganisationContextCurrent(contextRevision)) return response.data
                 customerStore.setCustomers(response.data.customers)
                 customerStore.setPagination({
                     total: response.data.total,
@@ -47,35 +53,41 @@ export function useCustomer() {
         } catch (error) {
             const errorMessage =
                 error instanceof Error ? error.message : 'Failed to fetch customers'
-            customerStore.setError(errorMessage)
-            errorFromError(error, CUSTOMER_MESSAGES.FETCH_ERROR)
+            if (isOrganisationContextCurrent(contextRevision)) {
+                customerStore.setError(errorMessage)
+                errorFromError(error, CUSTOMER_MESSAGES.FETCH_ERROR)
+            }
             throw error
         } finally {
-            customerStore.setLoading(false)
+            if (isOrganisationContextCurrent(contextRevision)) customerStore.setLoading(false)
         }
     }
 
     const fetchCustomerById = async (
         customerId: number
     ): Promise<import('~/services/api/wrappers/customer.api').Customer> => {
+        const contextRevision = organisationContextRevision()
         customerStore.setLoading(true)
         customerStore.clearError()
 
         try {
             const response = await customerApi.getCustomerById(customerId)
             if (response.success && response.data) {
-                customerStore.setCurrentCustomer(response.data)
+                if (isOrganisationContextCurrent(contextRevision))
+                    customerStore.setCurrentCustomer(response.data)
                 successFromResponse(response, CUSTOMER_MESSAGES.FETCH_SUCCESS)
                 return response.data
             }
             throw new Error(response.message || 'Failed to fetch customer')
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Failed to fetch customer'
-            customerStore.setError(errorMessage)
-            errorFromError(error, CUSTOMER_MESSAGES.FETCH_ERROR)
+            if (isOrganisationContextCurrent(contextRevision)) {
+                customerStore.setError(errorMessage)
+                errorFromError(error, CUSTOMER_MESSAGES.FETCH_ERROR)
+            }
             throw error
         } finally {
-            customerStore.setLoading(false)
+            if (isOrganisationContextCurrent(contextRevision)) customerStore.setLoading(false)
         }
     }
 

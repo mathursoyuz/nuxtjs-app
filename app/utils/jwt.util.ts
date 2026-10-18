@@ -34,33 +34,3 @@ export function getTokenExpirationTime(token: string): number | null {
 
     return payload.exp * 1000 // Return in milliseconds
 }
-
-/**
- * Extract role from JWT token
- * @param token - JWT token string
- * @returns Role name or null if not found
- */
-export function getRoleFromToken(token: string): string | null {
-    const payload = decodeJwt(token)
-    return payload?.role || null
-}
-
-/**
- * Extract user ID from JWT token
- * @param token - JWT token string
- * @returns User ID or null if not found
- */
-export function getUserIdFromToken(token: string): number | null {
-    const payload = decodeJwt(token)
-    return payload?.sub || null
-}
-
-/**
- * Extract role ID from JWT token
- * @param token - JWT token string
- * @returns Role ID or null if not found
- */
-export function getRoleIdFromToken(token: string): number | null {
-    const payload = decodeJwt(token)
-    return payload?.roleId || null
-}

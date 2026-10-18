@@ -3,7 +3,7 @@ import type { ApiResponse } from '~/types/api.types';
 
 export interface Location {
     id: number;
-    clientId: number;
+    organisationId: number;
     name: string;
     address: string | null;
     city: string | null;
@@ -24,7 +24,7 @@ export interface Location {
 }
 
 export interface CreateLocationDTO {
-    clientId: number;
+    organisationId: number;
     name: string;
     address?: string;
     city?: string;
@@ -45,9 +45,9 @@ export interface UpdateLocationDTO extends Partial<CreateLocationDTO> {}
 export class LocationApiService {
     constructor(private readonly cachedApi: CachedApiClient) {}
 
-    async getAllLocations(clientId?: number): Promise<ApiResponse<Location[]>> {
-        const params = clientId ? { clientId } : undefined;
-        const cacheKey = clientId ? `locations:client:${clientId}` : 'locations:all';
+    async getAllLocations(organisationId?: number): Promise<ApiResponse<Location[]>> {
+        const params = organisationId ? { organisationId } : undefined;
+        const cacheKey = organisationId ? `locations:organisation:${organisationId}` : 'locations:all';
         return this.cachedApi.get<Location[]>('/locations', { params }, cacheKey, 5 * 60 * 1000);
     }
 
@@ -71,9 +71,9 @@ export class LocationApiService {
         return response;
     }
 
-    async refreshLocations(clientId?: number): Promise<ApiResponse<Location[]>> {
-        const params = clientId ? { clientId } : undefined;
-        const cacheKey = clientId ? `locations:client:${clientId}` : 'locations:all';
+    async refreshLocations(organisationId?: number): Promise<ApiResponse<Location[]>> {
+        const params = organisationId ? { organisationId } : undefined;
+        const cacheKey = organisationId ? `locations:organisation:${organisationId}` : 'locations:all';
         return this.cachedApi.get<Location[]>('/locations', { params }, cacheKey, undefined, true);
     }
 }

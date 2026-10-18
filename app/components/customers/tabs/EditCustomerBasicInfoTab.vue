@@ -7,18 +7,18 @@
                 <v-row>
                     <v-col cols="12" md="6">
                         <v-select
-                            v-model="selectedClientId"
-                            :items="clientOptions"
+                            v-model="selectedOrganisationId"
+                            :items="organisationOptions"
                             item-title="name"
                             item-value="id"
-                            label="Select Client *"
+                            label="Select Organisation *"
                             variant="outlined"
                             density="compact"
                             required
-                            :error="hasClientError"
-                            :error-messages="hasClientError ? 'Client is required' : ''"
+                            :error="hasOrganisationError"
+                            :error-messages="hasOrganisationError ? 'Organisation is required' : ''"
                             hide-details="auto"
-                            @update:model-value="handleClientChange"
+                            @update:model-value="handleOrganisationChange"
                         ></v-select>
                     </v-col>
                     <v-col cols="12" md="6">
@@ -262,7 +262,7 @@ import { useCountry } from '~/composables/useCountry'
 import { useToast } from '~/composables/useToast'
 import { useLoadingTask } from '~/composables/useLoadingTask'
 import { CUSTOMER_MESSAGES } from '~/constants/messages.constants'
-import { DEFAULT_CLIENT_ID } from '~/constants/customer.constants'
+import { DEFAULT_ORGANISATION_ID } from '~/constants/customer.constants'
 import { getFullImageUrl } from '~/utils/image.util'
 import type { Customer } from '~/services/api/wrappers/customer.api'
 import type { PhoneCountryCode } from '~/services/api/wrappers/country.api'
@@ -304,8 +304,8 @@ function parsePhoneNumber(
 interface Props {
     customer: Customer | null
     fullCustomerData: Customer | null
-    clientId?: number
-    clients?: Array<{ id: number; name: string }>
+    organisationId?: number
+    organisations?: Array<{ id: number; name: string }>
     initialData?: Partial<UpdateCustomerFormData>
 }
 
@@ -324,25 +324,25 @@ const { success, error, errorFromError } = useToast()
 const formRef = ref()
 const isSubmitting = ref(false)
 const checkingEmail = ref(false)
-const selectedClientId = ref<number | null>(null)
+const selectedOrganisationId = ref<number | null>(null)
 const avatarInput = ref<HTMLInputElement | null>(null)
 const avatarPreview = ref<string | null>(null)
 const avatarFile = ref<File | null>(null)
 const selectedCountryCode = ref<string>('+1')
 const phoneNumberValue = ref<string>('')
 
-const clientOptions = computed(() => {
-    if (props.clients && props.clients.length > 0) {
-        return props.clients
+const organisationOptions = computed(() => {
+    if (props.organisations && props.organisations.length > 0) {
+        return props.organisations
     }
     return []
 })
 
-const hasClientError = computed(() => {
+const hasOrganisationError = computed(() => {
     return (
-        selectedClientId.value === null ||
-        selectedClientId.value === undefined ||
-        selectedClientId.value === 0
+        selectedOrganisationId.value === null ||
+        selectedOrganisationId.value === undefined ||
+        selectedOrganisationId.value === 0
     )
 })
 
@@ -365,7 +365,7 @@ const locationOptions = computed(() => {
 // Get empty initial values
 const getInitialValues = (): UpdateCustomerFormData => {
     return {
-        clientId: DEFAULT_CLIENT_ID,
+        organisationId: DEFAULT_ORGANISATION_ID,
         firstName: '',
         lastName: '',
         email: '',
@@ -499,11 +499,11 @@ const removeAvatar = () => {
     }
 }
 
-const handleClientChange = async (newClientId: number | null) => {
-    if (newClientId) {
+const handleOrganisationChange = async (newOrganisationId: number | null) => {
+    if (newOrganisationId) {
         const loadingTask = useLoadingTask('fetch-locations')
         await loadingTask.execute(async () => {
-            await fetchLocations(newClientId)
+            await fetchLocations(newOrganisationId)
         })
     }
 }
@@ -517,8 +517,8 @@ const loadData = async () => {
 
     const fullCustomer = props.fullCustomerData
 
-    selectedClientId.value = fullCustomer.clientId || DEFAULT_CLIENT_ID
-    await fetchLocations(fullCustomer.clientId)
+    selectedOrganisationId.value = fullCustomer.organisationId || DEFAULT_ORGANISATION_ID
+    await fetchLocations(fullCustomer.organisationId)
 
     if (fullCustomer.avatar) {
         avatarPreview.value = getFullImageUrl(fullCustomer.avatar, 'customers')
@@ -542,7 +542,7 @@ const loadData = async () => {
     }
 
     const customerData: UpdateCustomerFormData = {
-        clientId: fullCustomer.clientId || DEFAULT_CLIENT_ID,
+        organisationId: fullCustomer.organisationId || DEFAULT_ORGANISATION_ID,
         firstName: fullCustomer.firstName || '',
         lastName: fullCustomer.lastName || '',
         email: fullCustomer.email || '',
@@ -571,7 +571,7 @@ const loadData = async () => {
     resetForm({ values: customerData, errors: {}, touched: {} })
     await nextTick()
 
-    setFieldValue('clientId', customerData.clientId)
+    setFieldValue('organisationId', customerData.organisationId)
     setFieldValue('firstName', customerData.firstName)
     setFieldValue('lastName', customerData.lastName)
     setFieldValue('email', customerData.email)
@@ -597,8 +597,8 @@ const loadData = async () => {
 const submitForm = handleSubmit(async (formValues) => {
     if (!props.customer) return
 
-    if (hasClientError.value) {
-        error('Please select a client')
+    if (hasOrganisationError.value) {
+        error('Please select a organisation')
         return
     }
 
@@ -607,7 +607,7 @@ const submitForm = handleSubmit(async (formValues) => {
         const loadingTask = useLoadingTask('update-customer-basic')
         await loadingTask.execute(async () => {
             const updateData: Partial<UpdateCustomerFormData> = {
-                clientId: selectedClientId.value || formValues.clientId,
+                organisationId: selectedOrganisationId.value || formValues.organisationId,
                 firstName: formValues.firstName,
                 lastName: formValues.lastName,
                 email: formValues.email,

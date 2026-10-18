@@ -27,13 +27,15 @@
 </template>
 
 <script setup lang="ts">
+import { SYSTEM_ROLE } from '~/constants/access.constants'
+
 import { ref, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import { useQuickbooks } from '~/composables/useQuickbooks';
 
 definePageMeta({
     middleware: ['auth', 'role'],
-    roles: ['admin', 'sales_manager'],
+    roles: [SYSTEM_ROLE.PLATFORM_ADMIN],
     public: true, // Allow access during OAuth flow
 });
 

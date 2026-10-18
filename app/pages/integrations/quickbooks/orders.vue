@@ -96,7 +96,7 @@ const headers = [
 
 
 const handleSearch = (query: string) => {
-    // Optional: client-side filter can be implemented here if needed
+    // Optional: organisation-side filter can be implemented here if needed
 };
 
 const handleSelectionChange = (selected: unknown[]) => {

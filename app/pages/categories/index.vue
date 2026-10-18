@@ -4,11 +4,14 @@
             <v-col cols="12">
                 <div class="d-flex align-center justify-space-between mb-4">
                     <h1 class="text-h4">Categories</h1>
-                    <RoleGuard roles="admin">
-                        <v-btn color="primary" prepend-icon="mdi-plus" @click="openAddDialog">
-                            Create Category
-                        </v-btn>
-                    </RoleGuard>
+                    <v-btn
+                        v-if="access.can(CATEGORY_PERMISSIONS.WRITE)"
+                        color="primary"
+                        prepend-icon="mdi-plus"
+                        @click="openAddDialog"
+                    >
+                        Create Category
+                    </v-btn>
                 </div>
 
                 <v-card>
@@ -34,8 +37,8 @@
                             :headers="headers"
                             :items="filteredCategories"
                             :loading="loading"
-                            :selectable="canAccess('admin')"
-                            :show-select="canAccess('admin')"
+                            :selectable="access.can(CATEGORY_PERMISSIONS.WRITE)"
+                            :show-select="access.can(CATEGORY_PERMISSIONS.WRITE)"
                             item-value="id"
                             class="elevation-1"
                         >
@@ -59,7 +62,7 @@
                                     density="compact"
                                     hide-details
                                     color="primary"
-                                    @update:model-value="toggleActive(item.id, $event)"
+                                    @update:model-value="toggleActive(item.id, !!$event)"
                                 />
                             </template>
 
@@ -92,6 +95,7 @@
                             <template #item.syncActions="{ item }">
                                 <div class="d-flex gap-2 justify-space-between">
                                     <v-btn
+                                        v-if="access.can(CATEGORY_PERMISSIONS.WRITE)"
                                         size="small"
                                         color="primary"
                                         variant="tonal"
@@ -128,7 +132,7 @@
                                         Edit
                                     </v-btn>
                                     <v-btn
-                                        v-if="canAccess('admin')"
+                                        v-if="access.can(CATEGORY_PERMISSIONS.DELETE)"
                                         size="small"
                                         color="error"
                                         variant="text"
@@ -175,11 +179,11 @@
 import { ref, computed } from 'vue'
 import { useNuxtApp, useRoute } from '#app'
 import { useCategory } from '~/composables/useCategory'
-import { useRole } from '~/composables/useRole'
+import { useAccessStore } from '~/stores/access.store'
+import { CATEGORY_PERMISSIONS } from '~/components/categories/category.permissions'
 import { useQuickbooks } from '~/composables/useQuickbooks'
 import { useToast } from '~/composables/useToast'
 import { CATEGORY_MESSAGES, INTEGRATION_MESSAGES } from '~/constants/messages.constants'
-import RoleGuard from '~/components/guards/RoleGuard.vue'
 import { defineAsyncComponent } from 'vue'
 
 // Lazy load dialog components - only loaded when needed
@@ -196,7 +200,8 @@ import type { Category } from '~/types/category.types'
 import { getFullImageUrl } from '~/utils/image.util'
 
 definePageMeta({
-    middleware: ['auth'],
+    middleware: ['auth', 'permission'],
+    access: { permission: CATEGORY_PERMISSIONS.READ },
 })
 
 const nuxtApp = useNuxtApp()
@@ -206,7 +211,7 @@ const categoryApi =
     nuxtApp.$categoryApi as import('~/services/api/wrappers/category.api').CategoryApiService
 
 const { categories, loading, fetchCategories, deleteCategory } = useCategory()
-const { canAccess } = useRole()
+const access = useAccessStore()
 const { successFromResponse, errorFromError, success, error, warning, info } = useToast()
 const { syncCategoryToQB } = useQuickbooks()
 
