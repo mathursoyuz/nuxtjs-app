@@ -10,9 +10,9 @@
                             <v-row>
                                 <v-col cols="12" md="6">
                                     <v-select
-                                        v-model="formData.clientId"
-                                        label="Client"
-                                        :items="clientOptions"
+                                        v-model="formData.organisationId"
+                                        label="Organisation"
+                                        :items="organisationOptions"
                                         :rules="[rules.required]"
                                     />
                                 </v-col>
@@ -99,26 +99,28 @@
 </template>
 
 <script setup lang="ts">
+import { LOCATION_PERMISSIONS } from '~/components/locations/location.permissions'
+
 import { ref, onMounted, computed } from 'vue';
 import { useLocation } from '~/composables/useLocation';
-import { useClient } from '~/composables/useClient';
+import { useOrganisation } from '~/composables/useOrganisation';
 import FormField from '~/components/forms/FormField.vue';
 import { createLocationSchema } from '~/schemas/location.schema';
 import type { CreateLocationFormData } from '~/schemas/location.schema';
 
 definePageMeta({
-    middleware: ['auth', 'role'],
-    roles: ['admin', 'sales_manager'],
+    middleware: ['auth', 'permission'],
+    access: { permission: LOCATION_PERMISSIONS.WRITE },
 });
 
 const { createLocation, loading } = useLocation();
-const { clients, fetchClients } = useClient();
+const { organisations, fetchOrganisations } = useOrganisation();
 
 const formRef = ref();
 const valid = ref(false);
 
 const formData = ref<CreateLocationFormData>({
-    clientId: 0,
+    organisationId: 0,
     name: '',
     address: undefined,
     city: undefined,
@@ -131,8 +133,8 @@ const formData = ref<CreateLocationFormData>({
     isActive: true,
 });
 
-const clientOptions = computed(() => {
-    return clients.value.map((c) => ({
+const organisationOptions = computed(() => {
+    return organisations.value.map((c) => ({
         title: c.name,
         value: c.id,
     }));
@@ -148,7 +150,7 @@ const handleSubmit = async () => {
     try {
         const submitData = {
             ...formData.value,
-            clientId: Number(formData.value.clientId),
+            organisationId: Number(formData.value.organisationId),
         };
         createLocationSchema.parse(submitData);
         await createLocation(submitData);
@@ -159,7 +161,7 @@ const handleSubmit = async () => {
 };
 
 onMounted(async () => {
-    await fetchClients();
+    await fetchOrganisations();
 });
 </script>
 

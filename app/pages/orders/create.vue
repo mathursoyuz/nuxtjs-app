@@ -1,340 +1,364 @@
 <template>
     <v-container fluid>
-        <div class="d-flex align-center justify-space-between mb-4">
+        <div class="d-flex align-center justify-space-between flex-wrap ga-3 mb-4">
             <div>
                 <h1 class="text-h4">Create customer order</h1>
                 <div class="text-body-2 text-medium-emphasis">
-                    Sell the client’s white-label variants from a client inventory location.
+                    <span v-if="selectedCustomer">
+                        Organisation:
+                        <strong>{{ organisationName }}</strong>
+                    </span>
+                    <span v-else>Search for a customer to begin.</span>
                 </div>
             </div>
             <v-btn variant="text" prepend-icon="mdi-arrow-left" to="/orders">Back to orders</v-btn>
         </div>
 
-        <v-form @submit.prevent="submitOrder">
-            <v-card class="mb-4">
-                <v-card-title>Customer and fulfilment</v-card-title>
-                <v-card-text>
-                    <v-row>
-                        <v-col cols="12" md="6">
-                            <v-select
-                                v-model="clientId"
-                                :items="clientOptions"
-                                label="Client"
-                                variant="outlined"
-                                :loading="loadingClients"
-                                @update:model-value="loadClientContext"
-                            />
-                        </v-col>
-                        <v-col cols="12" md="6">
-                            <v-select
-                                v-model="customerId"
-                                :items="customerOptions"
-                                label="Customer"
-                                variant="outlined"
-                                :disabled="!clientId"
-                                :loading="loadingContext"
-                            />
-                        </v-col>
-                        <v-col cols="12" md="6">
-                            <v-select
-                                v-model="shippingAddressId"
-                                :items="shippingOptions"
-                                label="Shipping address"
-                                variant="outlined"
-                                clearable
-                                hint="Leave empty to use the customer's primary shipping address"
-                                persistent-hint
-                                :disabled="!customerId"
-                            />
-                        </v-col>
-                        <v-col cols="12" md="6">
-                            <v-select
-                                v-model="locationId"
-                                :items="locationOptions"
-                                label="Inventory location"
-                                variant="outlined"
-                                :disabled="!clientId"
-                                @update:model-value="clearSelectedProducts"
-                            />
-                        </v-col>
-                        <v-col cols="12" md="6">
-                            <v-text-field
-                                v-model="shippingMethod"
-                                label="Shipping method"
-                                variant="outlined"
-                            />
-                        </v-col>
-                        <v-col cols="12" md="6">
-                            <v-textarea v-model="notes" label="Notes" rows="2" variant="outlined" />
-                        </v-col>
-                    </v-row>
-                </v-card-text>
-            </v-card>
+        <v-card>
+            <v-tabs v-model="tab" grow>
+                <v-tab value="customer">1. Customer</v-tab>
+                <v-tab value="details" :disabled="!selectedCustomer">2. Billing & shipping</v-tab>
+                <v-tab value="products" :disabled="!detailsValid">3. Products</v-tab>
+                <v-tab value="review" :disabled="!productsValid">4. Order review</v-tab>
+            </v-tabs>
+            <v-divider />
 
-            <v-card>
-                <v-card-title>Client products</v-card-title>
-                <v-card-subtitle>
-                    Availability is the client-owned quantity at the selected location, not platform
-                    stock.
-                </v-card-subtitle>
-                <v-card-text>
-                    <v-alert
-                        v-if="clientId && !locationId"
-                        type="info"
-                        variant="tonal"
-                        class="mb-4"
-                    >
-                        Select an inventory location to see sellable stock.
-                    </v-alert>
+            <v-card-text class="pa-5">
+                <v-window v-model="tab">
+                    <v-window-item value="customer">
+                        <CustomerSearchStep v-model="selectedCustomer" />
+                    </v-window-item>
 
-                    <v-data-table
-                        v-model="selectedVariantIds"
-                        :headers="headers"
-                        :items="sellableVariants"
-                        :loading="loadingContext"
-                        item-value="clientProductVariantId"
-                        show-select
-                    >
-                        <template #item.price="{ item }">{{ money(item.price) }}</template>
-                        <template #item.available="{ item }">
-                            <v-chip size="small" color="success" variant="tonal">
-                                {{ item.available }}
-                            </v-chip>
-                        </template>
-                        <template #item.quantity="{ item }">
-                            <v-text-field
-                                :model-value="quantities[item.clientProductVariantId] ?? 1"
-                                type="number"
-                                min="1"
-                                :max="item.available"
-                                density="compact"
-                                variant="outlined"
-                                hide-details
-                                style="max-width: 110px"
-                                @update:model-value="
-                                    setQuantity(
-                                        item.clientProductVariantId,
-                                        Number($event),
-                                        item.available
-                                    )
-                                "
-                            />
-                        </template>
-                        <template #no-data>
-                            <div class="pa-8 text-center text-medium-emphasis">
-                                No client products have available inventory at this location.
-                            </div>
-                        </template>
-                    </v-data-table>
+                    <v-window-item value="details">
+                        <OrderAddressStep
+                            v-if="selectedCustomer"
+                            v-model:billing="billingAddress"
+                            v-model:shipping="shippingAddress"
+                            @select-shipping="showShippingDialog = true"
+                        />
+                    </v-window-item>
 
-                    <v-divider class="my-4" />
-                    <div class="d-flex flex-wrap align-center justify-space-between ga-3">
-                        <div>
-                            <div class="text-caption text-medium-emphasis">Order total</div>
-                            <div class="text-h5">{{ money(orderTotal) }}</div>
-                        </div>
-                        <div class="d-flex ga-2">
-                            <v-btn variant="outlined" to="/orders">Cancel</v-btn>
-                            <v-btn
-                                color="primary"
-                                type="submit"
-                                prepend-icon="mdi-credit-card"
-                                :loading="submitting"
-                                :disabled="!canSubmit"
-                            >
-                                Create and charge
-                            </v-btn>
-                        </div>
-                    </div>
-                </v-card-text>
-            </v-card>
-        </v-form>
+                    <v-window-item value="products">
+                        <OrderProductStep
+                            v-if="selectedCustomer"
+                            :organisation-id="selectedCustomer.organisationId"
+                            v-model="lines"
+                        />
+                    </v-window-item>
+
+                    <v-window-item value="review">
+                        <OrderReviewStep
+                            v-if="selectedCustomer"
+                            :lines="lines"
+                            :billing="billingAddress"
+                            :shipping="shippingAddress"
+                            v-model:notes="notes"
+                            :cards="cards"
+                            :selected-card-id="selectedCardId"
+                            :loading-cards="loadingCards"
+                            @update:selected-card-id="selectedCardId = $event"
+                            @add-card="showCardDialog = true"
+                            @change-shipping="showShippingDialog = true"
+                        />
+                    </v-window-item>
+                </v-window>
+            </v-card-text>
+
+            <v-divider />
+            <v-card-actions class="pa-4">
+                <v-btn
+                    v-if="tab !== 'customer'"
+                    variant="text"
+                    prepend-icon="mdi-arrow-left"
+                    @click="previousStep"
+                >
+                    Back
+                </v-btn>
+                <v-spacer />
+                <v-btn variant="outlined" to="/orders">Cancel</v-btn>
+                <v-btn
+                    v-if="tab !== 'review'"
+                    color="primary"
+                    append-icon="mdi-arrow-right"
+                    :disabled="!canContinue"
+                    @click="nextStep"
+                >
+                    Continue
+                </v-btn>
+                <v-btn
+                    v-else
+                    color="primary"
+                    prepend-icon="mdi-credit-card"
+                    :loading="submitting"
+                    :disabled="!canCharge"
+                    @click="submitOrder"
+                >
+                    Charge customer {{ money(subtotal) }}
+                </v-btn>
+            </v-card-actions>
+        </v-card>
+
+        <OrderShippingAddressDialog
+            v-if="selectedCustomer"
+            v-model="showShippingDialog"
+            :customer="selectedCustomer"
+            :selected-address-id="shippingAddressId"
+            @select="selectShippingAddress"
+            @manage="openShippingManagement"
+        />
+
+        <ManageShippingAddressesDialog
+            v-if="selectedCustomer && showManageShippingDialog"
+            v-model="showManageShippingDialog"
+            :customer="selectedCustomer"
+            :organisation-id="selectedCustomer.organisationId"
+            @submit="refreshCustomerShipping"
+        />
+
+        <OrderAddCreditCardDialog
+            v-if="selectedCustomer && showCardDialog"
+            v-model="showCardDialog"
+            :customer="selectedCustomer"
+            @added="handleCardAdded"
+        />
     </v-container>
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
-import { useNuxtApp } from '#app'
+import { computed, ref, watch } from 'vue'
+import { useNuxtApp, useRoute } from '#app'
+import CustomerSearchStep from '~/components/orders/CustomerSearchStep.vue'
+import OrderAddressStep from '~/components/orders/OrderAddressStep.vue'
+import OrderProductStep from '~/components/orders/OrderProductStep.vue'
+import OrderReviewStep from '~/components/orders/OrderReviewStep.vue'
+import OrderBillingAddressDialog from '~/components/orders/OrderBillingAddressDialog.vue'
+import OrderShippingAddressDialog from '~/components/orders/OrderShippingAddressDialog.vue'
+import OrderAddCreditCardDialog from '~/components/orders/OrderAddCreditCardDialog.vue'
+import ManageShippingAddressesDialog from '~/components/customers/ManageShippingAddressesDialog.vue'
+import { useAccessStore } from '~/stores/access.store'
 import { useToast } from '~/composables/useToast'
-import type { ClientProduct } from '~/types/client-product.types'
-import type { Client } from '~/types/client.types'
-import type { Location } from '~/types/location.types'
 import type { Customer } from '~/services/api/wrappers/customer.api'
+import type { CustomerCreditCard } from '~/services/api/wrappers/customer-credit-card.api'
+import type { CustomerOrderAddress, CustomerOrderDraftLine } from '~/types/order.types'
+import { CUSTOMER_ORDER_PERMISSIONS } from '~/components/orders/order.permissions'
 
-definePageMeta({ middleware: ['auth'] })
+definePageMeta({
+    middleware: ['auth', 'permission'],
+    access: { permission: CUSTOMER_ORDER_PERMISSIONS.WRITE, allowAnyOrganisation: true },
+})
 
-interface SellableVariant {
-    clientProductVariantId: number
-    name: string
-    sku: string
-    price: number
-    available: number
-}
+type WizardTab = 'customer' | 'details' | 'products' | 'review'
 
 const nuxtApp = useNuxtApp()
-const clientApi =
-    nuxtApp.$clientApi as import('~/services/api/wrappers/client.api').ClientApiService
+const route = useRoute()
+const access = useAccessStore()
 const customerApi =
     nuxtApp.$customerApi as import('~/services/api/wrappers/customer.api').CustomerApiService
-const locationApi =
-    nuxtApp.$locationApi as import('~/services/api/wrappers/location.api').LocationApiService
-const clientProductApi =
-    nuxtApp.$clientProductApi as import('~/services/api/wrappers/client-product.api').ClientProductApiService
+const cardApi =
+    nuxtApp.$customerCreditCardApi as import('~/services/api/wrappers/customer-credit-card.api').CustomerCreditCardApiService
 const orderApi = nuxtApp.$orderApi as import('~/services/api/wrappers/order.api').OrderApiService
 const { successFromResponse, errorFromError, error: showError } = useToast()
 
-const clients = ref<Client[]>([])
-const customers = ref<Customer[]>([])
-const locations = ref<Location[]>([])
-const clientProducts = ref<ClientProduct[]>([])
-const clientId = ref<number | null>(null)
-const customerId = ref<number | null>(null)
+const emptyAddress = (): CustomerOrderAddress => ({
+    firstName: '',
+    lastName: '',
+    company: '',
+    address: '',
+    city: '',
+    stateCode: '',
+    postalCode: '',
+    countryCode: '',
+    phone: '',
+    email: '',
+})
+
+const tab = ref<WizardTab>('customer')
+const selectedCustomer = ref<Customer | null>(null)
+const billingAddress = ref<CustomerOrderAddress>(emptyAddress())
+const shippingAddress = ref<CustomerOrderAddress>(emptyAddress())
 const shippingAddressId = ref<number | null>(null)
-const locationId = ref<number | null>(null)
 const shippingMethod = ref('Standard')
 const notes = ref('')
-const selectedVariantIds = ref<number[]>([])
-const quantities = reactive<Record<number, number>>({})
-const loadingClients = ref(false)
-const loadingContext = ref(false)
+const lines = ref<CustomerOrderDraftLine[]>([])
+const cards = ref<CustomerCreditCard[]>([])
+const selectedCardId = ref<number | null>(null)
+const loadingCards = ref(false)
 const submitting = ref(false)
+const showBillingDialog = ref(false)
+const showShippingDialog = ref(false)
+const showManageShippingDialog = ref(false)
+const showCardDialog = ref(false)
 
-const headers = [
-    { title: 'Product', key: 'name' },
-    { title: 'SKU', key: 'sku' },
-    { title: 'Price', key: 'price' },
-    { title: 'Available here', key: 'available' },
-    { title: 'Quantity', key: 'quantity', sortable: false },
-]
-
-const clientOptions = computed(() =>
-    clients.value
-        .filter((client) => client.isActive)
-        .map((client) => ({ title: client.name, value: client.id }))
-)
-const customerOptions = computed(() =>
-    customers.value
-        .filter((customer) => customer.isActive)
-        .map((customer) => ({
-            title: `${customer.firstName} ${customer.lastName} — ${customer.email}`,
-            value: customer.id,
-        }))
-)
-const selectedCustomer = computed(() =>
-    customers.value.find((customer) => customer.id === customerId.value)
-)
-const shippingOptions = computed(() =>
-    (selectedCustomer.value?.shippingAddresses ?? [])
-        .filter((address) => address.isActive)
-        .map((address) => ({
-            title: `${address.firstName} ${address.lastName}, ${address.address}, ${address.city}`,
-            value: address.id,
-        }))
-)
-const locationOptions = computed(() =>
-    locations.value
-        .filter((location) => location.isActive)
-        .map((location) => ({ title: location.name, value: location.id }))
-)
-const sellableVariants = computed<SellableVariant[]>(() => {
-    if (!locationId.value) return []
-    return clientProducts.value.flatMap((product) =>
-        product.variants
-            .filter((variant) => variant.isActive && !variant.isDeleted)
-            .map((variant) => {
-                const inventory = variant.inventory.find(
-                    (balance) => balance.locationId === locationId.value
-                )
-                return {
-                    clientProductVariantId: variant.id,
-                    name: product.name,
-                    sku: variant.sku,
-                    price: variant.price,
-                    available: inventory?.available ?? 0,
-                }
-            })
-            .filter((variant) => variant.available > 0)
-    )
-})
-const selectedVariants = computed(() =>
-    sellableVariants.value.filter((variant) =>
-        selectedVariantIds.value.includes(variant.clientProductVariantId)
-    )
-)
-const orderTotal = computed(() =>
-    selectedVariants.value.reduce(
-        (total, variant) =>
-            total + variant.price * (quantities[variant.clientProductVariantId] ?? 1),
-        0
-    )
-)
-const canSubmit = computed(
+const organisationName = computed(
     () =>
-        Boolean(clientId.value && customerId.value && locationId.value) &&
-        shippingMethod.value.trim().length > 0 &&
-        selectedVariants.value.length > 0 &&
-        selectedVariants.value.every((variant) => {
-            const quantity = quantities[variant.clientProductVariantId] ?? 1
-            return quantity >= 1 && quantity <= variant.available
-        })
+        access.organisations.find((organisation) => organisation.id === selectedCustomer.value?.organisationId)?.name ??
+        `Organisation #${selectedCustomer.value?.organisationId ?? ''}`
 )
+const requiredAddressFields: Array<keyof CustomerOrderAddress> = [
+    'firstName',
+    'lastName',
+    'address',
+    'city',
+    'stateCode',
+    'postalCode',
+    'countryCode',
+    'phone',
+    'email',
+]
+const addressValid = (address: CustomerOrderAddress): boolean =>
+    requiredAddressFields.every((field) => address[field].trim().length > 0) &&
+    /^\S+@\S+\.\S+$/.test(address.email)
+const detailsValid = computed(
+    () =>
+        Boolean(selectedCustomer.value) &&
+        addressValid(billingAddress.value) &&
+        addressValid(shippingAddress.value) &&
+        shippingMethod.value.trim().length > 0
+)
+const productsValid = computed(
+    () =>
+        detailsValid.value &&
+        lines.value.length > 0 &&
+        lines.value.every(
+            (line) =>
+                Number.isInteger(line.quantity) &&
+                line.quantity > 0 &&
+                line.quantity <= line.available
+        )
+)
+const subtotal = computed(() =>
+    lines.value.reduce((total, line) => total + line.unitPrice * line.quantity, 0)
+)
+const canCharge = computed(
+    () => productsValid.value && selectedCardId.value !== null && !submitting.value
+)
+const canContinue = computed(() => {
+    if (tab.value === 'customer') return Boolean(selectedCustomer.value)
+    if (tab.value === 'details') return detailsValid.value
+    if (tab.value === 'products') return productsValid.value
+    return false
+})
+
+function toBilling(customer: Customer): CustomerOrderAddress {
+    return {
+        firstName: customer.firstName,
+        lastName: customer.lastName,
+        company: customer.billing.company ?? '',
+        address: customer.billing.address,
+        city: customer.billing.city,
+        stateCode: customer.billing.stateCode,
+        postalCode: customer.billing.postalCode,
+        countryCode: customer.billing.countryCode,
+        phone: customer.phoneNumber,
+        email: customer.email,
+    }
+}
+
+function toPrimaryShipping(customer: Customer): CustomerOrderAddress {
+    return {
+        firstName: customer.shipping.firstName ?? customer.firstName,
+        lastName: customer.shipping.lastName ?? customer.lastName,
+        company: customer.shipping.company ?? '',
+        address: customer.shipping.address,
+        city: customer.shipping.city,
+        stateCode: customer.shipping.stateCode,
+        postalCode: customer.shipping.postalCode,
+        countryCode: customer.shipping.countryCode,
+        phone: customer.phoneNumber,
+        email: customer.email,
+    }
+}
 
 function money(value: number): string {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value)
 }
 
-function setQuantity(variantId: number, quantity: number, available: number): void {
-    quantities[variantId] = Math.max(
-        1,
-        Math.min(Number.isFinite(quantity) ? quantity : 1, available)
-    )
+function nextStep(): void {
+    if (!canContinue.value) return
+    const order: WizardTab[] = ['customer', 'details', 'products', 'review']
+    tab.value = order[Math.min(order.indexOf(tab.value) + 1, order.length - 1)] ?? 'review'
 }
 
-function clearSelectedProducts(): void {
-    selectedVariantIds.value = []
-    Object.keys(quantities).forEach((key) => delete quantities[Number(key)])
+function previousStep(): void {
+    const order: WizardTab[] = ['customer', 'details', 'products', 'review']
+    tab.value = order[Math.max(order.indexOf(tab.value) - 1, 0)] ?? 'customer'
 }
 
-async function loadClientContext(): Promise<void> {
-    customerId.value = null
-    shippingAddressId.value = null
-    locationId.value = null
-    customers.value = []
-    locations.value = []
-    clientProducts.value = []
-    clearSelectedProducts()
-    if (!clientId.value) return
+function selectShippingAddress(payload: {
+    id: number | null
+    address: CustomerOrderAddress
+}): void {
+    shippingAddressId.value = payload.id
+    shippingAddress.value = payload.address
+}
 
-    loadingContext.value = true
+function openShippingManagement(): void {
+    showShippingDialog.value = false
+    showManageShippingDialog.value = true
+}
+
+async function refreshCards(selectActive = false): Promise<void> {
+    const customer = selectedCustomer.value
+    if (!customer) return
+    loadingCards.value = true
     try {
-        const [customerResponse, locationResponse, productResponse] = await Promise.all([
-            customerApi.getAllCustomers(clientId.value, 1, 1000),
-            locationApi.getAllLocations(clientId.value),
-            clientProductApi.getAllClientProducts(clientId.value),
-        ])
-        customers.value = customerResponse.data?.customers ?? []
-        locations.value = locationResponse.data ?? []
-        clientProducts.value = productResponse.data ?? []
+        const response = await cardApi.refreshCustomerCreditCards(customer.id)
+        cards.value = response.data ?? []
+        const selectedStillExists = cards.value.some((card) => card.id === selectedCardId.value)
+        if (selectActive || !selectedStillExists) {
+            selectedCardId.value =
+                cards.value.find((card) => card.isActive)?.id ?? cards.value[0]?.id ?? null
+        }
     } catch (error) {
-        errorFromError(error, 'Failed to load client order data')
+        errorFromError(error, 'Failed to load customer cards')
     } finally {
-        loadingContext.value = false
+        loadingCards.value = false
+    }
+}
+
+async function handleCardAdded(): Promise<void> {
+    const customer = selectedCustomer.value
+    if (!customer) return
+    try {
+        const response = await customerApi.getCustomerById(customer.id)
+        if (response.data) {
+            selectedCustomer.value = response.data
+            billingAddress.value = toBilling(response.data)
+        }
+    } catch (error) {
+        errorFromError(error, 'Card was added, but customer billing could not be refreshed')
+    }
+    await refreshCards(true)
+}
+
+async function refreshCustomerShipping(): Promise<void> {
+    const customer = selectedCustomer.value
+    if (!customer) return
+    try {
+        const response = await customerApi.getCustomerById(customer.id)
+        if (response.data) selectedCustomer.value = response.data
+    } catch (error) {
+        errorFromError(error, 'Failed to refresh shipping addresses')
     }
 }
 
 async function submitOrder(): Promise<void> {
-    if (!canSubmit.value || !clientId.value || !customerId.value || !locationId.value) return
+    const customer = selectedCustomer.value
+    if (!customer || !canCharge.value || selectedCardId.value === null) return
     submitting.value = true
     try {
-        const response = await orderApi.createCustomerOrder(clientId.value, {
-            customerId: customerId.value,
+        const response = await orderApi.createCustomerOrder(customer.organisationId, {
+            customerId: customer.id,
+            creditCardId: selectedCardId.value,
             ...(shippingAddressId.value ? { shippingAddressId: shippingAddressId.value } : {}),
+            billingAddress: { ...billingAddress.value },
+            shippingAddress: { ...shippingAddress.value },
             shippingMethod: shippingMethod.value.trim(),
             ...(notes.value.trim() ? { notes: notes.value.trim() } : {}),
-            items: selectedVariants.value.map((variant) => ({
-                clientProductVariantId: variant.clientProductVariantId,
-                inventoryLocationId: locationId.value as number,
-                quantity: quantities[variant.clientProductVariantId] ?? 1,
+            items: lines.value.map((line) => ({
+                organisationProductVariantId: line.organisationProductVariantId,
+                inventoryLocationId: line.inventoryLocationId,
+                quantity: line.quantity,
             })),
             idempotencyKey: `customer-order-${crypto.randomUUID()}`,
         })
@@ -351,17 +375,40 @@ async function submitOrder(): Promise<void> {
     }
 }
 
-watch(customerId, () => {
+watch(selectedCustomer, async (customer, previous) => {
+    if (!customer) {
+        billingAddress.value = emptyAddress()
+        shippingAddress.value = emptyAddress()
+        shippingAddressId.value = null
+        lines.value = []
+        cards.value = []
+        selectedCardId.value = null
+        tab.value = 'customer'
+        return
+    }
+    if (previous?.id === customer.id) return
+    billingAddress.value = toBilling(customer)
+    shippingAddress.value = toPrimaryShipping(customer)
     shippingAddressId.value = null
+    lines.value = []
+    cards.value = []
+    selectedCardId.value = null
+    await refreshCards()
+    tab.value = 'details'
 })
 
-loadingClients.value = true
-try {
-    const response = await clientApi.getAllClients()
-    clients.value = response.data ?? []
-} catch (error) {
-    errorFromError(error, 'Failed to load clients')
-} finally {
-    loadingClients.value = false
+watch(showManageShippingDialog, (open, wasOpen) => {
+    if (wasOpen && !open && selectedCustomer.value) showShippingDialog.value = true
+})
+
+await access.ensureReady()
+const requestedCustomerId = Number(route.query.customerId)
+if (Number.isSafeInteger(requestedCustomerId) && requestedCustomerId > 0) {
+    try {
+        const response = await customerApi.getCustomerById(requestedCustomerId)
+        selectedCustomer.value = response.data ?? null
+    } catch (error) {
+        errorFromError(error, 'Failed to load the selected customer')
+    }
 }
 </script>

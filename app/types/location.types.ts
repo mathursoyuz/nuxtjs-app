@@ -1,6 +1,6 @@
 export interface Location {
     id: number;
-    clientId: number;
+    organisationId: number;
     name: string;
     address: string | null;
     city: string | null;
@@ -21,7 +21,7 @@ export interface Location {
 }
 
 export interface CreateLocationDTO {
-    clientId: number;
+    organisationId: number;
     name: string;
     address?: string;
     city?: string;

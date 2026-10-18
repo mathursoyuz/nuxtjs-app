@@ -136,7 +136,7 @@ export class SquareImportApiService {
         cursor?: string;
         beginTime?: string;
         endTime?: string;
-        defaultClientId?: number;
+        defaultOrganisationId?: number;
     }): Promise<ApiResponse<BatchSyncResponse>> {
         const queryParams: Record<string, string> = {
             entity: params.entity,
@@ -145,7 +145,7 @@ export class SquareImportApiService {
         if (params.cursor) queryParams.cursor = params.cursor;
         if (params.beginTime) queryParams.beginTime = params.beginTime;
         if (params.endTime) queryParams.endTime = params.endTime;
-        if (params.defaultClientId) queryParams.defaultClientId = params.defaultClientId.toString();
+        if (params.defaultOrganisationId) queryParams.defaultOrganisationId = params.defaultOrganisationId.toString();
 
         return this.cachedApi.post<BatchSyncResponse>(
             '/square-import/batch/sync',
@@ -194,9 +194,9 @@ export class SquareImportApiService {
         );
     }
 
-    async importCustomers(customers?: SquareCustomer[], clientId?: number): Promise<ApiResponse<{ data: SquareCustomer[]; result: SyncResult }>> {
+    async importCustomers(customers?: SquareCustomer[], organisationId?: number): Promise<ApiResponse<{ data: SquareCustomer[]; result: SyncResult }>> {
         const queryParams: Record<string, string> = {};
-        if (clientId) queryParams.clientId = clientId.toString();
+        if (organisationId) queryParams.organisationId = organisationId.toString();
 
         return this.cachedApi.post<{ data: SquareCustomer[]; result: SyncResult }>(
             '/square-import/customers/import',
@@ -206,9 +206,9 @@ export class SquareImportApiService {
         );
     }
 
-    async fetchAndImportCustomers(clientId?: number): Promise<ApiResponse<{ data: SquareCustomer[]; result: SyncResult }>> {
+    async fetchAndImportCustomers(organisationId?: number): Promise<ApiResponse<{ data: SquareCustomer[]; result: SyncResult }>> {
         const queryParams: Record<string, string> = {};
-        if (clientId) queryParams.clientId = clientId.toString();
+        if (organisationId) queryParams.organisationId = organisationId.toString();
 
         return this.cachedApi.post<{ data: SquareCustomer[]; result: SyncResult }>(
             '/square-import/customers/fetch-and-import',
@@ -241,14 +241,14 @@ export class SquareImportApiService {
         );
     }
 
-    async fetchAndStoreCustomersWithCursor(cursor?: string, clientId?: number): Promise<ApiResponse<{
+    async fetchAndStoreCustomersWithCursor(cursor?: string, organisationId?: number): Promise<ApiResponse<{
         result: SyncResult;
         cursor?: string;
         hasMore: boolean;
     }>> {
         const queryParams: Record<string, string> = {};
         if (cursor) queryParams.cursor = cursor;
-        if (clientId) queryParams.clientId = clientId.toString();
+        if (organisationId) queryParams.organisationId = organisationId.toString();
 
         return this.cachedApi.post<{
             result: SyncResult;
@@ -262,9 +262,9 @@ export class SquareImportApiService {
         );
     }
 
-    async storeSelectedCustomers(customers: SquareCustomer[], clientId?: number): Promise<ApiResponse<{ data: SquareCustomer[]; result: SyncResult }>> {
+    async storeSelectedCustomers(customers: SquareCustomer[], organisationId?: number): Promise<ApiResponse<{ data: SquareCustomer[]; result: SyncResult }>> {
         const queryParams: Record<string, string> = {};
-        if (clientId) queryParams.clientId = clientId.toString();
+        if (organisationId) queryParams.organisationId = organisationId.toString();
 
         return this.cachedApi.post<{ data: SquareCustomer[]; result: SyncResult }>(
             '/square-import/customers/store-selected',
@@ -275,7 +275,7 @@ export class SquareImportApiService {
     }
 
     // Inventory
-    async getAllInventory(clientId: number): Promise<ApiResponse<Array<{
+    async getAllInventory(organisationId: number): Promise<ApiResponse<Array<{
         id: number;
         productId: number;
         squareVariationId: string;
@@ -349,9 +349,9 @@ export class SquareImportApiService {
                 squareLocationId: string | null;
             } | null;
         }>>(
-            `/clients/${clientId}/square-import/inventory`,
+            `/organisations/${organisationId}/square-import/inventory`,
             undefined,
-            `square-import:inventory:${clientId}`,
+            `square-import:inventory:${organisationId}`,
             0
         );
     }

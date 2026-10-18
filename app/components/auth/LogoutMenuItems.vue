@@ -2,19 +2,19 @@
     <v-list-item prepend-icon="mdi-logout" title="Log out" @click="logoutCurrentTab" />
     <v-list-item
         prepend-icon="mdi-logout-variant"
-        title="Log out all tabs"
+        title="Log out everywhere"
         @click="requestLogoutAll"
     />
 </template>
 
 <script setup lang="ts">
-import { useAuthStore } from '~/stores/auth.store'
+import { useSessionStore } from '~/stores/session.store'
 import { useLogoutConfirmation } from '~/composables/useLogoutConfirmation'
 
-const authStore = useAuthStore()
+const session = useSessionStore()
 const { requestLogoutAll } = useLogoutConfirmation()
 
 const logoutCurrentTab = (): void => {
-    void authStore.logout()
+    void session.logout()
 }
 </script>

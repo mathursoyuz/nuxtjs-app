@@ -3,16 +3,18 @@ const LOGOUT_ALL_STORAGE_KEY = 'winerysupport:logout-all'
 
 interface AuthSyncMessage {
     type: 'logout-all'
+    userId: number
     nonce: string
 }
 
-const createLogoutMessage = (): AuthSyncMessage => ({
+const createLogoutMessage = (userId: number): AuthSyncMessage => ({
     type: 'logout-all',
+    userId,
     nonce: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
 })
 
-export const publishLogoutAll = (): void => {
-    const message = createLogoutMessage()
+export const publishLogoutAll = (userId: number): void => {
+    const message = createLogoutMessage(userId)
 
     if ('BroadcastChannel' in window) {
         const channel = new BroadcastChannel(LOGOUT_ALL_CHANNEL)
@@ -26,12 +28,12 @@ export const publishLogoutAll = (): void => {
     localStorage.removeItem(LOGOUT_ALL_STORAGE_KEY)
 }
 
-export const subscribeToLogoutAll = (callback: () => void): (() => void) => {
+export const subscribeToLogoutAll = (callback: (userId: number) => void): (() => void) => {
     const channel = 'BroadcastChannel' in window ? new BroadcastChannel(LOGOUT_ALL_CHANNEL) : null
 
     const handleChannelMessage = (event: MessageEvent<AuthSyncMessage>): void => {
         if (event.data?.type === 'logout-all') {
-            callback()
+            if (Number.isSafeInteger(event.data.userId)) callback(event.data.userId)
         }
     }
 
@@ -43,7 +45,7 @@ export const subscribeToLogoutAll = (callback: () => void): (() => void) => {
         try {
             const message = JSON.parse(event.newValue) as AuthSyncMessage
             if (message.type === 'logout-all') {
-                callback()
+                if (Number.isSafeInteger(message.userId)) callback(message.userId)
             }
         } catch {
             // Ignore malformed cross-tab messages.

@@ -22,7 +22,7 @@ export function getPlaceholderImage(): string {
 /**
  * Returns the full image URL with base URL prepended, or placeholder if image is not available
  * @param imagePath - The image filename/path (e.g., "logo.png", "avatar.jpg")
- * @param uploadDir - The upload directory (e.g., "clients", "customers", "products", "categories")
+ * @param uploadDir - The upload directory (e.g., "organisations", "customers", "products", "categories")
  * @returns The full image URL or placeholder
  */
 export function getFullImageUrl(

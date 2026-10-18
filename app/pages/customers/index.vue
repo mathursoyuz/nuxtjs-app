@@ -5,25 +5,28 @@
                 <div class="d-flex align-center justify-space-between mb-4">
                     <h1 class="text-h4">Customers</h1>
                     <div class="d-flex align-center gap-2">
-                        <RoleGuard roles="admin">
-                            <v-btn color="primary" prepend-icon="mdi-plus" @click="openAddDialog()">
-                                Create Customer
-                            </v-btn>
-                        </RoleGuard>
+                        <v-btn
+                            v-if="canWriteSelectedOrganisation"
+                            color="primary"
+                            prepend-icon="mdi-plus"
+                            @click="openAddDialog()"
+                        >
+                            Create Customer
+                        </v-btn>
                     </div>
                 </div>
 
                 <v-card>
                     <v-card-text>
                         <v-select
-                            v-model="selectedClientId"
-                            :items="clientOptions"
+                            v-model="selectedOrganisationId"
+                            :items="organisationOptions"
                             item-title="name"
                             item-value="id"
-                            label="Select Client"
+                            label="Select Organisation"
                             style="max-width: 250px"
                             density="compact"
-                            @update:model-value="handleClientChange"
+                            @update:model-value="handleOrganisationChange"
                         ></v-select>
                         <!-- Search -->
                         <div class="mb-4">
@@ -43,8 +46,8 @@
                             :headers="headers"
                             :items="customers"
                             :loading="loading"
-                            :selectable="canAccess('admin')"
-                            :show-select="canAccess('admin')"
+                            :selectable="canWriteSelectedOrganisation"
+                            :show-select="canWriteSelectedOrganisation"
                             :items-length="pagination?.total ?? 0"
                             :page="currentPage"
                             :items-per-page="itemsPerPage"
@@ -201,6 +204,7 @@
 
                             <template #item.isActive="{ item }">
                                 <v-switch
+                                    :disabled="!canWriteCustomer(item)"
                                     :model-value="item.isActive"
                                     density="compact"
                                     hide-details
@@ -212,6 +216,24 @@
                             <template #item.actions="{ item }">
                                 <div class="d-flex align-center gap-2 flex-wrap">
                                     <v-btn
+                                        v-if="canReadCustomerOrders(item)"
+                                        icon="mdi-receipt-text-clock"
+                                        size="small"
+                                        color="primary"
+                                        variant="text"
+                                        @click="handleOrders(item)"
+                                        title="View paid, pending and failed orders"
+                                    ></v-btn>
+                                    <v-btn
+                                        v-if="canCreateCustomerOrder(item)"
+                                        icon="mdi-cart-plus"
+                                        size="small"
+                                        color="primary"
+                                        variant="text"
+                                        @click="handlePurchase(item)"
+                                        title="Create customer order"
+                                    ></v-btn>
+                                    <v-btn
                                         icon="mdi-eye"
                                         size="small"
                                         color="primary"
@@ -220,6 +242,7 @@
                                         title="View Details"
                                     ></v-btn>
                                     <v-btn
+                                        v-if="canWriteCustomer(item)"
                                         icon="mdi-credit-card"
                                         size="small"
                                         color="primary"
@@ -228,6 +251,7 @@
                                         title="Add Credit Card"
                                     ></v-btn>
                                     <v-btn
+                                        v-if="canWriteCustomer(item)"
                                         icon="mdi-truck-delivery"
                                         size="small"
                                         color="primary"
@@ -236,6 +260,7 @@
                                         title="Manage Shipping Addresses"
                                     ></v-btn>
                                     <v-btn
+                                        v-if="canWriteCustomer(item)"
                                         icon="mdi-pencil"
                                         size="small"
                                         color="primary"
@@ -244,6 +269,7 @@
                                         title="Edit Customer"
                                     ></v-btn>
                                     <v-btn
+                                        v-if="canDeleteCustomer(item)"
                                         icon="mdi-delete"
                                         size="small"
                                         color="error"
@@ -263,8 +289,8 @@
         <AddCustomerDialog
             v-if="showAddDialog"
             v-model="showAddDialog"
-            :clients="clients"
-            :client-id="selectedClientId ?? 0"
+            :organisations="organisations"
+            :organisation-id="selectedOrganisationId ?? 0"
             @submit="handleCustomerCreated"
         />
 
@@ -273,8 +299,8 @@
             v-if="showEditDialog"
             v-model="showEditDialog"
             :customer="selectedCustomer"
-            :clients="clients"
-            :client-id="selectedCustomer?.clientId ?? selectedClientId ?? 0"
+            :organisations="organisations"
+            :organisation-id="selectedCustomer?.organisationId ?? selectedOrganisationId ?? 0"
             @submit="handleCustomerUpdated"
         />
 
@@ -283,7 +309,7 @@
             v-if="showAddCreditCardDialog"
             v-model="showAddCreditCardDialog"
             :customer="selectedCustomerForCreditCard"
-            :client-id="selectedCustomerForCreditCard?.clientId ?? selectedClientId ?? 0"
+            :organisation-id="selectedCustomerForCreditCard?.organisationId ?? selectedOrganisationId ?? 0"
             @submit="handleCreditCardAdded"
         />
 
@@ -292,7 +318,7 @@
             v-if="showManageShippingDialog"
             v-model="showManageShippingDialog"
             :customer="selectedCustomerForShipping"
-            :client-id="selectedCustomerForShipping?.clientId ?? selectedClientId ?? 0"
+            :organisation-id="selectedCustomerForShipping?.organisationId ?? selectedOrganisationId ?? 0"
             @submit="handleShippingAddressesUpdated"
         />
 
@@ -301,8 +327,14 @@
             v-if="showViewDialog"
             v-model="showViewDialog"
             :customer-id="selectedCustomerId"
-            :client-id="selectedCustomer?.clientId ?? selectedClientId ?? null"
+            :organisation-id="selectedCustomer?.organisationId ?? selectedOrganisationId ?? null"
             @edit="handleEditFromView"
+        />
+
+        <CustomerOrdersDialog
+            v-if="showOrdersDialog && selectedCustomerForOrders"
+            v-model="showOrdersDialog"
+            :customer="selectedCustomerForOrders"
         />
 
         <!-- Delete Confirmation Dialog -->
@@ -325,14 +357,15 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useCustomer } from '~/composables/useCustomer'
-import { useClient } from '~/composables/useClient'
-import { useRole } from '~/composables/useRole'
+import { useOrganisation } from '~/composables/useOrganisation'
+import { useAccessStore } from '~/stores/access.store'
+import { CUSTOMER_PERMISSIONS } from '~/components/customers/customer.permissions'
+import { CUSTOMER_ORDER_PERMISSIONS } from '~/components/orders/order.permissions'
 import { useLoadingTask } from '~/composables/useLoadingTask'
 import { useToast } from '~/composables/useToast'
 import { useApiMessage } from '~/composables/useApiMessage'
 import { CUSTOMER_MESSAGES } from '~/constants/messages.constants'
 import { defineAsyncComponent } from 'vue'
-import RoleGuard from '~/components/guards/RoleGuard.vue'
 import type { Customer } from '~/services/api/wrappers/customer.api'
 
 // Lazy load dialog components - only loaded when needed
@@ -351,13 +384,17 @@ const ManageShippingAddressesDialog = defineAsyncComponent(
 const ViewCustomerDialog = defineAsyncComponent(
     () => import('~/components/customers/ViewCustomerDialog.vue')
 )
+const CustomerOrdersDialog = defineAsyncComponent(
+    () => import('~/components/orders/CustomerOrdersDialog.vue')
+)
 const ConfirmDialog = defineAsyncComponent(() => import('~/components/dialogs/ConfirmDialog.vue'))
 
 definePageMeta({
-    middleware: ['auth'],
+    middleware: ['auth', 'permission'],
+    access: { permission: CUSTOMER_PERMISSIONS.READ, allowCrossOrganisation: true },
 })
 
-const { clients, fetchClients } = useClient()
+const { organisations, fetchOrganisations } = useOrganisation()
 const {
     customers,
     loading,
@@ -371,23 +408,36 @@ const {
     importCustomersFromSquare,
     syncCustomerToSquare,
 } = useCustomer()
-const { canAccess } = useRole()
+const access = useAccessStore()
+const canWriteSelectedOrganisation = computed(
+    () =>
+        selectedOrganisationId.value !== null &&
+        access.can(CUSTOMER_PERMISSIONS.WRITE, selectedOrganisationId.value)
+)
+const canWriteCustomer = (customer: Customer) =>
+    access.can(CUSTOMER_PERMISSIONS.WRITE, customer.organisationId)
+const canDeleteCustomer = (customer: Customer) =>
+    access.can(CUSTOMER_PERMISSIONS.DELETE, customer.organisationId)
+const canReadCustomerOrders = (customer: Customer) =>
+    access.can(CUSTOMER_ORDER_PERMISSIONS.READ, customer.organisationId)
+const canCreateCustomerOrder = (customer: Customer) =>
+    access.can(CUSTOMER_ORDER_PERMISSIONS.WRITE, customer.organisationId)
 const { successFromResponse, errorFromError, success } = useToast()
 const { getImportResultMessage } = useApiMessage()
 
-// No client is selected by default, so the first request includes every client.
-const selectedClientId = ref<number | null>(null)
+// No organisation is selected by default, so the first request includes every organisation.
+const selectedOrganisationId = ref<number | null>(null)
 
 // Pagination state
 const currentPage = ref(1)
 const itemsPerPage = ref(25)
 
-const clientOptions = computed(() => {
+const organisationOptions = computed(() => {
     const options = [
-        { id: null, name: 'All Clients' },
-        ...clients.value.map((client) => ({
-            id: client.id,
-            name: client.name,
+        { id: null, name: 'All Organisations' },
+        ...organisations.value.map((organisation) => ({
+            id: organisation.id,
+            name: organisation.name,
         })),
     ]
     return options
@@ -402,6 +452,8 @@ const selectedCustomer = ref<Customer | null>(null)
 const selectedCustomerId = ref<number | null>(null)
 const selectedCustomerForCreditCard = ref<Customer | null>(null)
 const selectedCustomerForShipping = ref<Customer | null>(null)
+const selectedCustomerForOrders = ref<Customer | null>(null)
+const showOrdersDialog = ref(false)
 
 const headers = [
     { title: 'Name', key: 'firstName', sortable: true },
@@ -519,6 +571,15 @@ const handleView = (item: Customer) => {
     showViewDialog.value = true
 }
 
+const handleOrders = (item: Customer) => {
+    selectedCustomerForOrders.value = item
+    showOrdersDialog.value = true
+}
+
+const handlePurchase = async (item: Customer) => {
+    await navigateTo({ path: '/orders/create', query: { customerId: String(item.id) } })
+}
+
 const handleEdit = async (item: Customer) => {
     const loadingTask = useLoadingTask('load-customer-for-edit')
     await loadingTask.execute(async () => {
@@ -528,7 +589,7 @@ const handleEdit = async (item: Customer) => {
     })
 }
 
-const handleEditFromView = (customerId: number, _clientId: number) => {
+const handleEditFromView = (customerId: number, _organisationId: number) => {
     showViewDialog.value = false
     const customer = customers.value.find((c) => c.id === customerId)
     if (customer) {
@@ -573,12 +634,12 @@ const handleToggleActive = async (customerId: number, isActive: boolean) => {
     }
 }
 
-const handleClientChange = async () => {
-    currentPage.value = 1 // Reset to first page on client change
+const handleOrganisationChange = async () => {
+    currentPage.value = 1 // Reset to first page on organisation change
     const loadingTask = useLoadingTask('fetch-customers')
     await loadingTask.execute(async () => {
         await fetchCustomers(
-            selectedClientId.value,
+            selectedOrganisationId.value,
             currentPage.value,
             itemsPerPage.value,
             searchQuery.value
@@ -591,7 +652,7 @@ const handlePageChange = async (page: number) => {
     const loadingTask = useLoadingTask('fetch-customers-page')
     await loadingTask.execute(async () => {
         await fetchCustomers(
-            selectedClientId.value,
+            selectedOrganisationId.value,
             currentPage.value,
             itemsPerPage.value,
             searchQuery.value
@@ -605,7 +666,7 @@ const handleItemsPerPageChange = async (limit: number) => {
     const loadingTask = useLoadingTask('fetch-customers-limit')
     await loadingTask.execute(async () => {
         await fetchCustomers(
-            selectedClientId.value,
+            selectedOrganisationId.value,
             currentPage.value,
             itemsPerPage.value,
             searchQuery.value
@@ -618,7 +679,7 @@ const refreshCustomers = async () => {
     const loadingTask = useLoadingTask('refresh-customers')
     await loadingTask.execute(async () => {
         await fetchCustomers(
-            selectedClientId.value,
+            selectedOrganisationId.value,
             currentPage.value,
             itemsPerPage.value,
             searchQuery.value
@@ -663,9 +724,9 @@ const handleShippingAddressesUpdated = async () => {
 
 await useAsyncData('customers-initial-data', async () => {
     await Promise.all([
-        fetchClients(),
+        fetchOrganisations(),
         fetchCustomers(
-            selectedClientId.value,
+            selectedOrganisationId.value,
             currentPage.value,
             itemsPerPage.value,
             searchQuery.value

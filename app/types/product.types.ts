@@ -1,3 +1,5 @@
+import type { InventoryDraftBalance } from '~/types/inventory.types'
+
 export type ProductStockStatus = 'in_stock' | 'low_stock' | 'out_of_stock'
 export type DerivedProductType = 'simple' | 'variable' | 'bundle'
 
@@ -25,7 +27,6 @@ export interface ProductVariant {
     price: number
     cog: number
     stockManaged: boolean
-    lowStockThreshold: number
     color: string
     size: string
     thumbnail: string | null
@@ -62,7 +63,6 @@ export interface Product {
     price: number
     cog: number
     stockManaged: boolean
-    lowStockThreshold: number
     type: DerivedProductType
     children: number[]
     squareVariationId: string | null
@@ -85,10 +85,10 @@ export interface ProductVariantInput {
     price: number
     cog: number
     stockManaged: boolean
-    lowStockThreshold: number
     color: string
     size: string
     attributes: Record<string, string>
+    inventory: InventoryDraftBalance[]
     isDefault: boolean
     isActive: boolean
     bundleComponents: BundleComponentInput[]

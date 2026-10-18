@@ -43,6 +43,7 @@
                 :items="items"
                 :loading="loading"
                 :items-per-page="itemsPerPage"
+                :hide-default-footer="hideDefaultFooter"
                 :items-per-page-options="itemsPerPageOptions"
                 :sort-by="sortBy"
                 :selectable="selectable"
@@ -55,16 +56,8 @@
                 @update:page="handlePageUpdate"
             >
                 <!-- Custom cell slots (only item.* slots) -->
-                <template
-                    v-for="(_, slot) in $slots"
-                    :key="slot"
-                    #[slot]="scope"
-                >
-                    <slot
-                        v-if="slot.startsWith('item.')"
-                        :name="slot"
-                        v-bind="scope || {}"
-                    />
+                <template v-for="(_, slot) in $slots" :key="slot" #[slot]="scope">
+                    <slot v-if="slot.startsWith('item.')" :name="slot" v-bind="scope || {}" />
                 </template>
 
                 <!-- Special slots that don't need scope -->
@@ -90,14 +83,14 @@
                     <div class="d-flex gap-2">
                         <slot name="item-actions" :item="item">
                             <v-btn
-                                v-if="canAccess('admin') || canAccess(['admin', 'sales_manager'])"
+                                v-if="canEdit"
                                 icon="mdi-pencil"
                                 size="small"
                                 variant="text"
                                 @click="$emit('edit', item)"
                             />
                             <v-btn
-                                v-if="canAccess('admin')"
+                                v-if="canDelete"
                                 icon="mdi-delete"
                                 size="small"
                                 variant="text"
@@ -118,44 +111,46 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
-import { useRole } from '~/composables/useRole';
+import { ref, computed, watch } from 'vue'
 
 interface DataTableHeader {
-    title: string;
-    key: string;
-    sortable?: boolean;
-    align?: 'start' | 'center' | 'end';
-    width?: string;
-    filterable?: boolean;
+    title: string
+    key: string
+    sortable?: boolean
+    align?: 'start' | 'center' | 'end'
+    width?: string
+    filterable?: boolean
 }
 
 interface Props {
-    headers: DataTableHeader[];
-    items: unknown[];
-    loading?: boolean;
-    title?: string;
-    searchable?: boolean;
-    searchLabel?: string;
-    selectable?: boolean;
-    showActions?: boolean;
-    itemsPerPage?: number;
-    itemsPerPageOptions?: number[];
-    showPaginationInfo?: boolean;
-    initialSortBy?: { key: string; order: 'asc' | 'desc' }[];
-    serverItemsLength?: number;
-    currentPage?: number;
-    itemValueKey?: string;
+    headers: DataTableHeader[]
+    items: any[]
+    loading?: boolean
+    title?: string
+    searchable?: boolean
+    searchLabel?: string
+    selectable?: boolean
+    showActions?: boolean
+    itemsPerPage?: number
+    hideDefaultFooter?: boolean
+    itemsPerPageOptions?: number[]
+    showPaginationInfo?: boolean
+    initialSortBy?: { key: string; order: 'asc' | 'desc' }[]
+    serverItemsLength?: number
+    currentPage?: number
+    itemValueKey?: string
+    canEdit?: boolean
+    canDelete?: boolean
 }
 
 interface Emits {
-    (e: 'search', value: string): void;
-    (e: 'edit', item: unknown): void;
-    (e: 'delete', item: unknown): void;
-    (e: 'page-change', page: number): void;
-    (e: 'items-per-page-change', itemsPerPage: number): void;
-    (e: 'sort-change', sortBy: { key: string; order: 'asc' | 'desc' }[]): void;
-    (e: 'selection-change', selected: unknown[]): void;
+    (e: 'search', value: string): void
+    (e: 'edit', item: any): void
+    (e: 'delete', item: any): void
+    (e: 'page-change', page: number): void
+    (e: 'items-per-page-change', itemsPerPage: number): void
+    (e: 'sort-change', sortBy: { key: string; order: 'asc' | 'desc' }[]): void
+    (e: 'selection-change', selected: unknown[]): void
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -165,58 +160,63 @@ const props = withDefaults(defineProps<Props>(), {
     selectable: false,
     showActions: true,
     itemsPerPage: 10,
+    hideDefaultFooter: false,
     itemsPerPageOptions: () => [10, 25, 50, 100],
     showPaginationInfo: true,
     initialSortBy: () => [],
     serverItemsLength: undefined,
     currentPage: 1,
     itemValueKey: 'id',
-});
+    canEdit: false,
+    canDelete: false,
+})
 
-const emit = defineEmits<Emits>();
+const emit = defineEmits<Emits>()
 
-const { canAccess } = useRole();
+const searchQuery = ref('')
+const selectedItems = ref<unknown[]>([])
+const sortBy = ref<{ key: string; order: 'asc' | 'desc' }[]>(props.initialSortBy)
 
-const searchQuery = ref('');
-const selectedItems = ref<unknown[]>([]);
-const sortBy = ref<{ key: string; order: 'asc' | 'desc' }[]>(props.initialSortBy);
-
-const totalItems = computed(() => props.serverItemsLength ?? props.items.length);
+const totalItems = computed(() => props.serverItemsLength ?? props.items.length)
 const startIndex = computed(() => {
     if (props.serverItemsLength) {
-        return ((props.currentPage ?? 1) - 1) * props.itemsPerPage + 1;
+        return ((props.currentPage ?? 1) - 1) * props.itemsPerPage + 1
     }
-    return 1;
-});
+    return 1
+})
 const endIndex = computed(() => {
     if (props.serverItemsLength) {
-        const end = (props.currentPage ?? 1) * props.itemsPerPage;
-        return Math.min(end, totalItems.value);
+        const end = (props.currentPage ?? 1) * props.itemsPerPage
+        return Math.min(end, totalItems.value)
     }
-    return totalItems.value;
-});
+    return totalItems.value
+})
 
 const handleSearch = (value: string | null) => {
-    emit('search', value || '');
-};
+    emit('search', value || '')
+}
 
-const handleOptionsUpdate = (options: { page?: number; itemsPerPage?: number; sortBy?: { key: string; order: 'asc' | 'desc' }[] }) => {
+const handleOptionsUpdate = (options: {
+    page?: number
+    itemsPerPage?: number
+    sortBy?: { key: string; order: 'asc' | 'desc' }[]
+}) => {
     if (options.sortBy) {
-        sortBy.value = options.sortBy;
-        emit('sort-change', options.sortBy);
+        sortBy.value = options.sortBy
+        emit('sort-change', options.sortBy)
     }
     if (options.itemsPerPage !== undefined) {
-        emit('items-per-page-change', options.itemsPerPage);
+        emit('items-per-page-change', options.itemsPerPage)
     }
-};
+}
 
 const handlePageUpdate = (page: number) => {
-    emit('page-change', page);
-};
+    emit('page-change', page)
+}
 
 watch(selectedItems, (newSelection) => {
-    emit('selection-change', newSelection);
-});
+    emit('selection-change', newSelection)
+})
 </script>
 
 <style scoped>

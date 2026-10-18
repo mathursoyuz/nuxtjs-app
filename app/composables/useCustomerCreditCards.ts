@@ -6,6 +6,10 @@ import type {
     CustomerCreditCard,
     CustomerCreditCardApiService,
 } from '~/services/api/wrappers/customer-credit-card.api'
+import {
+    organisationContextRevision,
+    isOrganisationContextCurrent,
+} from '~/services/context/organisation-context-reset.registry'
 
 export function useCustomerCreditCards(customerId: number | (() => number | null)) {
     const nuxtApp = useNuxtApp()
@@ -21,6 +25,7 @@ export function useCustomerCreditCards(customerId: number | (() => number | null
     })
 
     async function fetchCards(): Promise<CustomerCreditCard[]> {
+        const contextRevision = organisationContextRevision()
         const id = resolvedCustomerId.value
         if (!id) return []
 
@@ -29,13 +34,16 @@ export function useCustomerCreditCards(customerId: number | (() => number | null
         try {
             const response = await customerCreditCardApi.getAllCustomerCreditCards(id)
             const data = response.data ?? []
-            store.setCards(id, data)
+            if (isOrganisationContextCurrent(contextRevision)) store.setCards(id, data)
             return data
         } catch (error) {
-            store.setError(error instanceof Error ? error.message : 'Failed to load credit cards')
+            if (isOrganisationContextCurrent(contextRevision))
+                store.setError(
+                    error instanceof Error ? error.message : 'Failed to load credit cards'
+                )
             throw error
         } finally {
-            store.setLoading(false)
+            if (isOrganisationContextCurrent(contextRevision)) store.setLoading(false)
         }
     }
 

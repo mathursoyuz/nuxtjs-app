@@ -42,8 +42,8 @@
                                 <EditCustomerBasicInfoTab
                                     :customer="customer"
                                     :full-customer-data="fullCustomerData"
-                                    :client-id="clientId"
-                                    :clients="clients"
+                                    :organisation-id="organisationId"
+                                    :organisations="organisations"
                                     @submit="handleTabSubmit"
                                     @cancel="$emit('update:modelValue', false)"
                                 />
@@ -152,8 +152,8 @@ const EditCustomerPasswordTab = defineAsyncComponent(
 interface Props {
     modelValue: boolean
     customer: Customer | null
-    clientId?: number
-    clients?: Array<{ id: number; name: string }>
+    organisationId?: number
+    organisations?: Array<{ id: number; name: string }>
 }
 
 const props = defineProps<Props>()

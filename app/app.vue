@@ -11,7 +11,7 @@ import GlobalLoadingOverlay from '~/components/globals/GlobalLoadingOverlay.vue'
 // Suppress vee-validate-zod description warnings for nested array schemas
 // These warnings are harmless and don't affect functionality - they occur because
 // vee-validate-zod has trouble extracting descriptions from nested array schemas
-if (process.client) {
+if (process.organisation) {
     const originalWarn = console.warn;
     console.warn = (...args: unknown[]) => {
         const message = args[0];

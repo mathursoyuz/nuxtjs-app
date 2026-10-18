@@ -34,17 +34,17 @@
                                 <v-col cols="12" md="6" class="pa-0">
                                     <v-col cols="12">
                                         <v-select
-                                            v-model="selectedClientId"
-                                            :items="clientOptions"
+                                            v-model="selectedOrganisationId"
+                                            :items="organisationOptions"
                                             item-title="name"
                                             item-value="id"
-                                            label="Select Client *"
+                                            label="Select Organisation *"
                                             variant="outlined"
                                             density="compact"
                                             required
-                                            :error="hasClientError"
+                                            :error="hasOrganisationError"
                                             :error-messages="
-                                                hasClientError ? 'Client is required' : ''
+                                                hasOrganisationError ? 'Organisation is required' : ''
                                             "
                                             hide-details="auto"
                                         ></v-select>
@@ -729,7 +729,7 @@ import { useLocation } from '~/composables/useLocation'
 import { useCountry } from '~/composables/useCountry'
 import { useToast } from '~/composables/useToast'
 import { CUSTOMER_MESSAGES } from '~/constants/messages.constants'
-import { DEFAULT_CLIENT_ID } from '~/constants/customer.constants'
+import { DEFAULT_ORGANISATION_ID } from '~/constants/customer.constants'
 import { useLoadingTask } from '~/composables/useLoadingTask'
 import type { PhoneCountryCode } from '~/services/api/wrappers/country.api'
 
@@ -788,8 +788,8 @@ function parsePhoneNumber(
 
 interface Props {
     modelValue: boolean
-    clientId: number
-    clients: Array<{ id: number; name: string }>
+    organisationId: number
+    organisations: Array<{ id: number; name: string }>
 }
 
 const props = defineProps<Props>()
@@ -835,8 +835,8 @@ const yearOptions = Array.from({ length: 16 }, (_, i) => {
         value: year.toString(),
     }
 })
-const selectedClientId = ref<number>(
-    props.clientId && props.clientId > 0 ? props.clientId : DEFAULT_CLIENT_ID
+const selectedOrganisationId = ref<number>(
+    props.organisationId && props.organisationId > 0 ? props.organisationId : DEFAULT_ORGANISATION_ID
 )
 const avatarInput = ref<HTMLInputElement | null>(null)
 const avatarPreview = ref<string | null>(null)
@@ -846,15 +846,15 @@ const avatarFile = ref<File | null>(null)
 const selectedCountryCode = ref<string>('+1') // Default to US
 const phoneNumberValue = ref<string>('')
 
-const clientOptions = computed(() => {
-    return props.clients
+const organisationOptions = computed(() => {
+    return props.organisations
 })
 
-const hasClientError = computed(() => {
+const hasOrganisationError = computed(() => {
     return (
-        selectedClientId.value === null ||
-        selectedClientId.value === undefined ||
-        selectedClientId.value === 0
+        selectedOrganisationId.value === null ||
+        selectedOrganisationId.value === undefined ||
+        selectedOrganisationId.value === 0
     )
 })
 
@@ -865,11 +865,11 @@ const countryCodeOptions = computed(() => {
 })
 
 const getInitialValues = (): CreateCustomerFormData => {
-    // Determine initial clientId - prefer selectedClientId, then props.clientId, then first client, then DEFAULT_CLIENT_ID
-    const initialClientId = DEFAULT_CLIENT_ID
+    // Determine initial organisationId - prefer selectedOrganisationId, then props.organisationId, then first organisation, then DEFAULT_ORGANISATION_ID
+    const initialOrganisationId = DEFAULT_ORGANISATION_ID
 
     return {
-        clientId: initialClientId,
+        organisationId: initialOrganisationId,
         firstName: '',
         lastName: '',
         email: '',
@@ -1019,7 +1019,7 @@ const handleEmailBlur = async (field: { value?: string; onBlur: (e: Event) => vo
     field.onBlur(syntheticEvent)
 
     const email = field.value?.trim()
-    if (!email || !selectedClientId.value || selectedClientId.value === 0) {
+    if (!email || !selectedOrganisationId.value || selectedOrganisationId.value === 0) {
         return
     }
 
@@ -1146,21 +1146,21 @@ const { pending: addCustomerDataPending } = await useLazyAsyncData(
     async () => {
         // Fetch countries and phone country codes
         await Promise.all([fetchCountries(), fetchPhoneCountryCodes()])
-        selectedClientId.value = DEFAULT_CLIENT_ID
-        setFieldValue('clientId', DEFAULT_CLIENT_ID)
-        await fetchLocations(DEFAULT_CLIENT_ID)
+        selectedOrganisationId.value = DEFAULT_ORGANISATION_ID
+        setFieldValue('organisationId', DEFAULT_ORGANISATION_ID)
+        await fetchLocations(DEFAULT_ORGANISATION_ID)
     }
 )
 
 watch(
-    () => selectedClientId.value,
-    async (newClientId) => {
-        if (newClientId && newClientId > 0) {
-            // Update form clientId when selectedClientId changes
-            setFieldValue('clientId', newClientId)
+    () => selectedOrganisationId.value,
+    async (newOrganisationId) => {
+        if (newOrganisationId && newOrganisationId > 0) {
+            // Update form organisationId when selectedOrganisationId changes
+            setFieldValue('organisationId', newOrganisationId)
             const loadingTask = useLoadingTask('fetch-locations')
             await loadingTask.execute(async () => {
-                await fetchLocations(newClientId)
+                await fetchLocations(newOrganisationId)
             })
         }
     }

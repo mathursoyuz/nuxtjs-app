@@ -43,5 +43,4 @@ export const INVENTORY_MESSAGES = {
     THRESHOLD_ERROR: 'Failed to update low-stock threshold',
     DRAFT_REASON: 'Opening balance entered during product creation',
     EXISTING_BALANCE: 'Existing inventory balance',
-    SAVE_TRACKING_FIRST: 'Save the product with inventory tracking enabled, then manage inventory.',
 } as const

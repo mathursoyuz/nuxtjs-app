@@ -57,12 +57,14 @@
 </template>
 
 <script setup lang="ts">
+import { SYSTEM_ROLE } from '~/constants/access.constants'
+
 import { ref } from 'vue';
 import { useQuickbooks } from '~/composables/useQuickbooks';
 
 definePageMeta({
     middleware: ['auth', 'role'],
-    roles: ['admin', 'sales_manager'],
+    roles: [SYSTEM_ROLE.PLATFORM_ADMIN],
 });
 
 const { importCustomers, batchSyncCustomersToQB, isCustomerSyncing, syncStatus } = useQuickbooks();

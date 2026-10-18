@@ -1,3 +1,4 @@
+import { AUTH_ENDPOINT, AUTHORIZATION_HEADER, BEARER_PREFIX } from '~/constants/auth.constants'
 import type { AxiosResponse, AxiosError } from 'axios'
 import type { ApiErrorResponse } from '~/types/errors.types'
 import { isApiErrorResponse } from '~/types/errors.types'
@@ -19,8 +20,8 @@ export function createResponseErrorInterceptor() {
         if (error.response) {
             const { status, data } = error.response
             const isLoginOrRegister =
-                error.config?.url?.includes('/auth/login') ||
-                error.config?.url?.includes('/auth/register')
+                error.config?.url === AUTH_ENDPOINT.LOGIN ||
+                error.config?.url === AUTH_ENDPOINT.REGISTER
 
             // Handle 401 - Unauthorized (token expired/invalid)
             if (status === 401) {
@@ -34,9 +35,11 @@ export function createResponseErrorInterceptor() {
                         }
 
                         // Keep session cleanup and navigation in one idempotent store action.
-                        const { useAuthStore } = await import('~/stores/auth.store')
-                        const authStore = useAuthStore()
-                        await authStore.handleUnauthorized()
+                        const { useSessionStore } = await import('~/stores/session.store')
+                        const session = useSessionStore()
+                        const header = error.config?.headers?.[AUTHORIZATION_HEADER]
+                        if (typeof header === 'string' && header.startsWith(BEARER_PREFIX))
+                            await session.handleUnauthorized(header.slice(BEARER_PREFIX.length))
                     } catch (err) {
                         console.error('Error handling 401:', err)
                     }

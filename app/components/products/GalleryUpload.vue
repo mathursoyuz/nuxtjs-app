@@ -39,6 +39,7 @@
                         color="error"
                         variant="flat"
                         class="remove-btn"
+                        v-if="canRemoveExisting"
                         @click="removeExistingImage(idx)"
                     >
                         <v-icon>mdi-close</v-icon>
@@ -97,11 +98,13 @@ interface Props {
     existingGallery?: string[]
     error?: string | string[]
     uploadPath?: string
+    canRemoveExisting?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
     existingGallery: () => [],
     uploadPath: 'products',
+    canRemoveExisting: true,
 })
 
 const emit = defineEmits<{

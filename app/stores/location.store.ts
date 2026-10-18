@@ -1,6 +1,7 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import type { Location } from '~/types/location.types'
+import { registerOrganisationContextReset } from '~/services/context/organisation-context-reset.registry'
 
 export const useLocationStore = defineStore('location', () => {
     const locations = ref<Location[]>([])
@@ -9,9 +10,9 @@ export const useLocationStore = defineStore('location', () => {
     const error = ref<string | null>(null)
 
     const activeLocations = computed(() => locations.value.filter((location) => location.isActive))
-    const locationsByClient = computed(
-        () => (clientId: number) =>
-            locations.value.filter((location) => location.clientId === clientId)
+    const locationsByOrganisation = computed(
+        () => (organisationId: number) =>
+            locations.value.filter((location) => location.organisationId === organisationId)
     )
     const locationById = computed(
         () => (id: number) => locations.value.find((location) => location.id === id)
@@ -52,13 +53,22 @@ export const useLocationStore = defineStore('location', () => {
         error.value = null
     }
 
+    function resetForOrganisationContext(): void {
+        locations.value = []
+        currentLocation.value = null
+        loading.value = false
+        error.value = null
+    }
+
+    registerOrganisationContextReset('locations', resetForOrganisationContext)
+
     return {
         locations,
         currentLocation,
         loading,
         error,
         activeLocations,
-        locationsByClient,
+        locationsByOrganisation,
         locationById,
         setLocations,
         setCurrentLocation,
@@ -68,5 +78,6 @@ export const useLocationStore = defineStore('location', () => {
         setLoading,
         setError,
         clearError,
+        resetForOrganisationContext,
     }
 })

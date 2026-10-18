@@ -4,11 +4,14 @@
             <v-col cols="12">
                 <div class="d-flex align-center justify-space-between mb-4">
                     <h1 class="text-h4">Locations</h1>
-                    <RoleGuard roles="admin">
-                        <v-btn color="primary" prepend-icon="mdi-plus" @click="openDialog()">
-                            Create Location
-                        </v-btn>
-                    </RoleGuard>
+                    <v-btn
+                        v-if="access.can(LOCATION_PERMISSIONS.WRITE)"
+                        color="primary"
+                        prepend-icon="mdi-plus"
+                        @click="openDialog()"
+                    >
+                        Create Location
+                    </v-btn>
                 </div>
 
                 <v-card>
@@ -16,11 +19,11 @@
                         <v-row class="mb-4">
                             <v-col cols="12" md="4">
                                 <v-select
-                                    v-model="selectedClientId"
-                                    label="Filter by Client"
-                                    :items="clientOptions"
+                                    v-model="selectedOrganisationId"
+                                    label="Filter by Organisation"
+                                    :items="organisationOptions"
                                     clearable
-                                    @update:model-value="handleClientFilter"
+                                    @update:model-value="handleOrganisationFilter"
                                 />
                             </v-col>
                         </v-row>
@@ -32,8 +35,10 @@
                             title="Locations"
                             searchable
                             search-label="Search locations..."
-                            :selectable="canAccess('admin')"
+                            :selectable="access.can(LOCATION_PERMISSIONS.WRITE)"
                             :show-actions="true"
+                            :can-edit="access.can(LOCATION_PERMISSIONS.WRITE)"
+                            :can-delete="access.can(LOCATION_PERMISSIONS.DELETE)"
                             @search="handleSearch"
                             @edit="handleEdit"
                             @delete="handleDelete"
@@ -77,6 +82,7 @@
                             <template #item.syncActions="{ item }">
                                 <div class="d-flex gap-2 justify-space-between">
                                     <v-btn
+                                        v-if="access.can(LOCATION_PERMISSIONS.WRITE)"
                                         size="small"
                                         color="primary"
                                         variant="tonal"
@@ -135,7 +141,7 @@
                                         {{ item.isQbSynced ? 'Re-Sync QB' : 'Import QB' }}
                                     </v-btn>
                                     <v-btn
-                                        v-if="canAccess('admin')"
+                                        v-if="access.can(LOCATION_PERMISSIONS.DELETE)"
                                         size="small"
                                         color="error"
                                         variant="text"
@@ -179,19 +185,24 @@
 import { ref, computed } from 'vue';
 import { useNuxtApp } from '#app';
 import { useLocation } from '~/composables/useLocation';
-import { useClient } from '~/composables/useClient';
-import { useRole } from '~/composables/useRole';
+import { useOrganisation } from '~/composables/useOrganisation';
+import { useAccessStore } from '~/stores/access.store';
+import { LOCATION_PERMISSIONS } from '~/components/locations/location.permissions';
 import { useQuickbooks } from '~/composables/useQuickbooks';
 import { useToast } from '~/composables/useToast';
 import { LOCATION_MESSAGES } from '~/constants/messages.constants';
 import DataTable from '~/components/data-table/DataTable.vue';
-import RoleGuard from '~/components/guards/RoleGuard.vue';
 import LocationDialog from '~/components/locations/LocationDialog.vue';
 import ConfirmDialog from '~/components/dialogs/ConfirmDialog.vue';
 import type { Location } from '~/types/location.types';
 
 definePageMeta({
-    middleware: ['auth'],
+    middleware: ['auth', 'permission'],
+    access: {
+        permission: LOCATION_PERMISSIONS.READ,
+        allowCrossOrganisation: true,
+        allowCurrentContext: true,
+    },
 });
 
 const nuxtApp = useNuxtApp();
@@ -201,14 +212,14 @@ const locationApi =
     nuxtApp.$locationApi as import('~/services/api/wrappers/location.api').LocationApiService;
 
 const { locations, loading, fetchLocations, deleteLocation } = useLocation();
-const { clients, fetchClients } = useClient();
-const { canAccess } = useRole();
+const { organisations, fetchOrganisations } = useOrganisation();
+const access = useAccessStore();
 const { successFromResponse, errorFromError, success, error, warning, info } = useToast();
 // Track sync state for each location
 const syncingSquare = ref<Record<number, boolean>>({});
 const syncingQb = ref<Record<number, boolean>>({});
 
-const selectedClientId = ref<number | null>(null);
+const selectedOrganisationId = ref<number | null>(null);
 const searchQuery = ref('');
 const showDialog = ref(false);
 const selectedLocation = ref<Location | null>(null);
@@ -228,8 +239,8 @@ const headers = [
     { title: 'Actions', key: 'actions', sortable: false },
 ];
 
-const clientOptions = computed(() => {
-    return clients.value.map((c) => ({
+const organisationOptions = computed(() => {
+    return organisations.value.map((c) => ({
         title: c.name,
         value: c.id,
     }));
@@ -238,8 +249,8 @@ const clientOptions = computed(() => {
 const filteredLocations = computed(() => {
     let filtered = locations.value;
     
-    if (selectedClientId.value) {
-        filtered = filtered.filter((l) => l.clientId === selectedClientId.value);
+    if (selectedOrganisationId.value) {
+        filtered = filtered.filter((l) => l.organisationId === selectedOrganisationId.value);
     }
     
     if (searchQuery.value) {
@@ -254,9 +265,9 @@ const filteredLocations = computed(() => {
     return filtered;
 });
 
-const handleClientFilter = () => {
-    if (selectedClientId.value) {
-        fetchLocations(selectedClientId.value);
+const handleOrganisationFilter = () => {
+    if (selectedOrganisationId.value) {
+        fetchLocations(selectedOrganisationId.value);
     } else {
         fetchLocations();
     }
@@ -294,7 +305,7 @@ const confirmDelete = async () => {
 
 const handleDialogSubmit = async () => {
     // Refresh locations after create/update
-    await fetchLocations(selectedClientId.value || undefined);
+    await fetchLocations(selectedOrganisationId.value || undefined);
 };
 
 const toggleActive = async (id: number, isActive: boolean) => {
@@ -355,7 +366,7 @@ const importFromSquare = async (item: Location) => {
             }
 
             // Refresh locations to show updated sync status (skip cache)
-            const refreshResponse = await locationApi.refreshLocations(selectedClientId.value || undefined);
+            const refreshResponse = await locationApi.refreshLocations(selectedOrganisationId.value || undefined);
             if (refreshResponse.success && refreshResponse.data) {
                 // Update the store with fresh data
                 const { useLocationStore } = await import('~/stores/location.store');
@@ -367,7 +378,7 @@ const importFromSquare = async (item: Location) => {
                 if (cachedApi) {
                     cachedApi.invalidate('locations:.*');
                 }
-                await fetchLocations(selectedClientId.value || undefined);
+                await fetchLocations(selectedOrganisationId.value || undefined);
             }
         } else {
             errorFromError(importResponse, LOCATION_MESSAGES.IMPORT_SQUARE_ERROR);
@@ -388,7 +399,7 @@ const importToQB = async (item: Location) => {
         info(LOCATION_MESSAGES.SYNC_QB_NOT_IMPLEMENTED);
 
         // Refresh locations to show updated sync status (skip cache)
-        const refreshResponse = await locationApi.refreshLocations(selectedClientId.value || undefined);
+        const refreshResponse = await locationApi.refreshLocations(selectedOrganisationId.value || undefined);
         if (refreshResponse.success && refreshResponse.data) {
             // Update the store with fresh data
             const { useLocationStore } = await import('~/stores/location.store');
@@ -400,7 +411,7 @@ const importToQB = async (item: Location) => {
             if (cachedApi) {
                 cachedApi.invalidate('locations:.*');
             }
-            await fetchLocations(selectedClientId.value || undefined);
+            await fetchLocations(selectedOrganisationId.value || undefined);
         }
     } catch (err) {
         errorFromError(err, LOCATION_MESSAGES.SYNC_QB_ERROR);
@@ -415,8 +426,8 @@ const { pending: locationsPending } = await useLazyAsyncData(
     'locations-initial',
     async () => {
         await Promise.all([
-            fetchClients(),
-            fetchLocations(selectedClientId.value || undefined),
+            fetchOrganisations(),
+            fetchLocations(selectedOrganisationId.value || undefined),
         ]);
     }
 );

@@ -102,7 +102,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue'
 import { loginSchema, type LoginFormData } from '~/schemas/auth.schema'
-import { useAuthStore } from '~/stores/auth.store'
+import { useSessionStore } from '~/stores/session.store'
 import { useRouter } from 'vue-router'
 import { useToast } from '~/composables/useToast'
 import { useFormValidation } from '~/composables/useFormValidation'
@@ -113,7 +113,7 @@ definePageMeta({
     middleware: ['guest'],
 })
 
-const authStore = useAuthStore()
+const session = useSessionStore()
 const router = useRouter()
 const { success: showSuccess, error: showError } = useToast()
 const {
@@ -192,7 +192,7 @@ async function handleLogin(): Promise<void> {
         loading.value = true
         error.value = ''
 
-        await authStore.login(result.data!)
+        await session.login(result.data!)
         showSuccess('Login successful!')
 
         // Redirect to intended destination or dashboard

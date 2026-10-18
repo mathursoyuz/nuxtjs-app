@@ -1,7 +1,7 @@
 import type { ApiResponse } from '~/types/api.types';
 import type { ApiErrorResponse } from '~/types/errors.types';
 import {
-    CLIENT_MESSAGES,
+    ORGANISATION_MESSAGES,
     CUSTOMER_MESSAGES,
     PRODUCT_MESSAGES,
     CATEGORY_MESSAGES,
@@ -20,7 +20,7 @@ import {
  * 
  * @example
  * const { getSuccessMessage, getErrorMessage } = useApiMessage();
- * const message = getSuccessMessage(response, CLIENT_MESSAGES.CREATE_SUCCESS);
+ * const message = getSuccessMessage(response, ORGANISATION_MESSAGES.CREATE_SUCCESS);
  */
 export function useApiMessage() {
     /**
@@ -170,7 +170,7 @@ export function useApiMessage() {
         getBulkImportMessage,
         getFetchSuccessMessage,
         // Export constants for direct access if needed
-        CLIENT_MESSAGES,
+        ORGANISATION_MESSAGES,
         CUSTOMER_MESSAGES,
         PRODUCT_MESSAGES,
         CATEGORY_MESSAGES,

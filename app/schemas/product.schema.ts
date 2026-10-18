@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { inventoryDraftBalanceSchema } from '~/schemas/inventory.schema'
 
 export const bundleComponentSchema = z.object({
     componentVariantId: z.coerce.number().int().positive('Select a component variant'),
@@ -12,10 +13,10 @@ export const productVariantSchema = z.object({
     price: z.coerce.number().min(0),
     cog: z.coerce.number().min(0),
     stockManaged: z.boolean(),
-    lowStockThreshold: z.coerce.number().int().min(0),
     color: z.string().max(50).default(''),
     size: z.string().max(50).default(''),
     attributes: z.record(z.string(), z.string()).default({}),
+    inventory: z.array(inventoryDraftBalanceSchema).default([]),
     isDefault: z.boolean(),
     isActive: z.boolean(),
     bundleComponents: z.array(bundleComponentSchema).default([]),
@@ -76,6 +77,14 @@ export const createProductSchema = productSchema.superRefine((data, context) => 
             })
         }
         skus.add(normalized)
+
+        if (!variant.stockManaged && variant.inventory.length > 0) {
+            context.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ['variants', index, 'inventory'],
+                message: 'Enable stock tracking before adding opening inventory',
+            })
+        }
 
         const componentIds = new Set<number>()
         variant.bundleComponents.forEach((component, componentIndex) => {

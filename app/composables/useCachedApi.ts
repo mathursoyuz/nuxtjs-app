@@ -5,8 +5,8 @@ import { useCacheService } from './useCache';
 let cachedApiClientInstance: CachedApiClient | null = null;
 
 /**
- * Get cached API client instance
- * This wraps the regular API client with smart caching
+ * Get cached API organisation instance
+ * This wraps the regular API organisation with smart caching
  */
 export function useCachedApi(): CachedApiClient {
     if (!cachedApiClientInstance) {

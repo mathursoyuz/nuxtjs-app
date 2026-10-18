@@ -132,13 +132,15 @@
 </template>
 
 <script setup lang="ts">
+import { SYSTEM_ROLE } from '~/constants/access.constants'
+
 import { computed } from 'vue';
 import { useQuickbooks } from '~/composables/useQuickbooks';
 import { formatDate } from '~/utils/date.util';
 
 definePageMeta({
     middleware: ['auth', 'role'],
-    roles: ['admin', 'sales_manager'],
+    roles: [SYSTEM_ROLE.PLATFORM_ADMIN],
 });
 
 const { isConnected, syncStatus, isCategorySyncing, isProductSyncing, isCustomerSyncing, isTransactionSyncing, initiateAuth } = useQuickbooks();

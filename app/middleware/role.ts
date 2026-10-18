@@ -4,7 +4,8 @@ export default defineNuxtRouteMiddleware(async (to) => {
     }
 
     const authStore = useAuthStore()
-    await authStore.initAuth()
+    await useSessionStore().initialize()
+    const access = useAccessStore()
     const requiredRoles = to.meta.roles as string | string[] | undefined
     const requireAll = (to.meta.requireAllRoles as boolean) || false
 
@@ -20,7 +21,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
     // Single role check
     if (typeof requiredRoles === 'string') {
-        if (authStore.userRole !== requiredRoles) {
+        if (access.systemRole !== requiredRoles) {
             return navigateTo('/unauthorized')
         }
         return
@@ -34,13 +35,13 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
         if (requireAll) {
             // User must have ALL roles
-            const hasAllRoles = requiredRoles.every((role) => authStore.userRole === role)
+            const hasAllRoles = requiredRoles.every((role) => access.systemRole === role)
             if (!hasAllRoles) {
                 return navigateTo('/unauthorized')
             }
         } else {
             // User needs ANY role
-            if (!authStore.canAccess(requiredRoles)) {
+            if (!requiredRoles.includes(access.systemRole ?? '')) {
                 return navigateTo('/unauthorized')
             }
         }

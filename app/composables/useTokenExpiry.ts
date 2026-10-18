@@ -51,7 +51,7 @@ export const useTokenExpiry = () => {
      */
     const handleReLogin = async (): Promise<void> => {
         showExpiryModal.value = false
-        await authStore.logout()
+        await useSessionStore().logout()
     }
 
     /**

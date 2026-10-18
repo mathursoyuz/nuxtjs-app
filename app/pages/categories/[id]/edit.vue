@@ -92,6 +92,8 @@
 </template>
 
 <script setup lang="ts">
+import { CATEGORY_PERMISSIONS } from '~/components/categories/category.permissions'
+
 import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useLoadingStore } from '~/stores/loading.store'
@@ -105,8 +107,8 @@ import { updateCategorySchema } from '~/schemas/category.schema'
 import type { UpdateCategoryFormData } from '~/schemas/category.schema'
 
 definePageMeta({
-    middleware: ['auth', 'role'],
-    roles: ['admin', 'sales_manager'],
+    middleware: ['auth', 'permission'],
+    access: { permission: CATEGORY_PERMISSIONS.WRITE },
 })
 
 const route = useRoute()

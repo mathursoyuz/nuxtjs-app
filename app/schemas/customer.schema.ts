@@ -59,7 +59,7 @@ export const customerWineClubSchema = z.object({
 })
 
 export const createCustomerSchema = z.object({
-    clientId: z.number().int().positive(),
+    organisationId: z.number().int().positive(),
     firstName: z.string().min(3).max(50),
     lastName: z.string().min(3).max(50),
     email: z.string().email().min(5).max(100),
@@ -92,7 +92,7 @@ export const createCustomerSchema = z.object({
 })
 
 export const updateCustomerSchema = createCustomerSchema.partial().extend({
-    clientId: z.number().int().positive(),
+    organisationId: z.number().int().positive(),
     password: z.string().min(8).max(255).optional(),
 })
 

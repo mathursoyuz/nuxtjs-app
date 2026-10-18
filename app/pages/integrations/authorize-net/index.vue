@@ -85,6 +85,8 @@
 </template>
 
 <script setup lang="ts">
+import { SYSTEM_ROLE } from '~/constants/access.constants'
+
 import { ref } from 'vue';
 import { useNuxtApp } from '#app';
 import FormField from '~/components/forms/FormField.vue';
@@ -92,7 +94,7 @@ import type { CreateCustomerProfileInputDTO } from '~/types/integration.types';
 
 definePageMeta({
     middleware: ['auth', 'role'],
-    roles: ['admin', 'sales_manager'],
+    roles: [SYSTEM_ROLE.PLATFORM_ADMIN],
 });
 
 const nuxtApp = useNuxtApp();

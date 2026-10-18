@@ -58,6 +58,8 @@ export class CustomerCreditCardApiService {
         )
         this.cachedApi.invalidatePattern(`customer-cc:customer:${customerId}.*`)
         this.cachedApi.invalidate(`customer-cc:customer:${customerId}`)
+        this.cachedApi.invalidate(`customers:${customerId}`)
+        this.cachedApi.invalidatePattern('customers:.*')
         return response
     }
 

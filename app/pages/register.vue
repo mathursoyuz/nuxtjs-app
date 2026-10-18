@@ -102,18 +102,6 @@
                             :rules="confirmPasswordRules"
                         ></v-text-field>
 
-                        <v-select
-                            v-model="formData.role"
-                            label="Role"
-                            :items="roleOptions"
-                            item-title="title"
-                            item-value="value"
-                            prepend-inner-icon="mdi-account-badge-outline"
-                            variant="outlined"
-                            density="comfortable"
-                            class="mb-4"
-                        ></v-select>
-
                         <v-alert v-if="error" type="error" class="mb-4" density="compact">
                             {{ error }}
                         </v-alert>
@@ -151,7 +139,7 @@
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
 import { registerSchema, type RegisterFormData } from '~/schemas/auth.schema'
-import { useAuthStore } from '~/stores/auth.store'
+import { useSessionStore } from '~/stores/session.store'
 import { useRouter } from 'vue-router'
 import { useToast } from '~/composables/useToast'
 import type { RegisterData } from '~/types/auth.types'
@@ -162,7 +150,7 @@ definePageMeta({
     middleware: ['guest'],
 })
 
-const authStore = useAuthStore()
+const session = useSessionStore()
 const router = useRouter()
 const { success: showSuccess, error: showError } = useToast()
 
@@ -180,7 +168,6 @@ const formData = reactive<RegisterFormData>({
     phoneNumber: '',
     password: '',
     confirmPassword: '',
-    role: 'sales_rep', // Default role
 })
 
 const emailRules = [
@@ -208,12 +195,6 @@ const confirmPasswordRules = [
     (v: string) => v === formData.password || 'Passwords do not match',
 ]
 
-const roleOptions = [
-    { title: 'Sales Representative', value: 'sales_rep' },
-    { title: 'Sales Manager', value: 'sales_manager' },
-    { title: 'Administrator', value: 'admin' },
-]
-
 async function handleRegister() {
     if (!formRef.value) {
         return
@@ -234,18 +215,10 @@ async function handleRegister() {
             return
         }
 
-        // Prepare registration data - exclude role field, but keep confirmPassword for backend validation
-        const { role, ...registrationData } = result.data
-
-        // For now, we don't send roleId - backend will default to sales_rep
-        // In the future, we can map role names to roleIds if we have a roles API
-        const dataToSend: RegisterData = {
-            ...registrationData,
-            // roleId will be handled by backend based on role name if we add that endpoint
-        }
+        const dataToSend: RegisterData = result.data
 
         try {
-            await authStore.register(dataToSend)
+            await session.register(dataToSend)
             showSuccess('Registration successful!')
             router.push('/dashboard')
         } catch (registerError: unknown) {

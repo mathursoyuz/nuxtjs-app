@@ -1,5 +1,5 @@
 <template>
-    <slot v-if="hasAccess || 1 == 1" />
+    <slot v-if="hasAccess" />
 </template>
 
 <script setup lang="ts">

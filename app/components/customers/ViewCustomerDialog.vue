@@ -16,11 +16,14 @@
                     }}
                 </span>
                 <div class="d-flex gap-2">
-                    <RoleGuard roles="admin">
-                        <v-btn color="primary" prepend-icon="mdi-pencil" @click="handleEdit">
-                            Edit
-                        </v-btn>
-                    </RoleGuard>
+                    <v-btn
+                        v-if="organisationId && access.can(CUSTOMER_PERMISSIONS.WRITE, organisationId)"
+                        color="primary"
+                        prepend-icon="mdi-pencil"
+                        @click="handleEdit"
+                    >
+                        Edit
+                    </v-btn>
                     <v-btn icon variant="text" @click="$emit('update:modelValue', false)">
                         <v-icon>mdi-close</v-icon>
                     </v-btn>
@@ -274,21 +277,23 @@
 import { ref, watch } from 'vue'
 import { useCustomer } from '~/composables/useCustomer'
 import { useCustomerCreditCards } from '~/composables/useCustomerCreditCards'
-import RoleGuard from '~/components/guards/RoleGuard.vue'
+import { useAccessStore } from '~/stores/access.store'
+import { CUSTOMER_PERMISSIONS } from '~/components/customers/customer.permissions'
 import { getFullImageUrl } from '~/utils/image.util'
 import { formatDate } from '~/utils/date.util'
 
 interface Props {
     modelValue: boolean
     customerId: number | null
-    clientId: number | null
+    organisationId: number | null
 }
 
 const props = defineProps<Props>()
+const access = useAccessStore()
 
 const emit = defineEmits<{
     'update:modelValue': [value: boolean]
-    edit: [customerId: number, clientId: number]
+    edit: [customerId: number, organisationId: number]
 }>()
 
 const { currentCustomer, loading, fetchCustomerById } = useCustomer()
@@ -296,8 +301,8 @@ const { cards: creditCards, fetchCards } = useCustomerCreditCards(() => props.cu
 const tab = ref('basic')
 
 const handleEdit = () => {
-    if (props.customerId && props.clientId) {
-        emit('edit', props.customerId, props.clientId)
+    if (props.customerId && props.organisationId) {
+        emit('edit', props.customerId, props.organisationId)
     }
 }
 

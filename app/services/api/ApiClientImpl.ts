@@ -5,12 +5,12 @@ import { createRequestInterceptor, createRequestErrorInterceptor } from './inter
 import { createResponseInterceptor, createResponseErrorInterceptor } from './interceptors/response.interceptor';
 
 export class ApiClientImpl implements ApiClient {
-    private client: AxiosInstance;
+    private organisation: AxiosInstance;
     private authToken: string | null = null;
     private bearerToken: string | null = null;
 
     constructor(baseURL: string) {
-        this.client = axios.create({
+        this.organisation = axios.create({
             baseURL,
             timeout: 30000,
             headers: {
@@ -19,7 +19,7 @@ export class ApiClientImpl implements ApiClient {
         });
 
         // Setup request interceptor with closure to access current tokens
-        this.client.interceptors.request.use(
+        this.organisation.interceptors.request.use(
             (config) => {
                 return createRequestInterceptor({
                     bearerToken: this.bearerToken,
@@ -30,7 +30,7 @@ export class ApiClientImpl implements ApiClient {
         );
 
         // Setup response interceptor
-        this.client.interceptors.response.use(
+        this.organisation.interceptors.response.use(
             createResponseInterceptor(),
             createResponseErrorInterceptor()
         );
@@ -42,7 +42,7 @@ export class ApiClientImpl implements ApiClient {
             params: config?.params,
             timeout: config?.timeout,
         };
-        const response = await this.client.get<ApiResponse<T>>(url, axiosConfig);
+        const response = await this.organisation.get<ApiResponse<T>>(url, axiosConfig);
         return response.data;
     }
 
@@ -52,7 +52,7 @@ export class ApiClientImpl implements ApiClient {
             params: config?.params,
             timeout: config?.timeout,
         };
-        const response = await this.client.post<ApiResponse<T>>(url, data, axiosConfig);
+        const response = await this.organisation.post<ApiResponse<T>>(url, data, axiosConfig);
         return response.data;
     }
 
@@ -62,7 +62,7 @@ export class ApiClientImpl implements ApiClient {
             params: config?.params,
             timeout: config?.timeout,
         };
-        const response = await this.client.put<ApiResponse<T>>(url, data, axiosConfig);
+        const response = await this.organisation.put<ApiResponse<T>>(url, data, axiosConfig);
         return response.data;
     }
 
@@ -72,7 +72,7 @@ export class ApiClientImpl implements ApiClient {
             params: config?.params,
             timeout: config?.timeout,
         };
-        const response = await this.client.patch<ApiResponse<T>>(url, data, axiosConfig);
+        const response = await this.organisation.patch<ApiResponse<T>>(url, data, axiosConfig);
         return response.data;
     }
 
@@ -82,7 +82,7 @@ export class ApiClientImpl implements ApiClient {
             params: config?.params,
             timeout: config?.timeout,
         };
-        const response = await this.client.delete<ApiResponse<T>>(url, axiosConfig);
+        const response = await this.organisation.delete<ApiResponse<T>>(url, axiosConfig);
         return response.data;
     }
 

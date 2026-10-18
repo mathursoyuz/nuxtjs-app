@@ -4,6 +4,7 @@ import { useLocationStore } from '~/stores/location.store';
 import { useToast } from '~/composables/useToast';
 import { LOCATION_MESSAGES } from '~/constants/messages.constants';
 import type { Location, CreateLocationDTO, UpdateLocationDTO } from '~/types/location.types';
+import { organisationContextRevision, isOrganisationContextCurrent } from '~/services/context/organisation-context-reset.registry';
 
 export function useLocation() {
     const nuxtApp = useNuxtApp();
@@ -15,47 +16,53 @@ export function useLocation() {
         throw new Error('LocationApiService not available');
     }
 
-    const fetchLocations = async (clientId?: number): Promise<Location[]> => {
+    const fetchLocations = async (organisationId?: number): Promise<Location[]> => {
+        const contextRevision = organisationContextRevision();
         locationStore.setLoading(true);
         locationStore.clearError();
 
         try {
-            const response = await locationApi.getAllLocations(clientId);
+            const response = await locationApi.getAllLocations(organisationId);
             if (response.success && response.data) {
-                locationStore.setLocations(response.data);
+                if (isOrganisationContextCurrent(contextRevision)) locationStore.setLocations(response.data);
                 successFromResponse(response, LOCATION_MESSAGES.FETCH_SUCCESS);
                 return response.data;
             }
             throw new Error(response.message || 'Failed to fetch locations');
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Failed to fetch locations';
-            locationStore.setError(errorMessage);
-            errorFromError(error, LOCATION_MESSAGES.FETCH_ERROR);
+            if (isOrganisationContextCurrent(contextRevision)) {
+                locationStore.setError(errorMessage);
+                errorFromError(error, LOCATION_MESSAGES.FETCH_ERROR);
+            }
             throw error;
         } finally {
-            locationStore.setLoading(false);
+            if (isOrganisationContextCurrent(contextRevision)) locationStore.setLoading(false);
         }
     };
 
     const fetchLocationById = async (id: number): Promise<Location> => {
+        const contextRevision = organisationContextRevision();
         locationStore.setLoading(true);
         locationStore.clearError();
 
         try {
             const response = await locationApi.getLocationById(id);
             if (response.success && response.data) {
-                locationStore.setCurrentLocation(response.data);
+                if (isOrganisationContextCurrent(contextRevision)) locationStore.setCurrentLocation(response.data);
                 successFromResponse(response, LOCATION_MESSAGES.FETCH_SUCCESS);
                 return response.data;
             }
             throw new Error(response.message || 'Failed to fetch location');
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Failed to fetch location';
-            locationStore.setError(errorMessage);
-            errorFromError(error, LOCATION_MESSAGES.FETCH_ERROR);
+            if (isOrganisationContextCurrent(contextRevision)) {
+                locationStore.setError(errorMessage);
+                errorFromError(error, LOCATION_MESSAGES.FETCH_ERROR);
+            }
             throw error;
         } finally {
-            locationStore.setLoading(false);
+            if (isOrganisationContextCurrent(contextRevision)) locationStore.setLoading(false);
         }
     };
 
@@ -131,7 +138,7 @@ export function useLocation() {
         loading: computed(() => locationStore.loading),
         error: computed(() => locationStore.error),
         activeLocations: computed(() => locationStore.activeLocations),
-        locationsByClient: (clientId: number) => computed(() => locationStore.locationsByClient(clientId)),
+        locationsByOrganisation: (organisationId: number) => computed(() => locationStore.locationsByOrganisation(organisationId)),
         fetchLocations,
         fetchLocationById,
         createLocation,

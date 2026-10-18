@@ -5,7 +5,7 @@ import { useLoadingStore } from '~/stores/loading.store';
  * Shows spinner during page transitions and data loading
  */
 export default defineNuxtRouteMiddleware((to, from) => {
-    // Only run on client side
+    // Only run on organisation side
     if (process.server) return;
 
     const loadingStore = useLoadingStore();

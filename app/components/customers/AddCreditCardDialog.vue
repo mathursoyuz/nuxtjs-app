@@ -305,7 +305,7 @@ type CreditCardForm = z.infer<typeof creditCardFormSchema>
 interface Props {
     modelValue: boolean
     customer: Customer | null
-    clientId: number
+    organisationId: number
 }
 
 const props = defineProps<Props>()

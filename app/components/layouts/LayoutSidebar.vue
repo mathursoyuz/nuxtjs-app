@@ -12,6 +12,8 @@
             </div>
         </div>
 
+        <OrganisationSwitcher class="px-4 pt-4 pb-2" />
+
         <!-- Navigation Menu -->
         <v-list density="compact" nav class="px-2">
             <v-list-subheader class="nav-subheader">MAIN</v-list-subheader>
@@ -27,9 +29,26 @@
                 rounded="lg"
             ></v-list-item>
 
+            <v-list-item
+                v-if="canManageUsers"
+                to="/users"
+                title="Users"
+                prepend-icon="mdi-account-group-outline"
+                class="nav-item mb-1"
+                rounded="lg"
+            />
+            <v-list-item
+                v-if="access.can(ROLE_PERMISSIONS.READ)"
+                to="/access"
+                title="Roles & permissions"
+                prepend-icon="mdi-account-key"
+                class="nav-item mb-1"
+                rounded="lg"
+            />
             <v-list-subheader class="nav-subheader mt-4">ECOMMERCE</v-list-subheader>
 
             <v-list-item
+                v-if="productsSubmenu.some((item) => access.can(item.permission))"
                 prepend-icon="mdi-shopping"
                 title="Products"
                 value="products"
@@ -53,7 +72,9 @@
                 <div v-show="productsExpanded" class="submenu-wrapper">
                     <v-list density="compact" class="submenu">
                         <v-list-item
-                            v-for="item in productsSubmenu"
+                            v-for="item in productsSubmenu.filter((item) =>
+                                access.can(item.permission)
+                            )"
                             :key="item.value"
                             :prepend-icon="item.icon"
                             :title="item.title"
@@ -67,6 +88,58 @@
             </v-expand-transition>
 
             <v-list-item
+                v-if="access.can(ORGANISATION_PERMISSIONS.READ)"
+                prepend-icon="mdi-office-building"
+                title="Organisations"
+                value="organisations"
+                class="nav-item mb-1"
+                rounded="lg"
+                :active="isOrganisationsActive"
+                @click="organisationsExpanded = !organisationsExpanded"
+            >
+                <template v-slot:append>
+                    <v-icon size="small" class="chevron-icon" :class="{ rotated: organisationsExpanded }">
+                        mdi-chevron-down
+                    </v-icon>
+                </template>
+            </v-list-item>
+
+            <v-expand-transition>
+                <div v-show="organisationsExpanded" class="submenu-wrapper">
+                    <v-list density="compact" class="submenu">
+                        <v-list-item
+                            v-for="item in organisationsSubmenu"
+                            :key="item.value"
+                            :prepend-icon="item.icon"
+                            :title="item.title"
+                            :value="item.value"
+                            :to="item.to"
+                            class="nav-item submenu-item mb-1"
+                            rounded="lg"
+                        ></v-list-item>
+                        <v-list-item
+                            v-if="canReadOrganisationProducts"
+                            to="/organisations/organisation-products"
+                            title="Organisation products"
+                            prepend-icon="mdi-circle-small"
+                            class="nav-item submenu-item mb-1"
+                            rounded="lg"
+                        />
+                    </v-list>
+                </div>
+            </v-expand-transition>
+
+            <v-list-item
+                v-if="canReadOrders"
+                prepend-icon="mdi-cart"
+                title="Orders"
+                value="orders"
+                to="/orders"
+                class="nav-item mb-1"
+                rounded="lg"
+            ></v-list-item>
+            <v-list-item
+                v-if="canReadCustomers"
                 prepend-icon="mdi-account-group"
                 title="Customers"
                 value="customers"
@@ -75,51 +148,10 @@
                 rounded="lg"
             ></v-list-item>
 
-            <v-list-item
-                prepend-icon="mdi-office-building"
-                title="Clients"
-                value="clients"
-                class="nav-item mb-1"
-                rounded="lg"
-                :active="isClientsActive"
-                @click="clientsExpanded = !clientsExpanded"
-            >
-                <template v-slot:append>
-                    <v-icon size="small" class="chevron-icon" :class="{ rotated: clientsExpanded }">
-                        mdi-chevron-down
-                    </v-icon>
-                </template>
-            </v-list-item>
-
-            <v-expand-transition>
-                <div v-show="clientsExpanded" class="submenu-wrapper">
-                    <v-list density="compact" class="submenu">
-                        <v-list-item
-                            v-for="item in clientsSubmenu"
-                            :key="item.value"
-                            :prepend-icon="item.icon"
-                            :title="item.title"
-                            :value="item.value"
-                            :to="item.to"
-                            class="nav-item submenu-item mb-1"
-                            rounded="lg"
-                        ></v-list-item>
-                    </v-list>
-                </div>
-            </v-expand-transition>
-
-            <v-list-item
-                prepend-icon="mdi-cart"
-                title="Orders"
-                value="orders"
-                to="/orders"
-                class="nav-item mb-1"
-                rounded="lg"
-            ></v-list-item>
-
             <v-list-subheader class="nav-subheader mt-4">SYSTEM</v-list-subheader>
 
             <v-list-item
+                v-if="canReadLocations"
                 prepend-icon="mdi-map-marker"
                 title="Locations"
                 value="locations"
@@ -254,19 +286,6 @@
                 class="nav-item mb-1"
                 rounded="lg"
             ></v-list-item>
-
-            <!-- Settings menu - commented out until /settings route is created -->
-            <!-- <RoleGuard roles="admin">
-                <v-list-subheader class="nav-subheader mt-4">SETTINGS</v-list-subheader>
-                <v-list-item
-                    prepend-icon="mdi-cog"
-                    title="Settings"
-                    value="settings"
-                    to="/settings"
-                    class="nav-item mb-1"
-                    rounded="lg"
-                ></v-list-item>
-            </RoleGuard> -->
         </v-list>
 
         <!-- User Profile -->
@@ -303,11 +322,25 @@
 </template>
 
 <script setup lang="ts">
+import { PRODUCT_PERMISSIONS } from '~/components/products/products.permissions'
+import { USER_PERMISSIONS } from '~/components/access/users.permissions'
+import { ROLE_PERMISSIONS } from '~/components/access/roles.permissions'
+import { ORGANISATION_PRODUCT_PERMISSIONS } from '~/components/organisation-products/organisation-products.permissions'
+import { CATEGORY_PERMISSIONS } from '~/components/categories/category.permissions'
+import { ORGANISATION_PERMISSIONS } from '~/components/organisations/organisation.permissions'
+import { CUSTOMER_PERMISSIONS } from '~/components/customers/customer.permissions'
+import { LOCATION_PERMISSIONS } from '~/components/locations/location.permissions'
+import {
+    CUSTOMER_ORDER_PERMISSIONS,
+    PROCUREMENT_ORDER_PERMISSIONS,
+} from '~/components/orders/order.permissions'
+
 import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '~/stores/auth.store'
-import RoleGuard from '~/components/guards/RoleGuard.vue'
+import { useAccessStore } from '~/stores/access.store'
 import AuthLogoutMenuItems from '~/components/auth/LogoutMenuItems.vue'
+import OrganisationSwitcher from '~/components/access/OrganisationSwitcher.vue'
 
 interface Props {
     modelValue: boolean
@@ -321,8 +354,26 @@ const emit = defineEmits<{
 
 const route = useRoute()
 const authStore = useAuthStore()
-const productsExpanded = ref(true)
-const clientsExpanded = ref(false)
+const access = useAccessStore()
+const canManageUsers = computed(
+    () =>
+        access.can(USER_PERMISSIONS.READ) ||
+        (access.isPlatformContext && access.canAcrossOrganisations(USER_PERMISSIONS.READ))
+)
+const canReadOrganisationProducts = computed(() =>
+    access.isPlatformContext
+        ? access.canAcrossOrganisations(ORGANISATION_PRODUCT_PERMISSIONS.READ)
+        : access.can(ORGANISATION_PRODUCT_PERMISSIONS.READ)
+)
+const canRead = (permission: string) =>
+    access.can(permission) || (access.isPlatformContext && access.canAcrossOrganisations(permission))
+const canReadCustomers = computed(() => canRead(CUSTOMER_PERMISSIONS.READ))
+const canReadLocations = computed(() => canRead(LOCATION_PERMISSIONS.READ))
+const canReadOrders = computed(
+    () => canRead(CUSTOMER_ORDER_PERMISSIONS.READ) || canRead(PROCUREMENT_ORDER_PERMISSIONS.READ)
+)
+const productsExpanded = ref(false)
+const organisationsExpanded = ref(false)
 const quickbooksExpanded = ref(false)
 const squareExpanded = ref(false)
 const squareSyncExpanded = ref(false)
@@ -337,11 +388,13 @@ const userDisplayName = computed(() => {
 })
 
 const userRoleDisplay = computed(() => {
-    if (user.value?.role?.displayName) {
-        return user.value.role.displayName
+    if (access.identity?.role?.displayName) {
+        return access.identity.role.displayName
     }
-    if (user.value?.role?.name) {
-        return user.value.role.name.replace('_', ' ').replace(/\b\w/g, (l) => l.toUpperCase())
+    if (access.identity?.role?.name) {
+        return access.identity.role.name
+            .replace('_', ' ')
+            .replace(/\b\w/g, (letter) => letter.toUpperCase())
     }
     return 'User'
 })
@@ -352,24 +405,29 @@ const userAvatar = computed(() => {
 })
 
 const isProductsActive = computed(() => {
-    const productRoutes = ['/products', '/categories']
-    return productRoutes.some((r) => route.path === r || route.path.startsWith(r + '/'))
+    // const productRoutes = ['/products', '/categories']
+    return (
+        route.path.startsWith('/products') ||
+        route.path.startsWith('/categories') ||
+        productsExpanded.value
+    )
 })
 
-const isClientsActive = computed(() => {
-    return route.path.startsWith('/clients')
+const isOrganisationsActive = computed(() => {
+    // return route.path.startsWith('/organisations')
+    return organisationsExpanded.value || route.path.startsWith('/organisations')
 })
 
 const isQuickBooksActive = computed(() => {
-    return route.path.startsWith('/integrations/quickbooks')
+    return quickbooksExpanded.value || route.path.startsWith('/integrations/quickbooks')
 })
 
 const isSquareSyncActive = computed(() => {
-    return route.path.startsWith('/integrations/square-import')
+    return squareSyncExpanded.value || route.path.startsWith('/integrations/square-import')
 })
 
 const isCorksyActive = computed(() => {
-    return route.path.startsWith('/integrations/corksy')
+    return corksyExpanded.value || route.path.startsWith('/integrations/corksy')
 })
 
 const mainMenu = [
@@ -377,13 +435,25 @@ const mainMenu = [
 ]
 
 const productsSubmenu = [
-    { icon: 'mdi-circle-small', title: 'Product List', value: 'product-list', to: '/products' },
+    {
+        icon: 'mdi-circle-small',
+        title: 'Product List',
+        value: 'product-list',
+        to: '/products',
+        permission: PRODUCT_PERMISSIONS.READ,
+    },
     // Add Product is now handled via dialog, not a separate page
-    { icon: 'mdi-circle-small', title: 'Categories', value: 'categories', to: '/categories' },
+    {
+        icon: 'mdi-circle-small',
+        title: 'Categories',
+        value: 'categories',
+        to: '/categories',
+        permission: CATEGORY_PERMISSIONS.READ,
+    },
 ]
 
-const clientsSubmenu = [
-    { icon: 'mdi-circle-small', title: 'Client List', value: 'client-list', to: '/clients' },
+const organisationsSubmenu = [
+    { icon: 'mdi-circle-small', title: 'Organisation List', value: 'organisation-list', to: '/organisations' },
 ]
 
 const quickbooksSubmenu = [

@@ -1,11 +1,11 @@
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
-import type { Location } from '~/types/location.types'
-import type { InventorySnapshot } from '~/types/inventory.types'
+import type { InventoryLocation, InventorySnapshot } from '~/types/inventory.types'
+import { registerOrganisationContextReset } from '~/services/context/organisation-context-reset.registry'
 
 export const useInventoryStore = defineStore('inventory', () => {
     const snapshots = ref<Record<string, InventorySnapshot>>({})
-    const locationsByOwner = ref<Record<string, Location[]>>({})
+    const locationsByOwner = ref<Record<string, InventoryLocation[]>>({})
     const loading = ref<Record<string, boolean>>({})
     const saving = ref<Record<string, boolean>>({})
     const errors = ref<Record<string, string | null>>({})
@@ -14,7 +14,7 @@ export const useInventoryStore = defineStore('inventory', () => {
         return snapshots.value[key] ?? { balances: [], movements: [], nextCursor: null }
     }
 
-    function locationsFor(key: string): Location[] {
+    function locationsFor(key: string): InventoryLocation[] {
         return locationsByOwner.value[key] ?? []
     }
 
@@ -30,7 +30,7 @@ export const useInventoryStore = defineStore('inventory', () => {
         snapshots.value = { ...snapshots.value, [key]: snapshot }
     }
 
-    function setLocations(key: string, locations: Location[]): void {
+    function setLocations(key: string, locations: InventoryLocation[]): void {
         locationsByOwner.value = { ...locationsByOwner.value, [key]: locations }
     }
 
@@ -45,6 +45,16 @@ export const useInventoryStore = defineStore('inventory', () => {
     function setError(key: string, value: string | null): void {
         errors.value = { ...errors.value, [key]: value }
     }
+
+    function resetForOrganisationContext(): void {
+        snapshots.value = {}
+        locationsByOwner.value = {}
+        loading.value = {}
+        saving.value = {}
+        errors.value = {}
+    }
+
+    registerOrganisationContextReset('inventory', resetForOrganisationContext)
 
     return {
         snapshots,
@@ -61,5 +71,6 @@ export const useInventoryStore = defineStore('inventory', () => {
         setLoading,
         setSaving,
         setError,
+        resetForOrganisationContext,
     }
 })
