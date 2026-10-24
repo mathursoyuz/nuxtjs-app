@@ -1,11 +1,12 @@
 <template>
     <v-dialog :model-value="modelValue" max-width="760" persistent @update:model-value="close">
         <v-card>
-            <v-card-title class="d-flex align-center pa-4">
-                <span>Billing details for this order</span>
-                <v-spacer />
-                <v-btn icon="mdi-close" variant="text" @click="close(false)" />
-            </v-card-title>
+            <DialogsDialogHeader
+                title="Billing details for this order"
+                entity-label="Customer"
+                :entity-name="`${address.firstName} ${address.lastName}`.trim()"
+                @close="close(false)"
+            />
             <v-divider />
             <v-card-text class="pa-5">
                 <v-row>

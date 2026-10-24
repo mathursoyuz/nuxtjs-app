@@ -44,7 +44,8 @@ export default defineNuxtPlugin(async () => {
     const { CategoryApiService } = await import('~/services/api/wrappers/category.api')
     const { CustomerApiService } = await import('~/services/api/wrappers/customer.api')
     const { OrganisationApiService } = await import('~/services/api/wrappers/organisation.api')
-    const { OrganisationProductApiService } = await import('~/services/api/wrappers/organisation-product.api')
+    const { OrganisationProductApiService } =
+        await import('~/services/api/wrappers/organisation-product.api')
     const { OrganisationCreditCardApiService } =
         await import('~/services/api/wrappers/organisation-credit-card.api')
     const { CustomerCreditCardApiService } =
@@ -59,6 +60,7 @@ export default defineNuxtPlugin(async () => {
     const { ShipStationApiService } = await import('~/services/api/wrappers/shipstation.api')
     const { CorksyApiService } = await import('~/services/api/wrappers/corksy.api')
     const { AuthorizeNetApiService } = await import('~/services/api/wrappers/authorize-net.api')
+    const { MembershipApiService } = await import('~/services/api/wrappers/membership.api')
 
     const productApi = new ProductApiService(cachedApiClient)
     const accessApi = new AccessApiService(cachedApiClient)
@@ -78,6 +80,7 @@ export default defineNuxtPlugin(async () => {
     const shipstationApi = new ShipStationApiService(cachedApiClient)
     const corksyApi = new CorksyApiService(cachedApiClient)
     const authorizeNetApi = new AuthorizeNetApiService(cachedApiClient)
+    const membershipApi = new MembershipApiService(cachedApiClient)
 
     return {
         provide: {
@@ -105,6 +108,7 @@ export default defineNuxtPlugin(async () => {
             shipstationApi,
             corksyApi,
             authorizeNetApi,
+            membershipApi,
         },
     }
 })

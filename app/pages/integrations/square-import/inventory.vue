@@ -49,11 +49,12 @@
                                         :key="location.locationId || 'null'"
                                         class="text-caption"
                                     >
-                                        <span class="font-weight-medium">{{ location.locationName || 'No Location' }}:</span>
+                                        <span class="font-weight-medium">
+                                            {{ location.locationName || 'No Location' }}:
+                                        </span>
                                         <span class="ml-1">
-                                            In Stock: {{ location.qtyInStock }},
-                                            On Hand: {{ location.qtyOnHand }},
-                                            Sold: {{ location.qtySold }}
+                                            In Stock: {{ location.qtyInStock }}, On Hand:
+                                            {{ location.qtyOnHand }}, Sold: {{ location.qtySold }}
                                         </span>
                                     </div>
                                 </div>
@@ -88,9 +89,13 @@
         <!-- Details Dialog -->
         <v-dialog v-model="detailsDialog" max-width="1200">
             <v-card>
-                <v-card-title>
-                    <span class="text-h5">Inventory Details - {{ selectedItem?.productName }}</span>
-                </v-card-title>
+                <DialogsDialogHeader
+                    title="Inventory details"
+                    :organisation-name="selectedOrganisationName"
+                    entity-label="Product"
+                    :entity-name="selectedItem?.productName"
+                    @close="detailsDialog = false"
+                />
                 <v-card-text>
                     <v-table v-if="selectedItem">
                         <thead>
@@ -112,7 +117,10 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr v-for="location in selectedItem.locations" :key="location.locationId || 'null'">
+                            <tr
+                                v-for="location in selectedItem.locations"
+                                :key="location.locationId || 'null'"
+                            >
                                 <td>{{ location.locationName || 'No Location' }}</td>
                                 <td>{{ location.qtyInStock }}</td>
                                 <td>{{ location.qtyOnHand }}</td>
@@ -126,7 +134,13 @@
                                 <td>{{ location.qtyWaste }}</td>
                                 <td>{{ location.qtyInTransit }}</td>
                                 <td>{{ location.qtyCustom }}</td>
-                                <td>{{ location.lastSyncedAt ? new Date(location.lastSyncedAt).toLocaleString() : '-' }}</td>
+                                <td>
+                                    {{
+                                        location.lastSyncedAt
+                                            ? new Date(location.lastSyncedAt).toLocaleString()
+                                            : '-'
+                                    }}
+                                </td>
                             </tr>
                         </tbody>
                     </v-table>
@@ -143,93 +157,94 @@
 <script setup lang="ts">
 import { SYSTEM_ROLE } from '~/constants/access.constants'
 
-import { ref, computed, onMounted } from 'vue';
-import { useNuxtApp } from '#app';
+import { ref, computed, onMounted } from 'vue'
+import { useNuxtApp } from '#app'
 
 definePageMeta({
     middleware: ['auth', 'role'],
     roles: [SYSTEM_ROLE.PLATFORM_ADMIN],
-});
+})
 
 interface InventoryRecord {
-    id: number;
-    productId: number;
-    squareVariationId: string;
-    locationId: number;
-    qtyCustom: number;
-    qtyInStock: number;
-    qtySold: number;
-    qtySoldOnline: number;
-    qtyReservedForSale: number;
-    qtyReturnedByCustomer: number;
-    qtyWaitingForSupplier: number;
-    qtyOrderedFromVendor: number;
-    qtyNone: number;
-    qtyDamaged: number;
-    qtyWaste: number;
-    qtyUnlinkedReturn: number;
-    qtyComposed: number;
-    qtyDecomposed: number;
-    qtySupportedByNewerVersion: number;
-    qtyInTransit: number;
-    qtyOnHand: number;
-    lastSyncedAt: string | null;
-    updatedAt: string;
-    createdAt: string;
+    id: number
+    productId: number
+    squareVariationId: string
+    locationId: number
+    qtyCustom: number
+    qtyInStock: number
+    qtySold: number
+    qtySoldOnline: number
+    qtyReservedForSale: number
+    qtyReturnedByCustomer: number
+    qtyWaitingForSupplier: number
+    qtyOrderedFromVendor: number
+    qtyNone: number
+    qtyDamaged: number
+    qtyWaste: number
+    qtyUnlinkedReturn: number
+    qtyComposed: number
+    qtyDecomposed: number
+    qtySupportedByNewerVersion: number
+    qtyInTransit: number
+    qtyOnHand: number
+    lastSyncedAt: string | null
+    updatedAt: string
+    createdAt: string
     product: {
-        id: number;
-        name: string;
-        sku: string;
-        squareVariationId: string | null;
-    } | null;
+        id: number
+        name: string
+        sku: string
+        squareVariationId: string | null
+    } | null
     location: {
-        id: number;
-        name: string;
-        squareLocationId: string | null;
-    } | null;
+        id: number
+        name: string
+        squareLocationId: string | null
+    } | null
 }
 
 interface GroupedInventoryItem {
-    productId: number;
-    productName: string;
-    productSku: string;
-    squareVariationId: string | null;
+    productId: number
+    productName: string
+    productSku: string
+    squareVariationId: string | null
     locations: Array<{
-        locationId: number;
-        locationName: string;
-        qtyCustom: number;
-        qtyInStock: number;
-        qtySold: number;
-        qtySoldOnline: number;
-        qtyReservedForSale: number;
-        qtyReturnedByCustomer: number;
-        qtyWaitingForSupplier: number;
-        qtyOrderedFromVendor: number;
-        qtyNone: number;
-        qtyDamaged: number;
-        qtyWaste: number;
-        qtyUnlinkedReturn: number;
-        qtyComposed: number;
-        qtyDecomposed: number;
-        qtySupportedByNewerVersion: number;
-        qtyInTransit: number;
-        qtyOnHand: number;
-        lastSyncedAt: string | null;
-    }>;
-    totalQtyInStock: number;
-    totalQtyOnHand: number;
-    totalQtySold: number;
+        locationId: number
+        locationName: string
+        qtyCustom: number
+        qtyInStock: number
+        qtySold: number
+        qtySoldOnline: number
+        qtyReservedForSale: number
+        qtyReturnedByCustomer: number
+        qtyWaitingForSupplier: number
+        qtyOrderedFromVendor: number
+        qtyNone: number
+        qtyDamaged: number
+        qtyWaste: number
+        qtyUnlinkedReturn: number
+        qtyComposed: number
+        qtyDecomposed: number
+        qtySupportedByNewerVersion: number
+        qtyInTransit: number
+        qtyOnHand: number
+        lastSyncedAt: string | null
+    }>
+    totalQtyInStock: number
+    totalQtyOnHand: number
+    totalQtySold: number
 }
 
-const nuxtApp = useNuxtApp();
-const squareImportApi = nuxtApp.$squareImportApi as import('~/services/api/wrappers/square-import.api').SquareImportApiService;
-const { organisations, fetchOrganisations } = useOrganisation();
+const nuxtApp = useNuxtApp()
+const squareImportApi =
+    nuxtApp.$squareImportApi as import('~/services/api/wrappers/square-import.api').SquareImportApiService
+const { organisations, fetchOrganisations } = useOrganisation()
 
-const loading = ref(false);
-const selectedOrganisationId = ref(1);
-const inventoryRecords = ref<InventoryRecord[]>([]);
-const detailsDialog = ref(false);
-const selectedItem = ref<GroupedInventoryItem | null>(null);
+const loading = ref(false)
+const selectedOrganisationId = ref(1)
+const inventoryRecords = ref<InventoryRecord[]>([])
+const detailsDialog = ref(false)
+const selectedItem = ref<GroupedInventoryItem | null>(null)
 
 const headers = [
     { title: 'Product', key: 'product', sortable: true },
@@ -239,19 +254,25 @@ const headers = [
     { title: 'Total On Hand', key: 'qtyOnHand', sortable: true },
     { title: 'Total Sold', key: 'qtySold', sortable: true },
     { title: 'Actions', key: 'actions', sortable: false },
-];
+]
 
 const organisationOptions = computed(() =>
-    organisations.value.map((organisation) => ({ title: organisation.name, value: organisation.id }))
-);
+    organisations.value.map((organisation) => ({
+        title: organisation.name,
+        value: organisation.id,
+    }))
+)
+const selectedOrganisationName = computed(
+    () => organisations.value.find((item) => item.id === selectedOrganisationId.value)?.name
+)
 
 const groupedInventory = computed<GroupedInventoryItem[]>(() => {
-    const grouped = new Map<number, GroupedInventoryItem>();
+    const grouped = new Map<number, GroupedInventoryItem>()
 
     inventoryRecords.value.forEach((record) => {
-        if (!record.product) return;
+        if (!record.product) return
 
-        const productId = record.product.id;
+        const productId = record.product.id
         if (!grouped.has(productId)) {
             grouped.set(productId, {
                 productId,
@@ -262,10 +283,10 @@ const groupedInventory = computed<GroupedInventoryItem[]>(() => {
                 totalQtyInStock: 0,
                 totalQtyOnHand: 0,
                 totalQtySold: 0,
-            });
+            })
         }
 
-        const item = grouped.get(productId)!;
+        const item = grouped.get(productId)!
         item.locations.push({
             locationId: record.locationId,
             locationName: record.location?.name || 'No Location',
@@ -287,37 +308,37 @@ const groupedInventory = computed<GroupedInventoryItem[]>(() => {
             qtyInTransit: record.qtyInTransit,
             qtyOnHand: record.qtyOnHand,
             lastSyncedAt: record.lastSyncedAt,
-        });
+        })
 
-        item.totalQtyInStock += record.qtyInStock;
-        item.totalQtyOnHand += record.qtyOnHand;
-        item.totalQtySold += record.qtySold;
-    });
+        item.totalQtyInStock += record.qtyInStock
+        item.totalQtyOnHand += record.qtyOnHand
+        item.totalQtySold += record.qtySold
+    })
 
-    return Array.from(grouped.values());
-});
+    return Array.from(grouped.values())
+})
 
 const fetchData = async () => {
-    loading.value = true;
+    loading.value = true
     try {
-        const response = await squareImportApi.getAllInventory(selectedOrganisationId.value);
+        const response = await squareImportApi.getAllInventory(selectedOrganisationId.value)
         if (response.success && response.data) {
-            inventoryRecords.value = response.data;
+            inventoryRecords.value = response.data
         }
     } catch (error) {
-        console.error('Error fetching inventory:', error);
+        console.error('Error fetching inventory:', error)
     } finally {
-        loading.value = false;
+        loading.value = false
     }
-};
+}
 
 const viewDetails = (item: GroupedInventoryItem) => {
-    selectedItem.value = item;
-    detailsDialog.value = true;
-};
+    selectedItem.value = item
+    detailsDialog.value = true
+}
 
 onMounted(async () => {
-    await fetchOrganisations();
-    await fetchData();
-});
+    await fetchOrganisations()
+    await fetchData()
+})
 </script>

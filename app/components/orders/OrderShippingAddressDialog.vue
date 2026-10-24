@@ -1,11 +1,12 @@
 <template>
     <v-dialog :model-value="modelValue" max-width="850" persistent @update:model-value="close">
         <v-card>
-            <v-card-title class="d-flex align-center pa-4">
-                <span>Select shipping address</span>
-                <v-spacer />
-                <v-btn icon="mdi-close" variant="text" @click="close(false)" />
-            </v-card-title>
+            <DialogsDialogHeader
+                title="Select shipping address"
+                entity-label="Customer"
+                :entity-name="`${customer.firstName} ${customer.lastName}`"
+                @close="close(false)"
+            />
             <v-divider />
             <v-card-text class="pa-5">
                 <v-radio-group v-model="selectedKey" hide-details>

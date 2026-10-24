@@ -98,7 +98,11 @@
                 @click="organisationsExpanded = !organisationsExpanded"
             >
                 <template v-slot:append>
-                    <v-icon size="small" class="chevron-icon" :class="{ rotated: organisationsExpanded }">
+                    <v-icon
+                        size="small"
+                        class="chevron-icon"
+                        :class="{ rotated: organisationsExpanded }"
+                    >
                         mdi-chevron-down
                     </v-icon>
                 </template>
@@ -147,6 +151,51 @@
                 class="nav-item mb-1"
                 rounded="lg"
             ></v-list-item>
+            <v-list-item
+                v-if="canReadOrganisationMemberships"
+                prepend-icon="mdi-card-account-details-star"
+                title="Memberships"
+                value="memberships"
+                to="/memberships"
+                class="nav-item mb-1"
+                rounded="lg"
+            />
+            <v-list-item
+                v-if="canReadPlatformMemberships"
+                prepend-icon="mdi-shield-star"
+                title="Platform Services"
+                value="platform-memberships"
+                to="/memberships/platform"
+                class="nav-item mb-1"
+                rounded="lg"
+            />
+            <v-list-item
+                v-if="canReadOwnPlatformServices"
+                prepend-icon="mdi-shield-check"
+                title="My Platform Services"
+                value="my-platform-services"
+                to="/platform-services"
+                class="nav-item mb-1"
+                rounded="lg"
+            />
+            <v-list-item
+                v-if="canReadCustomerSubscriptions"
+                prepend-icon="mdi-account-star"
+                title="Customer Subscriptions"
+                value="customer-subscriptions"
+                to="/subscriptions/customers"
+                class="nav-item mb-1"
+                rounded="lg"
+            />
+            <v-list-item
+                v-if="canReadSubscriptionOrders"
+                prepend-icon="mdi-receipt-text-clock"
+                title="Subscription Orders"
+                value="subscription-orders"
+                to="/subscriptions/orders"
+                class="nav-item mb-1"
+                rounded="lg"
+            />
 
             <v-list-subheader class="nav-subheader mt-4">SYSTEM</v-list-subheader>
 
@@ -334,6 +383,12 @@ import {
     CUSTOMER_ORDER_PERMISSIONS,
     PROCUREMENT_ORDER_PERMISSIONS,
 } from '~/components/orders/order.permissions'
+import {
+    CUSTOMER_MEMBERSHIP_SUBSCRIPTION_PERMISSIONS,
+    ORGANISATION_MEMBERSHIP_SUBSCRIPTION_PERMISSIONS,
+    ORGANISATION_MEMBERSHIP_PERMISSIONS,
+    PLATFORM_MEMBERSHIP_PERMISSIONS,
+} from '~/components/memberships/membership.permissions'
 
 import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
@@ -366,11 +421,32 @@ const canReadOrganisationProducts = computed(() =>
         : access.can(ORGANISATION_PRODUCT_PERMISSIONS.READ)
 )
 const canRead = (permission: string) =>
-    access.can(permission) || (access.isPlatformContext && access.canAcrossOrganisations(permission))
+    access.can(permission) ||
+    (access.isPlatformContext && access.canAcrossOrganisations(permission))
 const canReadCustomers = computed(() => canRead(CUSTOMER_PERMISSIONS.READ))
 const canReadLocations = computed(() => canRead(LOCATION_PERMISSIONS.READ))
 const canReadOrders = computed(
     () => canRead(CUSTOMER_ORDER_PERMISSIONS.READ) || canRead(PROCUREMENT_ORDER_PERMISSIONS.READ)
+)
+const canReadOrganisationMemberships = computed(() =>
+    canRead(ORGANISATION_MEMBERSHIP_PERMISSIONS.READ)
+)
+const canReadPlatformMemberships = computed(() => access.can(PLATFORM_MEMBERSHIP_PERMISSIONS.READ))
+const canReadCustomerSubscriptions = computed(() =>
+    canRead(CUSTOMER_MEMBERSHIP_SUBSCRIPTION_PERMISSIONS.READ)
+)
+const canReadSubscriptionOrders = computed(
+    () =>
+        canRead(CUSTOMER_MEMBERSHIP_SUBSCRIPTION_PERMISSIONS.READ) ||
+        canRead(ORGANISATION_MEMBERSHIP_SUBSCRIPTION_PERMISSIONS.READ)
+)
+const canReadOwnPlatformServices = computed(
+    () =>
+        access.actingOrganisationId !== access.platformOrganisationId &&
+        access.can(
+            ORGANISATION_MEMBERSHIP_SUBSCRIPTION_PERMISSIONS.READ,
+            access.actingOrganisationId
+        )
 )
 const productsExpanded = ref(false)
 const organisationsExpanded = ref(false)
@@ -453,7 +529,12 @@ const productsSubmenu = [
 ]
 
 const organisationsSubmenu = [
-    { icon: 'mdi-circle-small', title: 'Organisation List', value: 'organisation-list', to: '/organisations' },
+    {
+        icon: 'mdi-circle-small',
+        title: 'Organisation List',
+        value: 'organisation-list',
+        to: '/organisations',
+    },
 ]
 
 const quickbooksSubmenu = [

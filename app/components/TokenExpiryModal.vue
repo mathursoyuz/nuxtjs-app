@@ -1,12 +1,11 @@
 <template>
     <v-dialog v-model="showModal" persistent max-width="500">
         <v-card>
-            <v-card-title class="d-flex align-center">
-                <v-icon :color="isExpired ? 'error' : 'warning'" class="mr-2">
-                    {{ isExpired ? 'mdi-alert-circle' : 'mdi-clock-alert' }}
-                </v-icon>
-                <span>{{ isExpired ? 'Session Expired' : 'Session Expiring Soon' }}</span>
-            </v-card-title>
+            <DialogsDialogHeader
+                :title="isExpired ? 'Session expired' : 'Session expiring soon'"
+                scope="Account"
+                :closeable="false"
+            />
 
             <v-card-text>
                 <p v-if="isExpired" class="text-body-1">
@@ -27,10 +26,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
-import { useTokenExpiry } from '~/composables/useTokenExpiry';
+import { computed } from 'vue'
+import { useTokenExpiry } from '~/composables/useTokenExpiry'
 
-const { showExpiryModal, isExpired, handleReLogin, dismissModal } = useTokenExpiry();
+const { showExpiryModal, isExpired, handleReLogin, dismissModal } = useTokenExpiry()
 
-const showModal = computed(() => showExpiryModal.value);
+const showModal = computed(() => showExpiryModal.value)
 </script>

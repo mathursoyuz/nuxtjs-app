@@ -234,6 +234,23 @@
                                         title="Create customer order"
                                     ></v-btn>
                                     <v-btn
+                                        v-if="canReadCustomerMemberships(item)"
+                                        icon="mdi-card-account-details-star"
+                                        size="small"
+                                        :color="
+                                            customerHasPendingMembershipAction(item)
+                                                ? 'warning'
+                                                : 'primary'
+                                        "
+                                        variant="text"
+                                        @click="handleMemberships(item)"
+                                        :title="
+                                            customerHasPendingMembershipAction(item)
+                                                ? 'Review pending membership action'
+                                                : 'Manage memberships'
+                                        "
+                                    ></v-btn>
+                                    <v-btn
                                         icon="mdi-eye"
                                         size="small"
                                         color="primary"
@@ -309,7 +326,9 @@
             v-if="showAddCreditCardDialog"
             v-model="showAddCreditCardDialog"
             :customer="selectedCustomerForCreditCard"
-            :organisation-id="selectedCustomerForCreditCard?.organisationId ?? selectedOrganisationId ?? 0"
+            :organisation-id="
+                selectedCustomerForCreditCard?.organisationId ?? selectedOrganisationId ?? 0
+            "
             @submit="handleCreditCardAdded"
         />
 
@@ -318,7 +337,9 @@
             v-if="showManageShippingDialog"
             v-model="showManageShippingDialog"
             :customer="selectedCustomerForShipping"
-            :organisation-id="selectedCustomerForShipping?.organisationId ?? selectedOrganisationId ?? 0"
+            :organisation-id="
+                selectedCustomerForShipping?.organisationId ?? selectedOrganisationId ?? 0
+            "
             @submit="handleShippingAddressesUpdated"
         />
 
@@ -335,6 +356,16 @@
             v-if="showOrdersDialog && selectedCustomerForOrders"
             v-model="showOrdersDialog"
             :customer="selectedCustomerForOrders"
+        />
+
+        <CustomerMembershipsDialog
+            v-if="showMembershipsDialog && selectedCustomerForMemberships"
+            v-model="showMembershipsDialog"
+            :organisation-id="selectedCustomerForMemberships.organisationId"
+            :customer-id="selectedCustomerForMemberships.id"
+            :customer-name="`${selectedCustomerForMemberships.firstName} ${selectedCustomerForMemberships.lastName}`"
+            :can-write="canWriteCustomerMemberships(selectedCustomerForMemberships)"
+            @update:model-value="handleMembershipDialogClosed"
         />
 
         <!-- Delete Confirmation Dialog -->
@@ -361,6 +392,10 @@ import { useOrganisation } from '~/composables/useOrganisation'
 import { useAccessStore } from '~/stores/access.store'
 import { CUSTOMER_PERMISSIONS } from '~/components/customers/customer.permissions'
 import { CUSTOMER_ORDER_PERMISSIONS } from '~/components/orders/order.permissions'
+import { CUSTOMER_MEMBERSHIP_SUBSCRIPTION_PERMISSIONS } from '~/components/memberships/membership.permissions'
+import { MEMBERSHIP_ACTION_STATUS } from '~/constants/membership.constants'
+import { useMemberships } from '~/composables/useMemberships'
+import type { MembershipSubscription } from '~/types/membership.types'
 import { useLoadingTask } from '~/composables/useLoadingTask'
 import { useToast } from '~/composables/useToast'
 import { useApiMessage } from '~/composables/useApiMessage'
@@ -386,6 +421,9 @@ const ViewCustomerDialog = defineAsyncComponent(
 )
 const CustomerOrdersDialog = defineAsyncComponent(
     () => import('~/components/orders/CustomerOrdersDialog.vue')
+)
+const CustomerMembershipsDialog = defineAsyncComponent(
+    () => import('~/components/memberships/CustomerMembershipsDialog.vue')
 )
 const ConfirmDialog = defineAsyncComponent(() => import('~/components/dialogs/ConfirmDialog.vue'))
 
@@ -422,6 +460,11 @@ const canReadCustomerOrders = (customer: Customer) =>
     access.can(CUSTOMER_ORDER_PERMISSIONS.READ, customer.organisationId)
 const canCreateCustomerOrder = (customer: Customer) =>
     access.can(CUSTOMER_ORDER_PERMISSIONS.WRITE, customer.organisationId)
+const canReadCustomerMemberships = (customer: Customer) =>
+    access.can(CUSTOMER_MEMBERSHIP_SUBSCRIPTION_PERMISSIONS.READ, customer.organisationId)
+const canWriteCustomerMemberships = (customer: Customer) =>
+    access.can(CUSTOMER_MEMBERSHIP_SUBSCRIPTION_PERMISSIONS.WRITE, customer.organisationId)
+const membershipManager = useMemberships()
 const { successFromResponse, errorFromError, success } = useToast()
 const { getImportResultMessage } = useApiMessage()
 
@@ -454,6 +497,9 @@ const selectedCustomerForCreditCard = ref<Customer | null>(null)
 const selectedCustomerForShipping = ref<Customer | null>(null)
 const selectedCustomerForOrders = ref<Customer | null>(null)
 const showOrdersDialog = ref(false)
+const showMembershipsDialog = ref(false)
+const selectedCustomerForMemberships = ref<Customer | null>(null)
+const customerMemberships = ref<Record<number, MembershipSubscription[]>>({})
 
 const headers = [
     { title: 'Name', key: 'firstName', sortable: true },
@@ -580,6 +626,58 @@ const handlePurchase = async (item: Customer) => {
     await navigateTo({ path: '/orders/create', query: { customerId: String(item.id) } })
 }
 
+const handleMemberships = (item: Customer): void => {
+    selectedCustomerForMemberships.value = item
+    showMembershipsDialog.value = true
+}
+
+const customerHasPendingMembershipAction = (item: Customer): boolean =>
+    (customerMemberships.value[item.id] ?? []).some((subscription) =>
+        subscription.pendingActions.some(
+            (action) => action.status === MEMBERSHIP_ACTION_STATUS.PENDING
+        )
+    )
+
+const loadCustomerMembershipActions = async (): Promise<void> => {
+    const organisationIds = [
+        ...new Set(
+            customers.value
+                .filter(canReadCustomerMemberships)
+                .map((customer) => customer.organisationId)
+        ),
+    ]
+    const results = await Promise.all(
+        organisationIds.map(async (organisationId) => ({
+            organisationId,
+            subscriptions:
+                (await membershipManager.getCustomerSubscriptions(organisationId)).data ?? [],
+        }))
+    )
+    customerMemberships.value = Object.fromEntries(
+        results.flatMap(({ subscriptions }) =>
+            subscriptions
+                .filter((subscription) => subscription.customerId !== undefined)
+                .map((subscription) => [subscription.customerId!, [subscription]])
+        )
+    )
+    for (const { subscriptions } of results) {
+        for (const subscription of subscriptions) {
+            if (subscription.customerId === undefined) continue
+            const current = customerMemberships.value[subscription.customerId] ?? []
+            if (!current.some((item) => item.id === subscription.id)) {
+                customerMemberships.value[subscription.customerId] = [...current, subscription]
+            }
+        }
+    }
+}
+
+const handleMembershipDialogClosed = async (open: boolean): Promise<void> => {
+    if (open) return
+    showMembershipsDialog.value = false
+    selectedCustomerForMemberships.value = null
+    await loadCustomerMembershipActions()
+}
+
 const handleEdit = async (item: Customer) => {
     const loadingTask = useLoadingTask('load-customer-for-edit')
     await loadingTask.execute(async () => {
@@ -644,6 +742,7 @@ const handleOrganisationChange = async () => {
             itemsPerPage.value,
             searchQuery.value
         )
+        await loadCustomerMembershipActions()
     })
 }
 
@@ -657,6 +756,7 @@ const handlePageChange = async (page: number) => {
             itemsPerPage.value,
             searchQuery.value
         )
+        await loadCustomerMembershipActions()
     })
 }
 
@@ -671,6 +771,7 @@ const handleItemsPerPageChange = async (limit: number) => {
             itemsPerPage.value,
             searchQuery.value
         )
+        await loadCustomerMembershipActions()
     })
 }
 
@@ -684,6 +785,7 @@ const refreshCustomers = async () => {
             itemsPerPage.value,
             searchQuery.value
         )
+        await loadCustomerMembershipActions()
     })
 }
 
@@ -732,6 +834,7 @@ await useAsyncData('customers-initial-data', async () => {
             searchQuery.value
         ),
     ])
+    await loadCustomerMembershipActions()
     return true
 })
 </script>

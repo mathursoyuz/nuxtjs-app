@@ -265,41 +265,10 @@ import { CUSTOMER_MESSAGES } from '~/constants/messages.constants'
 import { DEFAULT_ORGANISATION_ID } from '~/constants/customer.constants'
 import { getFullImageUrl } from '~/utils/image.util'
 import type { Customer } from '~/services/api/wrappers/customer.api'
-import type { PhoneCountryCode } from '~/services/api/wrappers/country.api'
-
-// Helper function to parse phone number
-function parsePhoneNumber(
-    phoneNumber: string,
-    phoneCountryCodes: PhoneCountryCode[]
-): { countryCode: PhoneCountryCode; phoneNumber: string } | null {
-    if (!phoneNumber || !phoneCountryCodes || phoneCountryCodes.length === 0) return null
-    const cleaned = phoneNumber.replace(/[^\d+]/g, '')
-    if (!cleaned || cleaned.length < 4) return null
-    const sortedCodes = [...phoneCountryCodes].sort((a, b) => {
-        const aCode = a.dialCode.replace('+', '')
-        const bCode = b.dialCode.replace('+', '')
-        return bCode.length - aCode.length
-    })
-    for (const country of sortedCodes) {
-        const dialCode = country.dialCode.replace('+', '')
-        const dialCodeWithPlus = `+${dialCode}`
-        if (cleaned.startsWith(dialCodeWithPlus)) {
-            const remaining = cleaned.substring(dialCodeWithPlus.length).trim()
-            if (remaining.length > 0) {
-                return { countryCode: country, phoneNumber: remaining }
-            }
-        } else if (cleaned.startsWith(dialCode)) {
-            const remaining = cleaned.substring(dialCode.length).trim()
-            if (remaining.length > 0) {
-                if (dialCode.length === 1 && cleaned.length < 10) {
-                    continue
-                }
-                return { countryCode: country, phoneNumber: remaining }
-            }
-        }
-    }
-    return null
-}
+import {
+    buildInternationalPhoneNumber,
+    parseInternationalPhoneNumber,
+} from '~/utils/phone-number.util'
 
 interface Props {
     customer: Customer | null
@@ -317,7 +286,7 @@ const emit = defineEmits<{
 }>()
 
 const { updateCustomer, uploadImage, checkEmailExists } = useCustomer()
-const { locations, fetchLocations } = useLocation()
+const { fetchLocations } = useLocation()
 const { phoneCountryCodes, phoneCountryCodeOptions, fetchPhoneCountryCodes } = useCountry()
 const { success, error, errorFromError } = useToast()
 
@@ -328,7 +297,9 @@ const selectedOrganisationId = ref<number | null>(null)
 const avatarInput = ref<HTMLInputElement | null>(null)
 const avatarPreview = ref<string | null>(null)
 const avatarFile = ref<File | null>(null)
-const selectedCountryCode = ref<string>('+1')
+let locationRequestId = 0
+const formLocations = ref<Array<{ id: number; name: string }>>([])
+const selectedCountryCode = ref<string>('US')
 const phoneNumberValue = ref<string>('')
 
 const organisationOptions = computed(() => {
@@ -348,7 +319,7 @@ const hasOrganisationError = computed(() => {
 
 const countryCodeOptions = computed(() => {
     return phoneCountryCodeOptions.value.map((c) => ({
-        id: c.dialCode,
+        id: c.code,
         name: c.label,
         flag: c.flag,
         dialCode: c.dialCode,
@@ -356,7 +327,7 @@ const countryCodeOptions = computed(() => {
 })
 
 const locationOptions = computed(() => {
-    return locations.value.map((loc) => ({
+    return formLocations.value.map((loc) => ({
         id: loc.id,
         name: loc.name,
     }))
@@ -396,17 +367,17 @@ const { handleSubmit, setFieldValue, values, errors, resetForm, setErrors } =
     })
 
 // Phone number handlers
-const handleCountryCodeChange = (dialCode: string) => {
-    selectedCountryCode.value = dialCode
+const handleCountryCodeChange = (countryCode: string) => {
+    selectedCountryCode.value = countryCode
     updatePhoneNumberField()
 }
 
 const handlePhoneNumberChange = (value: string) => {
     if (value && value.trim().length > 0 && phoneCountryCodes.value.length > 0) {
-        const parsed = parsePhoneNumber(value, phoneCountryCodes.value)
-        if (parsed && parsed.countryCode && parsed.phoneNumber) {
-            selectedCountryCode.value = parsed.countryCode.dialCode
-            phoneNumberValue.value = parsed.phoneNumber
+        const parsed = parseInternationalPhoneNumber(value, phoneCountryCodes.value)
+        if (parsed) {
+            selectedCountryCode.value = parsed.country.code
+            phoneNumberValue.value = parsed.nationalNumber
             updatePhoneNumberField()
             return
         }
@@ -416,9 +387,11 @@ const handlePhoneNumberChange = (value: string) => {
 }
 
 const updatePhoneNumberField = () => {
-    const fullPhoneNumber = phoneNumberValue.value
-        ? `${selectedCountryCode.value}${phoneNumberValue.value.replace(/^\+/, '')}`
-        : ''
+    const fullPhoneNumber = buildInternationalPhoneNumber(
+        selectedCountryCode.value,
+        phoneNumberValue.value,
+        phoneCountryCodes.value
+    )
     setFieldValue('phoneNumber', fullPhoneNumber)
 }
 
@@ -501,9 +474,16 @@ const removeAvatar = () => {
 
 const handleOrganisationChange = async (newOrganisationId: number | null) => {
     if (newOrganisationId) {
+        setFieldValue('organisationId', newOrganisationId)
+        const requestId = ++locationRequestId
         const loadingTask = useLoadingTask('fetch-locations')
         await loadingTask.execute(async () => {
-            await fetchLocations(newOrganisationId)
+            const availableLocations = await fetchLocations(newOrganisationId)
+            if (requestId !== locationRequestId) return
+            formLocations.value = availableLocations
+            const firstLocationId = availableLocations[0]?.id ?? 0
+            setFieldValue('pickupLocation', firstLocationId)
+            setFieldValue('signupLocation', firstLocationId)
         })
     }
 }
@@ -518,7 +498,7 @@ const loadData = async () => {
     const fullCustomer = props.fullCustomerData
 
     selectedOrganisationId.value = fullCustomer.organisationId || DEFAULT_ORGANISATION_ID
-    await fetchLocations(fullCustomer.organisationId)
+    formLocations.value = await fetchLocations(fullCustomer.organisationId)
 
     if (fullCustomer.avatar) {
         avatarPreview.value = getFullImageUrl(fullCustomer.avatar, 'customers')
@@ -528,16 +508,19 @@ const loadData = async () => {
     avatarFile.value = null
 
     if (fullCustomer.phoneNumber) {
-        const parsed = parsePhoneNumber(fullCustomer.phoneNumber, phoneCountryCodes.value)
+        const parsed = parseInternationalPhoneNumber(
+            fullCustomer.phoneNumber,
+            phoneCountryCodes.value
+        )
         if (parsed) {
-            selectedCountryCode.value = parsed.countryCode.dialCode
-            phoneNumberValue.value = parsed.phoneNumber
+            selectedCountryCode.value = parsed.country.code
+            phoneNumberValue.value = parsed.nationalNumber
         } else {
-            selectedCountryCode.value = '+1'
+            selectedCountryCode.value = 'US'
             phoneNumberValue.value = fullCustomer.phoneNumber.replace(/^\+?1/, '')
         }
     } else {
-        selectedCountryCode.value = '+1'
+        selectedCountryCode.value = 'US'
         phoneNumberValue.value = ''
     }
 

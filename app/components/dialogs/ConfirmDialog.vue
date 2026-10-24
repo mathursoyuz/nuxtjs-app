@@ -6,10 +6,14 @@
         @update:model-value="$emit('update:modelValue', $event)"
     >
         <v-card>
-            <v-card-title class="d-flex align-center">
-                <v-icon :color="iconColor" class="mr-2">{{ icon }}</v-icon>
-                <span>{{ title }}</span>
-            </v-card-title>
+            <DialogsDialogHeader
+                :title="title"
+                :organisation-name="organisationName"
+                :entity-label="entityLabel"
+                :entity-name="entityName"
+                :scope="scope"
+                :closeable="false"
+            />
 
             <v-card-text>
                 <p class="text-body-1">{{ message }}</p>
@@ -42,6 +46,10 @@ interface Props {
     iconColor?: string
     maxWidth?: number | string
     loading?: boolean
+    organisationName?: string
+    entityLabel?: string
+    entityName?: string
+    scope?: string
 }
 
 interface Emits {
@@ -58,6 +66,10 @@ withDefaults(defineProps<Props>(), {
     iconColor: 'warning',
     maxWidth: 500,
     loading: false,
+    organisationName: undefined,
+    entityLabel: undefined,
+    entityName: undefined,
+    scope: undefined,
 })
 
 defineEmits<Emits>()

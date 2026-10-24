@@ -1,16 +1,20 @@
 <template>
-    <v-dialog :model-value="modelValue" max-width="900" persistent scrollable @update:model-value="close">
+    <v-dialog
+        :model-value="modelValue"
+        max-width="900"
+        persistent
+        scrollable
+        @update:model-value="close"
+    >
         <v-card>
-            <v-card-title class="d-flex align-center pa-4">
-                <div>
-                    <div>Refund order {{ order.orderNumber }}</div>
-                    <div class="text-caption text-medium-emphasis">
-                        Select the exact items and shipping amount to refund.
-                    </div>
-                </div>
-                <v-spacer />
-                <v-btn icon="mdi-close" variant="text" :disabled="processing" @click="close(false)" />
-            </v-card-title>
+            <DialogsDialogHeader
+                :title="`Refund order ${order.orderNumber}`"
+                :organisation-name="order.organisation.name"
+                entity-label="Customer"
+                :entity-name="`${order.customer.firstName} ${order.customer.lastName}`"
+                :close-disabled="processing"
+                @close="close(false)"
+            />
             <v-divider />
             <v-card-text class="pa-5">
                 <v-alert v-if="refunds.length" type="info" variant="tonal" class="mb-4">
@@ -94,7 +98,9 @@
             </v-card-text>
             <v-divider />
             <v-card-actions class="pa-4">
-                <v-btn variant="outlined" :disabled="processing" @click="close(false)">Cancel</v-btn>
+                <v-btn variant="outlined" :disabled="processing" @click="close(false)">
+                    Cancel
+                </v-btn>
                 <v-spacer />
                 <v-btn
                     color="warning"
@@ -171,7 +177,7 @@ const remainingShipping = computed(() =>
         Math.max(
             0,
             props.order.shippingAmount -
-            refunds.value.reduce((sum, refund) => sum + refund.shippingAmount, 0)
+                refunds.value.reduce((sum, refund) => sum + refund.shippingAmount, 0)
         )
     )
 )
@@ -214,7 +220,9 @@ function reset(): void {
 function lineRefund(line: RefundLine): number {
     if (!line.selected || line.remaining === 0) return 0
     const quantity = Math.min(Math.max(Number(line.quantity) || 1, 1), line.remaining)
-    return moneyValue(((line.item.totalAmount + line.item.taxAmount) / line.item.quantity) * quantity)
+    return moneyValue(
+        ((line.item.totalAmount + line.item.taxAmount) / line.item.quantity) * quantity
+    )
 }
 function close(value: boolean): void {
     if (!processing.value) emit('update:modelValue', value)
@@ -241,10 +249,7 @@ async function submit(manual: boolean): Promise<void> {
                 .filter((line) => line.selected && line.remaining > 0)
                 .map((line) => ({
                     orderItemId: line.item.id,
-                    quantity: Math.min(
-                        Math.max(Number(line.quantity) || 1, 1),
-                        line.remaining
-                    ),
+                    quantity: Math.min(Math.max(Number(line.quantity) || 1, 1), line.remaining),
                 })),
         })
         if (!response.data) throw new Error(response.message || 'Refund failed')

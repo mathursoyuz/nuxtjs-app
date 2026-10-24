@@ -11,12 +11,12 @@
         </v-overlay>
 
         <v-card>
-            <v-card-title class="d-flex align-center justify-space-between pa-4">
-                <span class="text-h4">Edit Category</span>
-                <v-btn icon variant="text" size="small" @click="$emit('update:modelValue', false)">
-                    <v-icon>mdi-close</v-icon>
-                </v-btn>
-            </v-card-title>
+            <DialogsDialogHeader
+                title="Edit category"
+                entity-label="Category"
+                :entity-name="category?.name"
+                @close="$emit('update:modelValue', false)"
+            />
 
             <v-divider></v-divider>
 

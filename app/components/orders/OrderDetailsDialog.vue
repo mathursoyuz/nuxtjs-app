@@ -1,25 +1,29 @@
 <template>
     <v-dialog :model-value="modelValue" max-width="1250" scrollable @update:model-value="close">
         <v-card v-if="currentOrder">
-            <v-card-title class="d-flex flex-wrap align-center ga-3 pa-4">
-                <div>
-                    <div>Order {{ currentOrder.orderNumber }}</div>
-                    <div class="text-caption text-medium-emphasis">
-                        {{
-                            currentOrder.orderType === 'PROCUREMENT'
-                                ? 'Procurement'
-                                : 'Customer sale'
-                        }}
-                        ·
-                        {{ formatDate(currentOrder.createdAt) }}
-                    </div>
-                </div>
-                <v-spacer />
-                <v-chip :color="statusColor(currentOrder.status)" variant="tonal">
-                    {{ formatStatus(currentOrder.status) }}
-                </v-chip>
-                <v-btn icon="mdi-close" variant="text" @click="close(false)" />
-            </v-card-title>
+            <DialogsDialogHeader
+                :title="`Order ${currentOrder.orderNumber}`"
+                :organisation-name="
+                    currentOrder.orderType === 'CUSTOMER_SALE'
+                        ? currentOrder.organisation?.name
+                        : currentOrder.buyerOrganisation?.name
+                "
+                :entity-label="
+                    currentOrder.orderType === 'CUSTOMER_SALE' ? 'Customer' : 'Order type'
+                "
+                :entity-name="
+                    currentOrder.orderType === 'CUSTOMER_SALE'
+                        ? `${currentOrder.customer.firstName} ${currentOrder.customer.lastName}`
+                        : 'Procurement'
+                "
+                @close="close(false)"
+            >
+                <template #actions>
+                    <v-chip color="white" variant="outlined">
+                        {{ formatStatus(currentOrder.status) }}
+                    </v-chip>
+                </template>
+            </DialogsDialogHeader>
             <v-divider />
             <v-card-text class="pa-5">
                 <v-progress-linear v-if="loading" indeterminate class="mb-4" />
@@ -218,7 +222,9 @@
                     {{ orderNotes }}
                 </v-alert>
                 <v-card
-                    v-if="currentOrder.orderType === 'CUSTOMER_SALE' && currentOrder.refunds?.length"
+                    v-if="
+                        currentOrder.orderType === 'CUSTOMER_SALE' && currentOrder.refunds?.length
+                    "
                     class="mt-4"
                     variant="outlined"
                 >
@@ -331,6 +337,8 @@
         confirm-color="error"
         icon="mdi-cancel"
         :loading="cancelling"
+        entity-label="Order"
+        :entity-name="currentOrder?.orderNumber"
         @cancel="showCancelConfirmation = false"
         @confirm="cancelOrder"
     />

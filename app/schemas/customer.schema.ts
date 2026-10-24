@@ -51,13 +51,6 @@ export const customerCreditCardSchema = z
         }
     )
 
-export const customerWineClubSchema = z.object({
-    wineClubId: z.number().int().positive(),
-    wineClubName: z.string(),
-    wineClubStatus: z.number().int(),
-    wineClubJoinDate: z.string(),
-})
-
 export const createCustomerSchema = z.object({
     organisationId: z.number().int().positive(),
     firstName: z.string().min(3).max(50),
@@ -88,7 +81,6 @@ export const createCustomerSchema = z.object({
     shippingPostalCode: z.string().min(5).max(10),
     shippingCountryCode: z.string().min(2).max(5),
     creditCard: customerCreditCardSchema.optional().nullable(),
-    wineClub: customerWineClubSchema.optional().nullable(),
 })
 
 export const updateCustomerSchema = createCustomerSchema.partial().extend({

@@ -50,7 +50,16 @@
             </v-data-table>
         </v-card>
         <v-dialog v-model="roleDialog" max-width="650">
-            <v-card :title="editingRoleId ? 'Edit role' : 'Create role'">
+            <v-card>
+                <DialogsDialogHeader
+                    :title="editingRoleId ? 'Edit role' : 'Create role'"
+                    :organisation-name="access.isPlatformContext ? undefined : contextName"
+                    :scope="access.isPlatformContext ? 'Platform' : undefined"
+                    entity-label="Role"
+                    :entity-name="roleForm.name || 'New role'"
+                    :close-disabled="saving"
+                    @close="roleDialog = false"
+                />
                 <v-card-text>
                     <v-text-field v-model="roleForm.name" label="Role name" />
                     <v-text-field
@@ -112,7 +121,9 @@ const canCreateRole = computed(() => access.can(ROLE_PERMISSIONS.WRITE))
 const canUpdateRole = computed(() => access.can(ROLE_PERMISSIONS.WRITE))
 const canDeleteRole = computed(() => access.can(ROLE_PERMISSIONS.DELETE))
 const contextName = computed(
-    () => access.organisations.find((organisation) => organisation.id === organisationId.value)?.name ?? 'Platform'
+    () =>
+        access.organisations.find((organisation) => organisation.id === organisationId.value)
+            ?.name ?? 'Platform'
 )
 const roles = ref<AccessRole[]>([])
 const catalogue = ref<{ code: string; name: string }[]>([])

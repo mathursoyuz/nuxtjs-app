@@ -178,13 +178,13 @@ test('permissions follow the acting organisation context', async () => {
     filters.setOrganisationId(2)
     customers.setCustomers([{ id: 100, organisationId: 2 }])
 
-    await access.switchActingClient(3)
+    await access.switchActingOrganisation(3)
     assert.equal(access.actingOrganisationId, 3)
     assert.equal(access.can('organisation-products.write'), true)
     assert.equal(access.can('products.write'), false)
     assert.equal(filters.organisationId, null)
     assert.deepEqual(customers.customers, [])
-    await assert.rejects(access.switchActingClient(99), /not available/)
+    await assert.rejects(access.switchActingOrganisation(99), /not available/)
 })
 
 test('explicit organisation targets use granted permissions without changing acting context', async () => {
@@ -203,7 +203,7 @@ test('restores the acting organisation saved in local storage after a hard reloa
     const state = fixture()
     const initialAccess = useAccessStore()
     await initialAccess.ensureReady()
-    await initialAccess.switchActingClient(3)
+    await initialAccess.switchActingOrganisation(3)
     assert.deepEqual([...state.storage.entries()], [['acting_organisation_id:10', 3]])
 
     // A fresh Pinia instance models a hard reload while the API-backed auth
@@ -238,7 +238,7 @@ test('organisation users and customers cannot switch organisations', async () =>
         const access = useAccessStore()
         await access.ensureReady()
         assert.equal(access.canSwitchOrganisations, false)
-        await assert.rejects(access.switchActingClient(3), /Only platform/)
+        await assert.rejects(access.switchActingOrganisation(3), /Only platform/)
     }
 })
 
@@ -275,7 +275,7 @@ test('target-selection pages remain available after switching organisation conte
     fixture()
     const access = useAccessStore()
     await access.ensureReady()
-    await access.switchActingClient(2)
+    await access.switchActingOrganisation(2)
 
     assert.equal(access.can('organisation-products.write'), false)
     assert.equal(access.can('organisation-products.write', 3), true)
@@ -305,7 +305,7 @@ test('overlapping refresh and context switch always clear busy flags', async () 
               })
             : Promise.resolve({ data: structuredClone(state.contexts[organisationId]) })
 
-    const switching = access.switchActingClient(2)
+    const switching = access.switchActingOrganisation(2)
     await new Promise((resolve) => setImmediate(resolve))
     const refreshing = access.refresh()
     await refreshing

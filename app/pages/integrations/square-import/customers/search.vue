@@ -221,10 +221,12 @@
         <!-- Raw Data Dialog -->
         <v-dialog v-model="rawDataDialog" max-width="800px">
             <v-card>
-                <v-card-title class="d-flex align-center justify-space-between">
-                    <span>Raw Customer Data</span>
-                    <v-btn icon="mdi-close" variant="text" @click="rawDataDialog = false"></v-btn>
-                </v-card-title>
+                <DialogsDialogHeader
+                    title="Raw Square customer data"
+                    entity-label="Customer"
+                    :entity-name="selectedRawData ? getCustomerName(selectedRawData) : undefined"
+                    @close="rawDataDialog = false"
+                />
                 <v-card-text>
                     <pre class="raw-json">{{ JSON.stringify(selectedRawData, null, 2) }}</pre>
                 </v-card-text>
@@ -449,7 +451,10 @@ const bulkImport = async () => {
 
         if (response.success && response.data) {
             const result = response.data.result
-            const message = getImportResultMessage(result, `Successfully imported ${selectedCount} customer(s)`)
+            const message = getImportResultMessage(
+                result,
+                `Successfully imported ${selectedCount} customer(s)`
+            )
             if (result.errors.length > 0) {
                 warning(message)
             } else {

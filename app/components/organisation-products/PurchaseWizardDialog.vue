@@ -7,15 +7,7 @@
         @update:model-value="emit('update:modelValue', $event)"
     >
         <v-card>
-            <v-card-title class="d-flex align-center justify-space-between pa-4">
-                <div>
-                    <div class="text-h5">Procure platform products</div>
-                    <div class="text-caption text-medium-emphasis">
-                        Purchase platform variants into this organisation's location inventory.
-                    </div>
-                </div>
-                <v-btn icon="mdi-close" variant="text" @click="close" />
-            </v-card-title>
+            <DialogsDialogHeader title="Procure platform products" @close="close" />
 
             <v-divider />
 
@@ -79,8 +71,8 @@
                             variant="tonal"
                             class="mb-4"
                         >
-                            Add an active location for this organisation before creating a procurement
-                            order.
+                            Add an active location for this organisation before creating a
+                            procurement order.
                         </v-alert>
 
                         <v-alert
@@ -615,9 +607,13 @@ const createOrder = async (): Promise<void> => {
 const charge = async (order: ProcurementOrder): Promise<void> => {
     processingOrderId.value = order.id
     try {
-        const response = await organisationProductApi.chargeProcurementOrder(props.organisationId, order.id, {
-            idempotencyKey: idempotencyKey(`procurement-charge-${order.id}`),
-        })
+        const response = await organisationProductApi.chargeProcurementOrder(
+            props.organisationId,
+            order.id,
+            {
+                idempotencyKey: idempotencyKey(`procurement-charge-${order.id}`),
+            }
+        )
         if (response.data?.status === 'COMPLETED') {
             successFromResponse(response, 'Order charged successfully')
             emit('submit')

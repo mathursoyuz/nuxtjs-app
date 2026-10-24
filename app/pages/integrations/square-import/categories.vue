@@ -150,12 +150,12 @@
         <!-- Raw Data Dialog -->
         <v-dialog v-model="rawDataDialog" max-width="900px" scrollable>
             <v-card>
-                <v-card-title class="d-flex align-center justify-space-between">
-                    <span>Raw Catalog Object</span>
-                    <v-btn icon variant="text" @click="rawDataDialog = false">
-                        <v-icon>mdi-close</v-icon>
-                    </v-btn>
-                </v-card-title>
+                <DialogsDialogHeader
+                    title="Raw Square category data"
+                    entity-label="Category"
+                    :entity-name="selectedRawData?.category_data?.name"
+                    @close="rawDataDialog = false"
+                />
                 <v-divider />
                 <v-card-text class="pa-4">
                     <pre class="raw-json">{{ JSON.stringify(selectedRawData, null, 2) }}</pre>

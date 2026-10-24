@@ -71,8 +71,9 @@
                 </template>
                 <template #item.organisationId="{ item }">
                     {{
-                        access.organisations.find((organisation) => organisation.id === item.organisationId)?.name ??
-                        'Organisation'
+                        access.organisations.find(
+                            (organisation) => organisation.id === item.organisationId
+                        )?.name ?? 'Organisation'
                     }}
                 </template>
                 <template #item.isActive="{ item }">
@@ -158,7 +159,19 @@
             :persistent="saving"
             @update:model-value="systemTarget = null"
         >
-            <v-card rounded="lg" title="Change system role">
+            <v-card rounded="lg">
+                <DialogsDialogHeader
+                    title="Change system role"
+                    :scope="isOverview ? 'Platform' : undefined"
+                    entity-label="User"
+                    :entity-name="
+                        systemTarget
+                            ? `${systemTarget.firstName} ${systemTarget.lastName}`
+                            : undefined
+                    "
+                    :close-disabled="saving"
+                    @close="systemTarget = null"
+                />
                 <v-card-text>
                     <p class="text-body-2 mb-4">
                         {{ systemTarget?.firstName }} {{ systemTarget?.lastName }}
@@ -217,15 +230,18 @@ const auth = useAuthStore()
 const api = useNuxtApp().$accessApi as AccessApiService
 const toast = useToast()
 const organisationId = computed(() => access.actingOrganisationId)
-const filterOrganisationId = computed(() => (access.isPlatformContext ? filters.organisationId : null))
+const filterOrganisationId = computed(() =>
+    access.isPlatformContext ? filters.organisationId : null
+)
 const isOverview = computed(
     () => access.isPlatformContext && filterOrganisationId.value !== access.platformOrganisationId
 )
 const contextName = computed(() =>
     isOverview.value
         ? filterOrganisationId.value
-            ? (access.organisations.find((organisation) => organisation.id === filterOrganisationId.value)?.name ??
-              'Selected organisation')
+            ? (access.organisations.find(
+                  (organisation) => organisation.id === filterOrganisationId.value
+              )?.name ?? 'Selected organisation')
             : 'All accessible organisations'
         : organisationId.value === access.platformOrganisationId
           ? 'Platform users'

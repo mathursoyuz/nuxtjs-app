@@ -7,14 +7,14 @@
         @update:model-value="close"
     >
         <v-card>
-            <v-card-title class="d-flex align-center pa-4">
-                <div>
-                    <div>Edit pending order</div>
-                    <div class="text-caption text-medium-emphasis">{{ order.orderNumber }}</div>
-                </div>
-                <v-spacer />
-                <v-btn icon="mdi-close" variant="text" :disabled="busy" @click="close(false)" />
-            </v-card-title>
+            <DialogsDialogHeader
+                title="Edit pending order"
+                :organisation-name="order.organisation.name"
+                entity-label="Customer"
+                :entity-name="`${order.customer.firstName} ${order.customer.lastName}`"
+                :close-disabled="busy"
+                @close="close(false)"
+            />
             <v-divider />
             <v-card-text class="pa-5">
                 <v-alert v-if="initializing" type="info" variant="tonal" class="mb-4">
@@ -112,11 +112,21 @@
                                                 md="4"
                                             >
                                                 <v-card
-                                                    variant="outlined"
+                                                    :color="
+                                                        selectedCardId === card.id
+                                                            ? 'primary'
+                                                            : undefined
+                                                    "
+                                                    :variant="
+                                                        selectedCardId === card.id
+                                                            ? 'tonal'
+                                                            : 'outlined'
+                                                    "
+                                                    class="cursor-pointer"
                                                     @click="selectedCardId = card.id"
                                                 >
                                                     <v-card-text class="d-flex align-center ga-3">
-                                                        <v-radio :value="card.id" />
+                                                        <v-radio :value="card.id" @click.stop />
                                                         <v-icon icon="mdi-credit-card" />
                                                         <div>
                                                             Ending {{ card.lastFour }}

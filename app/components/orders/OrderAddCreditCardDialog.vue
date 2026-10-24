@@ -1,11 +1,12 @@
 <template>
     <v-dialog :model-value="modelValue" max-width="800" persistent @update:model-value="close">
         <v-card>
-            <v-card-title class="d-flex align-center pa-4">
-                <span>Add payment card</span>
-                <v-spacer />
-                <v-btn icon="mdi-close" variant="text" @click="close(false)" />
-            </v-card-title>
+            <DialogsDialogHeader
+                title="Add payment card"
+                entity-label="Customer"
+                :entity-name="`${customer.firstName} ${customer.lastName}`"
+                @close="close(false)"
+            />
             <v-divider />
             <v-card-text class="pa-5">
                 <div class="text-subtitle-1 mb-3">Card billing address</div>

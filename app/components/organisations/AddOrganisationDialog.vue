@@ -7,12 +7,13 @@
         persistent
     >
         <v-card>
-            <v-card-title class="d-flex align-center justify-space-between">
-                <span class="text-h5">Create Organisation</span>
-                <v-btn icon variant="text" @click="$emit('update:modelValue', false)">
-                    <v-icon>mdi-close</v-icon>
-                </v-btn>
-            </v-card-title>
+            <DialogsDialogHeader
+                title="Create organisation"
+                scope="Platform"
+                entity-label="Organisation"
+                entity-name="New organisation"
+                @close="$emit('update:modelValue', false)"
+            />
 
             <v-divider />
 

@@ -217,8 +217,12 @@ export function useCustomer() {
         }
     }
 
-    const checkEmailExists = async (email: string, customerId?: number): Promise<boolean> => {
-        const response = await customerApi.checkEmailExists(email, customerId)
+    const checkEmailExists = async (
+        email: string,
+        customerId?: number,
+        organisationId?: number
+    ): Promise<boolean> => {
+        const response = await customerApi.checkEmailExists(email, customerId, organisationId)
         return response.data?.available ?? false
     }
 

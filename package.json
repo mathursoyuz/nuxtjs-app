@@ -11,7 +11,10 @@
         "format": "prettier --write .",
         "format:check": "prettier --check .",
         "typecheck": "nuxt typecheck",
-        "test:access": "node --experimental-transform-types tests/access.test.mjs"
+        "test:access": "node --experimental-transform-types tests/access.test.mjs",
+        "test:membership-slug": "node --experimental-transform-types tests/membership-slug.test.mjs",
+        "test:membership-batch": "node --test tests/membership-batch.test.mjs",
+        "test:phone-number": "node --experimental-transform-types tests/phone-number.test.mjs"
     },
     "dependencies": {
         "@mdi/font": "^7.4.47",

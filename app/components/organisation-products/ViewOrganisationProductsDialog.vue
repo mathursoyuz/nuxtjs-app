@@ -7,12 +7,13 @@
         persistent
     >
         <v-card>
-            <v-card-title class="d-flex align-center justify-space-between bg-primary">
-                <span class="text-h5 text-white">Organisation Products - {{ organisationName }}</span>
-                <v-btn icon variant="text" @click="closeDialog">
-                    <v-icon color="white">mdi-close</v-icon>
-                </v-btn>
-            </v-card-title>
+            <DialogsDialogHeader
+                title="Organisation products"
+                :organisation-name="organisationName"
+                entity-label="Organisation"
+                :entity-name="organisationName"
+                @close="closeDialog"
+            />
 
             <v-divider />
 
@@ -268,9 +269,15 @@ const showDelete = ref(false)
 const showInventory = ref(false)
 const selectedInventoryProduct = ref<OrganisationProduct | null>(null)
 const selectedInventoryVariant = ref<OrganisationProduct['variants'][number] | null>(null)
-const canWrite = computed(() => access.can(ORGANISATION_PRODUCT_PERMISSIONS.WRITE, props.organisationId))
-const canDelete = computed(() => access.can(ORGANISATION_PRODUCT_PERMISSIONS.DELETE, props.organisationId))
-const canManageInventory = computed(() => access.can(INVENTORY_PERMISSIONS.WRITE, props.organisationId))
+const canWrite = computed(() =>
+    access.can(ORGANISATION_PRODUCT_PERMISSIONS.WRITE, props.organisationId)
+)
+const canDelete = computed(() =>
+    access.can(ORGANISATION_PRODUCT_PERMISSIONS.DELETE, props.organisationId)
+)
+const canManageInventory = computed(() =>
+    access.can(INVENTORY_PERMISSIONS.WRITE, props.organisationId)
+)
 
 const headers = [
     { title: 'Thumbnail', key: 'thumbnail', sortable: false },
@@ -296,7 +303,8 @@ const formatVariantDetails = (variant: OrganisationProduct['variants'][number]):
 const managedVariants = (product: OrganisationProduct): OrganisationProduct['variants'] =>
     product.variants.filter((variant) => variant.stockManaged && !variant.isDeleted)
 
-const hasManagedInventory = (product: OrganisationProduct): boolean => managedVariants(product).length > 0
+const hasManagedInventory = (product: OrganisationProduct): boolean =>
+    managedVariants(product).length > 0
 
 const openInventory = (
     product: OrganisationProduct,
@@ -378,7 +386,11 @@ const requestDelete = (product: OrganisationProduct): void => {
 const toggle = async (product: OrganisationProduct, isActive: boolean): Promise<void> => {
     if (!canWrite.value) return
     try {
-        await organisationProductApi.toggleOrganisationProduct(props.organisationId, product.id, isActive)
+        await organisationProductApi.toggleOrganisationProduct(
+            props.organisationId,
+            product.id,
+            isActive
+        )
         await fetchOrganisationProducts()
     } catch (error) {
         useToast().errorFromError(error, 'Unable to update product status.')
@@ -388,7 +400,10 @@ const toggle = async (product: OrganisationProduct, isActive: boolean): Promise<
 const remove = async (): Promise<void> => {
     if (!selected.value || !canDelete.value) return
     try {
-        await organisationProductApi.deleteOrganisationProduct(props.organisationId, selected.value.id)
+        await organisationProductApi.deleteOrganisationProduct(
+            props.organisationId,
+            selected.value.id
+        )
         showDelete.value = false
         selected.value = null
         await fetchOrganisationProducts()

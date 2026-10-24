@@ -7,15 +7,12 @@
         @update:model-value="emit('update:modelValue', $event)"
     >
         <v-card>
-            <v-card-title class="d-flex align-center justify-space-between pa-4">
-                <div>
-                    <div class="text-h5">Edit product</div>
-                    <div class="text-caption text-medium-emphasis">
-                        Update product information and its independently sellable variants.
-                    </div>
-                </div>
-                <v-btn icon="mdi-close" variant="text" @click="close" />
-            </v-card-title>
+            <DialogsDialogHeader
+                title="Edit product"
+                entity-label="Product"
+                :entity-name="product?.name"
+                @close="close"
+            />
 
             <v-divider />
 

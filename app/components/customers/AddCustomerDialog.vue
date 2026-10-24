@@ -8,17 +8,24 @@
         transition="dialog-bottom-transition"
     >
         <v-card>
-            <v-card-title class="d-flex align-center justify-space-between pa-4">
-                <span class="text-h4">Add Customer</span>
-                <v-btn icon variant="text" size="small" @click="$emit('update:modelValue', false)">
-                    <v-icon>mdi-close</v-icon>
-                </v-btn>
-                <v-spacer></v-spacer>
-                <v-btn @click="$emit('update:modelValue', false)" class="mr-2">Cancel</v-btn>
-                <v-btn color="primary" :loading="isSubmitting" @click="handleSubmitForm">
-                    Create Customer
-                </v-btn>
-            </v-card-title>
+            <DialogsDialogHeader
+                title="Add customer"
+                :organisation-name="organisations.find((item) => item.id === organisationId)?.name"
+                entity-label="Customer"
+                entity-name="New customer"
+                @close="$emit('update:modelValue', false)"
+            >
+                <template #actions>
+                    <v-btn
+                        color="white"
+                        variant="outlined"
+                        :loading="isSubmitting"
+                        @click="handleSubmitForm"
+                    >
+                        Create customer
+                    </v-btn>
+                </template>
+            </DialogsDialogHeader>
 
             <v-divider></v-divider>
 
@@ -44,7 +51,9 @@
                                             required
                                             :error="hasOrganisationError"
                                             :error-messages="
-                                                hasOrganisationError ? 'Organisation is required' : ''
+                                                hasOrganisationError
+                                                    ? 'Organisation is required'
+                                                    : ''
                                             "
                                             hide-details="auto"
                                         ></v-select>
@@ -731,60 +740,10 @@ import { useToast } from '~/composables/useToast'
 import { CUSTOMER_MESSAGES } from '~/constants/messages.constants'
 import { DEFAULT_ORGANISATION_ID } from '~/constants/customer.constants'
 import { useLoadingTask } from '~/composables/useLoadingTask'
-import type { PhoneCountryCode } from '~/services/api/wrappers/country.api'
-
-// Helper function to parse phone number
-function parsePhoneNumber(
-    phoneNumber: string,
-    phoneCountryCodes: PhoneCountryCode[]
-): { countryCode: PhoneCountryCode; phoneNumber: string } | null {
-    if (!phoneNumber || !phoneCountryCodes || phoneCountryCodes.length === 0) return null
-
-    // Remove all non-digit characters except +
-    const cleaned = phoneNumber.replace(/[^\d+]/g, '')
-
-    if (!cleaned || cleaned.length < 4) return null // Too short to have a country code (min: +1 + 2 digits)
-
-    // Try to match dial codes (longest first to avoid false matches)
-    // Sort by dial code length descending to match longer codes first (e.g., +1 before +12, but +123 before +1)
-    const sortedCodes = [...phoneCountryCodes].sort((a, b) => {
-        const aCode = a.dialCode.replace('+', '')
-        const bCode = b.dialCode.replace('+', '')
-        return bCode.length - aCode.length
-    })
-
-    for (const country of sortedCodes) {
-        const dialCode = country.dialCode.replace('+', '')
-        const dialCodeWithPlus = `+${dialCode}`
-
-        // Check if the cleaned number starts with the dial code (with or without +)
-        if (cleaned.startsWith(dialCodeWithPlus)) {
-            // Extract the remaining number after the dial code with +
-            const remaining = cleaned.substring(dialCodeWithPlus.length).trim()
-
-            // Only return if there's a remaining number (at least 1 digit)
-            if (remaining.length > 0) {
-                return { countryCode: country, phoneNumber: remaining }
-            }
-        } else if (cleaned.startsWith(dialCode)) {
-            // Check if it starts with just the digits (for numbers like "11234567890" where 1 is the code)
-            // But only if the dial code is not just "1" (to avoid false matches)
-            // For single-digit codes like "1", require at least 10 total digits to avoid false positives
-            const remaining = cleaned.substring(dialCode.length).trim()
-
-            if (remaining.length > 0) {
-                // For single-digit codes like "1", make sure we have enough digits total
-                // to distinguish from a local number (e.g., "11234567890" vs "1234567890")
-                if (dialCode.length === 1 && cleaned.length < 10) {
-                    continue // Skip single-digit codes if total length is too short
-                }
-                return { countryCode: country, phoneNumber: remaining }
-            }
-        }
-    }
-
-    return null
-}
+import {
+    buildInternationalPhoneNumber,
+    parseInternationalPhoneNumber,
+} from '~/utils/phone-number.util'
 
 interface Props {
     modelValue: boolean
@@ -799,7 +758,7 @@ const emit = defineEmits<{
 }>()
 
 const { createCustomer, uploadImage, checkEmailExists } = useCustomer()
-const { locations, fetchLocations } = useLocation()
+const { fetchLocations } = useLocation()
 const {
     countries,
     phoneCountryCodes,
@@ -836,14 +795,18 @@ const yearOptions = Array.from({ length: 16 }, (_, i) => {
     }
 })
 const selectedOrganisationId = ref<number>(
-    props.organisationId && props.organisationId > 0 ? props.organisationId : DEFAULT_ORGANISATION_ID
+    props.organisationId && props.organisationId > 0
+        ? props.organisationId
+        : DEFAULT_ORGANISATION_ID
 )
 const avatarInput = ref<HTMLInputElement | null>(null)
 const avatarPreview = ref<string | null>(null)
 const avatarFile = ref<File | null>(null)
+let locationRequestId = 0
+const formLocations = ref<Array<{ id: number; name: string }>>([])
 
 // Phone number state
-const selectedCountryCode = ref<string>('+1') // Default to US
+const selectedCountryCode = ref<string>('US')
 const phoneNumberValue = ref<string>('')
 
 const organisationOptions = computed(() => {
@@ -860,7 +823,7 @@ const hasOrganisationError = computed(() => {
 
 const countryCodeOptions = computed(() => {
     return phoneCountryCodeOptions.value.map((c) => {
-        return { id: c.dialCode, name: c.label }
+        return { id: c.code, name: c.label }
     })
 })
 
@@ -904,7 +867,6 @@ const getInitialValues = (): CreateCustomerFormData => {
             cvc: '',
             isActive: true,
         },
-        wineClub: null,
     }
 }
 
@@ -927,7 +889,7 @@ const {
 })
 
 const locationOptions = computed(() => {
-    return locations.value.map((loc) => ({
+    return formLocations.value.map((loc) => ({
         id: loc.id,
         name: loc.name,
     }))
@@ -981,8 +943,8 @@ const handleCopyBillingToShipping = (copy: boolean | null) => {
 }
 
 // Phone number handlers
-const handleCountryCodeChange = (dialCode: string) => {
-    selectedCountryCode.value = dialCode
+const handleCountryCodeChange = (countryCode: string) => {
+    selectedCountryCode.value = countryCode
     updatePhoneNumberField()
 }
 
@@ -990,11 +952,11 @@ const handlePhoneNumberChange = (value: string) => {
     // Always try to auto-detect country code if phone country codes are loaded
     if (value && value.trim().length > 0 && phoneCountryCodes.value.length > 0) {
         // Try to parse and detect country code
-        const parsed = parsePhoneNumber(value, phoneCountryCodes.value)
-        if (parsed && parsed.countryCode && parsed.phoneNumber) {
+        const parsed = parseInternationalPhoneNumber(value, phoneCountryCodes.value)
+        if (parsed) {
             // Country code detected - update both fields
-            selectedCountryCode.value = parsed.countryCode.dialCode
-            phoneNumberValue.value = parsed.phoneNumber
+            selectedCountryCode.value = parsed.country.code
+            phoneNumberValue.value = parsed.nationalNumber
             updatePhoneNumberField()
             return
         }
@@ -1006,9 +968,11 @@ const handlePhoneNumberChange = (value: string) => {
 }
 
 const updatePhoneNumberField = () => {
-    const fullPhoneNumber = phoneNumberValue.value
-        ? `${selectedCountryCode.value}${phoneNumberValue.value.replace(/^\+/, '')}`
-        : ''
+    const fullPhoneNumber = buildInternationalPhoneNumber(
+        selectedCountryCode.value,
+        phoneNumberValue.value,
+        phoneCountryCodes.value
+    )
     setFieldValue('phoneNumber', fullPhoneNumber)
 }
 
@@ -1033,7 +997,7 @@ const handleEmailBlur = async (field: { value?: string; onBlur: (e: Event) => vo
 
     checkingEmail.value = true
     try {
-        const available = await checkEmailExists(email)
+        const available = await checkEmailExists(email, undefined, selectedOrganisationId.value)
         if (!available) {
             setErrors({ email: 'Email already exists. Please use a different email.' })
         }
@@ -1114,7 +1078,7 @@ const submitForm = handleSubmit(async (formValues) => {
             avatarFile.value = null
             avatarPreview.value = null
             // Reset phone number fields
-            selectedCountryCode.value = '+1'
+            selectedCountryCode.value = 'US'
             phoneNumberValue.value = ''
             createdCustomerId.value = null
         })
@@ -1146,9 +1110,16 @@ const { pending: addCustomerDataPending } = await useLazyAsyncData(
     async () => {
         // Fetch countries and phone country codes
         await Promise.all([fetchCountries(), fetchPhoneCountryCodes()])
-        selectedOrganisationId.value = DEFAULT_ORGANISATION_ID
-        setFieldValue('organisationId', DEFAULT_ORGANISATION_ID)
-        await fetchLocations(DEFAULT_ORGANISATION_ID)
+        const initialOrganisationId = selectedOrganisationId.value || DEFAULT_ORGANISATION_ID
+        selectedOrganisationId.value = initialOrganisationId
+        setFieldValue('organisationId', initialOrganisationId)
+        const availableLocations = await fetchLocations(initialOrganisationId)
+        formLocations.value = availableLocations
+        const firstLocationId = availableLocations[0]?.id
+        if (firstLocationId) {
+            setFieldValue('pickupLocation', firstLocationId)
+            setFieldValue('signupLocation', firstLocationId)
+        }
     }
 )
 
@@ -1158,9 +1129,15 @@ watch(
         if (newOrganisationId && newOrganisationId > 0) {
             // Update form organisationId when selectedOrganisationId changes
             setFieldValue('organisationId', newOrganisationId)
+            const requestId = ++locationRequestId
             const loadingTask = useLoadingTask('fetch-locations')
             await loadingTask.execute(async () => {
-                await fetchLocations(newOrganisationId)
+                const availableLocations = await fetchLocations(newOrganisationId)
+                if (requestId !== locationRequestId) return
+                formLocations.value = availableLocations
+                const firstLocationId = availableLocations[0]?.id ?? 0
+                setFieldValue('pickupLocation', firstLocationId)
+                setFieldValue('signupLocation', firstLocationId)
             })
         }
     }

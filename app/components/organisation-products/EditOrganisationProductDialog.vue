@@ -7,15 +7,13 @@
         @update:model-value="emit('update:modelValue', $event)"
     >
         <v-card>
-            <v-card-title class="d-flex align-center justify-space-between pa-4">
-                <div>
-                    <div class="text-h5">Edit organisation white-label product</div>
-                    <div class="text-caption text-medium-emphasis">
-                        Organisation: {{ organisationName || 'No organisation selected' }}
-                    </div>
-                </div>
-                <v-btn icon="mdi-close" variant="text" @click="close" />
-            </v-card-title>
+            <DialogsDialogHeader
+                title="Edit organisation white-label product"
+                :organisation-name="organisationName"
+                entity-label="Product"
+                :entity-name="organisationProduct?.name"
+                @close="close"
+            />
 
             <v-divider />
 
@@ -53,6 +51,24 @@
                                         @update:model-value="description = $event || null"
                                     />
                                 </v-col>
+                                <v-col cols="12">
+                                    <v-autocomplete
+                                        :model-value="values.categoryIds"
+                                        :items="categoryOptions"
+                                        item-title="title"
+                                        item-value="value"
+                                        label="Product categories"
+                                        variant="outlined"
+                                        multiple
+                                        chips
+                                        closable-chips
+                                        :loading="loadingCategories"
+                                        :error-messages="errors.categoryIds"
+                                        @update:model-value="
+                                            setFieldValue('categoryIds', toNumberArray($event))
+                                        "
+                                    />
+                                </v-col>
                                 <v-col cols="12" md="4">
                                     <v-switch
                                         v-model="isActive"
@@ -74,7 +90,10 @@
                                 <v-col cols="12" md="8">
                                     <GalleryUpload
                                         :can-remove-existing="
-                                            access.can(ORGANISATION_PRODUCT_PERMISSIONS.DELETE, organisationId)
+                                            access.can(
+                                                ORGANISATION_PRODUCT_PERMISSIONS.DELETE,
+                                                organisationId
+                                            )
                                         "
                                         v-model="gallery"
                                         :existing-gallery="visibleGallery"
@@ -174,9 +193,13 @@ import {
     type OrganisationProductVariantFormData,
 } from '~/schemas/organisation-product.schema'
 import type { OrganisationProductApiService } from '~/services/api/wrappers/organisation-product.api'
-import type { OrganisationProduct, UpdateOrganisationProductDTO } from '~/types/organisation-product.types'
+import type {
+    OrganisationProduct,
+    UpdateOrganisationProductDTO,
+} from '~/types/organisation-product.types'
 import type { InventoryDraftBalance } from '~/types/inventory.types'
 import { getFullImageUrl } from '~/utils/image.util'
+import type { CategoryApiService } from '~/services/api/wrappers/category.api'
 
 interface Props {
     modelValue: boolean
@@ -194,10 +217,13 @@ const emit = defineEmits<{
     'update:modelValue': [value: boolean]
     submit: []
 }>()
-const canManageInventory = computed(() => access.can(INVENTORY_PERMISSIONS.WRITE, props.organisationId))
+const canManageInventory = computed(() =>
+    access.can(INVENTORY_PERMISSIONS.WRITE, props.organisationId)
+)
 
 const nuxtApp = useNuxtApp()
 const organisationProductApi = nuxtApp.$organisationProductApi as OrganisationProductApiService
+const categoryApi = nuxtApp.$categoryApi as CategoryApiService
 const { successFromResponse, errorFromError } = useToast()
 const saving = ref(false)
 const thumbnail = ref<File | null>(null)
@@ -206,6 +232,8 @@ const visibleGallery = ref<string[]>([])
 const removedGallery = ref<string[]>([])
 const inventoryDialogOpen = ref(false)
 const inventoryVariantIndex = ref<number | null>(null)
+const categoryOptions = ref<Array<{ title: string; value: number }>>([])
+const loadingCategories = ref(false)
 const componentVariantOptions = computed(() =>
     props.availableProducts.flatMap((product) =>
         product.variants
@@ -235,6 +263,7 @@ const emptyForm = (): OrganisationProductFormData => ({
     slug: '',
     name: '',
     description: null,
+    categoryIds: [],
     variants: [emptyVariant()],
     isActive: true,
 })
@@ -243,6 +272,7 @@ const productToForm = (product: OrganisationProduct): OrganisationProductFormDat
     slug: product.slug,
     name: product.name,
     description: product.description,
+    categoryIds: [...product.categoryIds],
     variants: product.variants.map((variant) => ({
         id: variant.id,
         platformProductVariantId: variant.platformProductVariantId ?? undefined,
@@ -264,7 +294,7 @@ const productToForm = (product: OrganisationProduct): OrganisationProductFormDat
     isActive: product.isActive,
 })
 
-const { errors, handleSubmit, isSubmitting, resetForm, defineField, values } =
+const { errors, handleSubmit, isSubmitting, resetForm, defineField, setFieldValue, values } =
     useForm<OrganisationProductFormData>({
         validationSchema: toTypedSchema(organisationProductFormSchema),
         initialValues: emptyForm(),
@@ -274,6 +304,28 @@ const [name] = defineField('name')
 const [slug] = defineField('slug')
 const [description] = defineField('description')
 const [isActive] = defineField('isActive')
+const toNumberArray = (value: unknown): number[] =>
+    Array.isArray(value)
+        ? value.map(Number).filter((item) => Number.isInteger(item) && item > 0)
+        : []
+
+const loadCategories = async (): Promise<void> => {
+    loadingCategories.value = true
+    try {
+        const response = await categoryApi.getAllCategories()
+        categoryOptions.value = (response.data ?? [])
+            .filter(
+                (category) =>
+                    category.isActive ||
+                    props.organisationProduct?.categoryIds.includes(category.id)
+            )
+            .map((category) => ({ title: category.name, value: category.id }))
+    } catch {
+        categoryOptions.value = []
+    } finally {
+        loadingCategories.value = false
+    }
+}
 const {
     push: appendVariant,
     remove: removeVariantAt,
@@ -309,7 +361,8 @@ const canRemoveVariant = (index: number): boolean => {
     if (props.organisationProduct?.isPlatformProduct) return false
     if (values.variants.length === 1) return false
     const original = originalVariant(index)
-    if (original && !access.can(ORGANISATION_PRODUCT_PERMISSIONS.DELETE, props.organisationId)) return false
+    if (original && !access.can(ORGANISATION_PRODUCT_PERMISSIONS.DELETE, props.organisationId))
+        return false
     return !original || (original.qty === 0 && original.reservedQty === 0)
 }
 
@@ -363,7 +416,11 @@ const saveMedia = async (organisationProductId: number): Promise<void> => {
     const data = new FormData()
     if (thumbnail.value) data.append('uploadThumbnail', thumbnail.value)
     gallery.value.forEach((file) => data.append('uploadGallery', file))
-    await organisationProductApi.uploadOrganisationProductImages(props.organisationId, organisationProductId, data)
+    await organisationProductApi.uploadOrganisationProductImages(
+        props.organisationId,
+        organisationProductId,
+        data
+    )
 }
 
 const submitForm = handleSubmit(async (data) => {
@@ -418,6 +475,7 @@ watch(
     ([isOpen]) => {
         if (!isOpen) return
         reset()
+        void loadCategories()
     },
     { immediate: true }
 )

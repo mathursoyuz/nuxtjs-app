@@ -7,28 +7,30 @@
         persistent
     >
         <v-card>
-            <v-card-title class="d-flex align-center justify-space-between">
-                <span class="text-h5">
-                    {{
-                        currentCustomer
-                            ? `${currentCustomer.firstName} ${currentCustomer.lastName}`
-                            : 'Customer Details'
-                    }}
-                </span>
-                <div class="d-flex gap-2">
+            <DialogsDialogHeader
+                title="Customer details"
+                entity-label="Customer"
+                :entity-name="
+                    currentCustomer
+                        ? `${currentCustomer.firstName} ${currentCustomer.lastName}`
+                        : undefined
+                "
+                @close="$emit('update:modelValue', false)"
+            >
+                <template #actions>
                     <v-btn
-                        v-if="organisationId && access.can(CUSTOMER_PERMISSIONS.WRITE, organisationId)"
-                        color="primary"
+                        v-if="
+                            organisationId && access.can(CUSTOMER_PERMISSIONS.WRITE, organisationId)
+                        "
+                        color="white"
+                        variant="outlined"
                         prepend-icon="mdi-pencil"
                         @click="handleEdit"
                     >
                         Edit
                     </v-btn>
-                    <v-btn icon variant="text" @click="$emit('update:modelValue', false)">
-                        <v-icon>mdi-close</v-icon>
-                    </v-btn>
-                </div>
-            </v-card-title>
+                </template>
+            </DialogsDialogHeader>
 
             <v-divider />
 

@@ -76,12 +76,19 @@
                                 <div v-if="item.address">
                                     {{ item.address.address_line_1 || '' }}
                                     {{ item.address.locality ? `, ${item.address.locality}` : '' }}
-                                    {{ item.address.postal_code ? ` ${item.address.postal_code}` : '' }}
+                                    {{
+                                        item.address.postal_code
+                                            ? ` ${item.address.postal_code}`
+                                            : ''
+                                    }}
                                 </div>
                                 <span v-else>-</span>
                             </template>
                             <template #item.status="{ item }">
-                                <v-chip size="small" :color="item.status === 'ACTIVE' ? 'success' : 'default'">
+                                <v-chip
+                                    size="small"
+                                    :color="item.status === 'ACTIVE' ? 'success' : 'default'"
+                                >
                                     {{ item.status || '-' }}
                                 </v-chip>
                             </template>
@@ -147,12 +154,12 @@
         <!-- Raw Data Dialog -->
         <v-dialog v-model="rawDataDialog" max-width="900px" scrollable>
             <v-card>
-                <v-card-title class="d-flex align-center justify-space-between">
-                    <span>Raw Location Object</span>
-                    <v-btn icon variant="text" @click="rawDataDialog = false">
-                        <v-icon>mdi-close</v-icon>
-                    </v-btn>
-                </v-card-title>
+                <DialogsDialogHeader
+                    title="Raw Square location data"
+                    entity-label="Location"
+                    :entity-name="selectedRawData?.name"
+                    @close="rawDataDialog = false"
+                />
                 <v-divider />
                 <v-card-text class="pa-4">
                     <pre class="raw-json">{{ JSON.stringify(selectedRawData, null, 2) }}</pre>

@@ -8,12 +8,21 @@
         transition="dialog-bottom-transition"
     >
         <v-card>
-            <v-card-title class="d-flex align-center justify-space-between pa-4">
-                <span class="text-h4">Edit Customer</span>
-                <v-btn icon variant="text" size="small" @click="$emit('update:modelValue', false)">
-                    <v-icon>mdi-close</v-icon>
-                </v-btn>
-            </v-card-title>
+            <DialogsDialogHeader
+                title="Edit customer"
+                :organisation-name="
+                    organisations?.find((item) => item.id === customerOrganisationId)?.name
+                "
+                entity-label="Customer"
+                :entity-name="
+                    fullCustomerData
+                        ? `${fullCustomerData.firstName} ${fullCustomerData.lastName}`
+                        : customer
+                          ? `${customer.firstName} ${customer.lastName}`
+                          : undefined
+                "
+                @close="$emit('update:modelValue', false)"
+            />
 
             <v-divider></v-divider>
 
@@ -22,6 +31,7 @@
                     <v-tab value="basic">Basic Info</v-tab>
                     <v-tab value="billing">Billing + Credit Card</v-tab>
                     <v-tab value="shipping">Shipping Addresses</v-tab>
+                    <v-tab v-if="canReadMemberships" value="memberships">Memberships</v-tab>
                     <v-tab value="password">Change Password</v-tab>
                 </v-tabs>
 
@@ -101,7 +111,27 @@
                             </Suspense>
                         </v-window-item>
 
-                        <!-- Tab 4: Change Password -->
+                        <!-- Tab 4: Memberships -->
+                        <v-window-item v-if="canReadMemberships" value="memberships">
+                            <Suspense>
+                                <CustomerMembershipManager
+                                    :organisation-id="fullCustomerData.organisationId"
+                                    :customer-id="fullCustomerData.id"
+                                    :customer-name="`${fullCustomerData.firstName} ${fullCustomerData.lastName}`"
+                                    :can-write="canWriteMemberships"
+                                    :active="activeTab === 'memberships'"
+                                    @updated="emit('submit')"
+                                />
+                                <template #fallback>
+                                    <div class="text-center pa-8">
+                                        <v-progress-circular indeterminate color="primary" />
+                                        <div class="mt-4">Loading Memberships...</div>
+                                    </div>
+                                </template>
+                            </Suspense>
+                        </v-window-item>
+
+                        <!-- Tab 5: Change Password -->
                         <v-window-item value="password">
                             <Suspense>
                                 <EditCustomerPasswordTab
@@ -129,10 +159,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { defineAsyncComponent } from 'vue'
 import { useCustomer } from '~/composables/useCustomer'
 import { useLoadingTask } from '~/composables/useLoadingTask'
+import { useAccessStore } from '~/stores/access.store'
+import { CUSTOMER_MEMBERSHIP_SUBSCRIPTION_PERMISSIONS } from '~/components/memberships/membership.permissions'
 import type { Customer } from '~/services/api/wrappers/customer.api'
 
 // Lazy load tab components
@@ -147,6 +179,9 @@ const EditCustomerShippingTab = defineAsyncComponent(
 )
 const EditCustomerPasswordTab = defineAsyncComponent(
     () => import('./tabs/EditCustomerPasswordTab.vue')
+)
+const CustomerMembershipManager = defineAsyncComponent(
+    () => import('~/components/memberships/CustomerMembershipManager.vue')
 )
 
 interface Props {
@@ -163,6 +198,7 @@ const emit = defineEmits<{
 }>()
 
 const { fetchCustomerById } = useCustomer()
+const access = useAccessStore()
 const activeTab = ref('basic')
 const loadingCustomer = ref(false)
 const fullCustomerData = ref<Customer | null>(null)
@@ -171,6 +207,19 @@ const basicValues = ref<{
     lastName?: string
     phoneNumber?: string
 }>({})
+const customerOrganisationId = computed(
+    () => fullCustomerData.value?.organisationId ?? props.customer?.organisationId ?? 0
+)
+const canReadMemberships = computed(
+    () =>
+        customerOrganisationId.value > 0 &&
+        access.can(CUSTOMER_MEMBERSHIP_SUBSCRIPTION_PERMISSIONS.READ, customerOrganisationId.value)
+)
+const canWriteMemberships = computed(
+    () =>
+        customerOrganisationId.value > 0 &&
+        access.can(CUSTOMER_MEMBERSHIP_SUBSCRIPTION_PERMISSIONS.WRITE, customerOrganisationId.value)
+)
 
 // Load customer data once when dialog opens
 const loadCustomerData = async () => {

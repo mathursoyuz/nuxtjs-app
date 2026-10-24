@@ -44,7 +44,7 @@ onMounted(() => {
     // Reserve the actual wrapped height in Vuetify's fixed app bar, including
     // page controls that are teleported here after their page mounts.
     observer = new ResizeObserver(() => {
-        emit('resize', Math.ceil(bar.value?.getBoundingOrganisationRect().height ?? 0))
+        emit('resize', Math.ceil(bar.value?.getBoundingClientRect().height ?? 0))
     })
     observer.observe(bar.value)
 })

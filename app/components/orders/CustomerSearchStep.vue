@@ -52,7 +52,7 @@ interface CustomerOption {
     customer: Customer
 }
 
-const props = defineProps<{ modelValue: Customer | null }>()
+const props = defineProps<{ modelValue: Customer | null; organisationId?: number | null }>()
 const emit = defineEmits<{
     'update:modelValue': [customer: Customer | null]
 }>()
@@ -88,7 +88,12 @@ async function searchCustomers(query: string): Promise<void> {
     const currentRevision = ++requestRevision
     loading.value = true
     try {
-        const response = await customerApi.getAllCustomers(null, 1, 20, query)
+        const response = await customerApi.getAllCustomers(
+            props.organisationId ?? null,
+            1,
+            20,
+            query
+        )
         if (currentRevision !== requestRevision) return
         options.value = (response.data?.customers ?? [])
             .filter((customer) => customer.isActive)

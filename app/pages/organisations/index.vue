@@ -43,7 +43,7 @@
                             class="elevation-1"
                         >
                             <template #item.actions="{ item }">
-                                <div class="d-flex align-center gap-2" style="min-width: 320px">
+                                <div class="d-flex align-center gap-2" style="min-width: 400px">
                                     <v-btn
                                         icon="mdi-package-variant"
                                         size="small"
@@ -60,6 +60,24 @@
                                         @click="handleViewTransactions(item as Organisation)"
                                         title="View Transactions"
                                     ></v-btn>
+                                    <v-btn
+                                        v-if="canManageMemberships(item as Organisation)"
+                                        icon="mdi-card-account-details-star"
+                                        size="small"
+                                        color="secondary"
+                                        variant="text"
+                                        @click="handleManageMemberships(item as Organisation)"
+                                        title="Manage customer memberships"
+                                    />
+                                    <v-btn
+                                        v-if="canManagePlatformServices(item as Organisation)"
+                                        icon="mdi-shield-star"
+                                        size="small"
+                                        color="primary"
+                                        variant="text"
+                                        @click="handlePlatformServices(item as Organisation)"
+                                        title="Subscribe to Platform Services"
+                                    />
                                     <template v-if="access.can(ORGANISATION_PERMISSIONS.WRITE)">
                                         <v-btn
                                             icon="mdi-cart-plus"
@@ -157,6 +175,7 @@
             v-if="addCreditCardDialogOpen"
             v-model="addCreditCardDialogOpen"
             :organisation-id="selectedOrganisationForCreditCard?.id || 0"
+            :organisation="selectedOrganisationForCreditCard"
             @submit="handleDialogSubmit"
         />
 
@@ -192,6 +211,21 @@
             :organisation-id="selectedOrganisationForTransactions?.id || 0"
             :organisation-name="selectedOrganisationForTransactions?.name || ''"
         />
+
+        <OrganisationPlatformServicesDialog
+            v-if="platformServicesDialogOpen && selectedOrganisationForPlatformServices"
+            v-model="platformServicesDialogOpen"
+            :organisation-id="selectedOrganisationForPlatformServices.id"
+            :organisation-name="selectedOrganisationForPlatformServices.name"
+            :can-write="canWritePlatformServices"
+        />
+
+        <OrganisationMembershipManagerDialog
+            v-if="membershipManagerDialogOpen && selectedOrganisationForMemberships"
+            v-model="membershipManagerDialogOpen"
+            :organisation-id="selectedOrganisationForMemberships.id"
+            :organisation-name="selectedOrganisationForMemberships.name"
+        />
     </v-container>
 </template>
 
@@ -200,6 +234,10 @@ import { ref, defineAsyncComponent } from 'vue'
 import { useOrganisation } from '~/composables/useOrganisation'
 import { useAccessStore } from '~/stores/access.store'
 import { ORGANISATION_PERMISSIONS } from '~/components/organisations/organisation.permissions'
+import {
+    ORGANISATION_MEMBERSHIP_PERMISSIONS,
+    ORGANISATION_MEMBERSHIP_SUBSCRIPTION_PERMISSIONS,
+} from '~/components/memberships/membership.permissions'
 import type { Organisation } from '~/types/organisation.types'
 import { getFullImageUrl } from '~/utils/image.util'
 
@@ -228,6 +266,12 @@ const ViewOrganisationProductsDialog = defineAsyncComponent(
 const ViewOrganisationTransactionsDialog = defineAsyncComponent(
     () => import('~/components/organisations/ViewOrganisationTransactionsDialog.vue')
 )
+const OrganisationPlatformServicesDialog = defineAsyncComponent(
+    () => import('~/components/memberships/OrganisationPlatformServicesDialog.vue')
+)
+const OrganisationMembershipManagerDialog = defineAsyncComponent(
+    () => import('~/components/memberships/OrganisationMembershipManagerDialog.vue')
+)
 
 definePageMeta({
     middleware: ['auth', 'permission'],
@@ -255,12 +299,30 @@ const addProductDialogOpen = ref(false)
 const purchaseDialogOpen = ref(false)
 const viewProductsDialogOpen = ref(false)
 const viewTransactionsDialogOpen = ref(false)
+const platformServicesDialogOpen = ref(false)
+const membershipManagerDialogOpen = ref(false)
 const selectedOrganisation = ref<Organisation | null>(null)
 const selectedOrganisationForCreditCard = ref<Organisation | null>(null)
 const selectedOrganisationForProduct = ref<Organisation | null>(null)
 const selectedOrganisationForPurchase = ref<Organisation | null>(null)
 const selectedOrganisationForViewProducts = ref<Organisation | null>(null)
 const selectedOrganisationForTransactions = ref<Organisation | null>(null)
+const selectedOrganisationForPlatformServices = ref<Organisation | null>(null)
+const selectedOrganisationForMemberships = ref<Organisation | null>(null)
+const canWritePlatformServices = computed(() =>
+    selectedOrganisationForPlatformServices.value
+        ? access.can(
+              ORGANISATION_MEMBERSHIP_SUBSCRIPTION_PERMISSIONS.WRITE,
+              selectedOrganisationForPlatformServices.value.id
+          )
+        : false
+)
+const canManageMemberships = (organisation: Organisation): boolean =>
+    organisation.id !== access.platformOrganisationId &&
+    access.can(ORGANISATION_MEMBERSHIP_PERMISSIONS.READ, organisation.id)
+const canManagePlatformServices = (organisation: Organisation): boolean =>
+    organisation.id !== access.platformOrganisationId &&
+    access.can(ORGANISATION_MEMBERSHIP_SUBSCRIPTION_PERMISSIONS.READ, organisation.id)
 
 const filteredOrganisations = computed(() => {
     if (!searchQuery.value || searchQuery.value.trim() === '') {
@@ -320,12 +382,25 @@ const handleViewTransactions = (item: Organisation) => {
     viewTransactionsDialogOpen.value = true
 }
 
+const handleManageMemberships = (item: Organisation): void => {
+    selectedOrganisationForMemberships.value = item
+    membershipManagerDialogOpen.value = true
+}
+
+const handlePlatformServices = (item: Organisation): void => {
+    selectedOrganisationForPlatformServices.value = item
+    platformServicesDialogOpen.value = true
+}
+
 const handleDialogSubmit = async () => {
     await fetchOrganisations()
 }
 
 // Use useLazyAsyncData for initial data fetching
-const { pending: organisationsPending } = await useLazyAsyncData('organisations-initial', async () => {
-    await fetchOrganisations()
-})
+const { pending: organisationsPending } = await useLazyAsyncData(
+    'organisations-initial',
+    async () => {
+        await fetchOrganisations()
+    }
+)
 </script>

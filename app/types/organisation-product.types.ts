@@ -55,6 +55,7 @@ export interface OrganisationProduct {
     name: string
     thumbnail: string | null
     description: string | null
+    categoryIds: number[]
     isActive: boolean
     isDeleted: boolean
     gallery: string[]
@@ -92,6 +93,7 @@ export interface CreateOrganisationProductDTO {
     slug: string
     name: string
     description: string | null
+    categoryIds: number[]
     variants: OrganisationProductVariantInput[]
     isActive: boolean
 }
@@ -100,6 +102,7 @@ export interface UpdateOrganisationProductDTO {
     slug?: string
     name?: string
     description?: string | null
+    categoryIds?: number[]
     variants?: OrganisationProductVariantInput[]
     isActive?: boolean
 }

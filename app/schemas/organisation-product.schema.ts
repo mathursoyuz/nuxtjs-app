@@ -30,6 +30,7 @@ export const organisationProductFormSchema = z
         slug: z.string().trim().min(1, 'Organisation slug is required').max(255),
         name: z.string().trim().min(1, 'White-label product name is required').max(255),
         description: z.string().nullable(),
+        categoryIds: z.array(z.coerce.number().int().positive()).default([]),
         variants: z
             .array(organisationProductVariantFormSchema)
             .min(1, 'Every organisation product requires at least one variant'),
@@ -112,5 +113,7 @@ export const organisationProductFormSchema = z
         }
     })
 
-export type OrganisationProductVariantFormData = z.infer<typeof organisationProductVariantFormSchema>
+export type OrganisationProductVariantFormData = z.infer<
+    typeof organisationProductVariantFormSchema
+>
 export type OrganisationProductFormData = z.infer<typeof organisationProductFormSchema>

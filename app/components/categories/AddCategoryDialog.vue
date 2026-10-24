@@ -11,12 +11,12 @@
         </v-overlay>
 
         <v-card>
-            <v-card-title class="d-flex align-center justify-space-between pa-4">
-                <span class="text-h4">Create Category</span>
-                <v-btn icon variant="text" size="small" @click="$emit('update:modelValue', false)">
-                    <v-icon>mdi-close</v-icon>
-                </v-btn>
-            </v-card-title>
+            <DialogsDialogHeader
+                title="Create category"
+                entity-label="Category"
+                entity-name="New category"
+                @close="$emit('update:modelValue', false)"
+            />
 
             <v-divider></v-divider>
 

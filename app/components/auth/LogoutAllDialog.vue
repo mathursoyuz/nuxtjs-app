@@ -7,6 +7,7 @@
         confirm-color="error"
         icon="mdi-logout-variant"
         icon-color="error"
+        scope="Account"
         :loading="isLoggingOut"
         @confirm="confirmLogoutAll"
         @cancel="cancelLogoutAll"

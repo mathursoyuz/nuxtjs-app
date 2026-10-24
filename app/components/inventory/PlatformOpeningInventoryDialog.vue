@@ -7,15 +7,13 @@
         @update:model-value="emit('update:modelValue', $event)"
     >
         <v-card>
-            <v-card-title class="d-flex align-center justify-space-between pa-4">
-                <div>
-                    <div class="text-h5">Platform opening inventory</div>
-                    <div class="text-caption text-medium-emphasis">
-                        {{ title }} — stock belongs to the Platform Organisation.
-                    </div>
-                </div>
-                <v-btn icon="mdi-close" variant="text" @click="close" />
-            </v-card-title>
+            <DialogsDialogHeader
+                title="Platform opening inventory"
+                scope="Platform"
+                entity-label="Product"
+                :entity-name="title"
+                @close="close"
+            />
             <v-divider />
 
             <v-card-text class="pa-5">

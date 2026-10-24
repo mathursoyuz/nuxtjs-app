@@ -7,17 +7,17 @@
         @update:model-value="emit('update:modelValue', $event)"
     >
         <v-card>
-            <v-card-title class="d-flex align-center justify-space-between pa-4">
-                <div>
-                    <div class="text-h5">{{ product?.name ?? 'Product details' }}</div>
-                    <div v-if="product" class="text-caption text-medium-emphasis">
-                        {{ product.slug }} · {{ product.variants.length }} variant(s)
-                    </div>
-                </div>
-                <div class="d-flex ga-2">
+            <DialogsDialogHeader
+                title="Product details"
+                entity-label="Product"
+                :entity-name="product?.name"
+                @close="emit('update:modelValue', false)"
+            >
+                <template #actions>
                     <template v-if="access.can(PRODUCT_PERMISSIONS.WRITE)">
                         <v-btn
-                            color="primary"
+                            color="white"
+                            variant="outlined"
                             prepend-icon="mdi-pencil"
                             :disabled="!product"
                             @click="edit"
@@ -27,7 +27,8 @@
                     </template>
                     <template v-if="access.can(PRODUCT_PERMISSIONS.DELETE)">
                         <v-btn
-                            color="error"
+                            color="white"
+                            variant="outlined"
                             prepend-icon="mdi-delete"
                             :disabled="!product"
                             @click="remove"
@@ -35,13 +36,8 @@
                             Delete
                         </v-btn>
                     </template>
-                    <v-btn
-                        icon="mdi-close"
-                        variant="text"
-                        @click="emit('update:modelValue', false)"
-                    />
-                </div>
-            </v-card-title>
+                </template>
+            </DialogsDialogHeader>
 
             <v-divider />
 

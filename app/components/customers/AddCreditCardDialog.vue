@@ -8,11 +8,12 @@
         @update:model-value="emit('update:modelValue', $event)"
     >
         <v-card>
-            <v-card-title class="d-flex align-center pa-4">
-                <span class="text-h5">Manage Credit Cards</span>
-                <v-spacer />
-                <v-btn icon="mdi-close" variant="text" @click="closeDialog" />
-            </v-card-title>
+            <DialogsDialogHeader
+                title="Manage credit cards"
+                entity-label="Customer"
+                :entity-name="customer ? `${customer.firstName} ${customer.lastName}` : undefined"
+                @close="closeDialog"
+            />
 
             <v-divider />
 
@@ -417,7 +418,7 @@ const submitForm = handleSubmit(async (values) => {
     isSubmitting.value = true
     try {
         const customer = customerDetails.value ?? props.customer
-        await addCard({
+        const addedCard = await addCard({
             firstName: customer.firstName,
             lastName: customer.lastName,
             company: values.company,
@@ -432,7 +433,9 @@ const submitForm = handleSubmit(async (values) => {
             expYear: values.expYear,
             cvc: values.cvc,
         })
-        success(CUSTOMER_MESSAGES.CREDIT_CARD_ADD_SUCCESS)
+        success(
+            `New Credit Card ${addedCard.lastFour} for ${customer.firstName} added successfully!`
+        )
         emit('submit')
         await loadDialogData()
     } catch (error) {

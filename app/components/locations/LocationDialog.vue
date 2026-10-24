@@ -11,12 +11,12 @@
         </v-overlay>
 
         <v-card>
-            <v-card-title class="d-flex align-center justify-space-between pa-4">
-                <span class="text-h4">{{ isEditMode ? 'Edit Location' : 'Create Location' }}</span>
-                <v-btn icon variant="text" size="small" @click="$emit('update:modelValue', false)">
-                    <v-icon>mdi-close</v-icon>
-                </v-btn>
-            </v-card-title>
+            <DialogsDialogHeader
+                :title="isEditMode ? 'Edit location' : 'Create location'"
+                entity-label="Location"
+                :entity-name="isEditMode ? formData.name : 'New location'"
+                @close="$emit('update:modelValue', false)"
+            />
 
             <v-divider></v-divider>
 
@@ -155,9 +155,7 @@
 
             <v-card-actions class="pa-4">
                 <v-spacer></v-spacer>
-                <v-btn variant="text" @click="$emit('update:modelValue', false)">
-                    Cancel
-                </v-btn>
+                <v-btn variant="text" @click="$emit('update:modelValue', false)">Cancel</v-btn>
                 <v-btn
                     color="primary"
                     :loading="isSubmitting"
@@ -172,39 +170,39 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick } from 'vue';
-import { useLocation } from '~/composables/useLocation';
-import { useOrganisation } from '~/composables/useOrganisation';
-import { useCountry } from '~/composables/useCountry';
-import { useToast } from '~/composables/useToast';
-import { LOCATION_MESSAGES } from '~/constants/messages.constants';
-import { createLocationSchema, updateLocationSchema } from '~/schemas/location.schema';
-import type { CreateLocationFormData, UpdateLocationFormData } from '~/schemas/location.schema';
-import type { Location } from '~/types/location.types';
+import { ref, computed, watch, nextTick } from 'vue'
+import { useLocation } from '~/composables/useLocation'
+import { useOrganisation } from '~/composables/useOrganisation'
+import { useCountry } from '~/composables/useCountry'
+import { useToast } from '~/composables/useToast'
+import { LOCATION_MESSAGES } from '~/constants/messages.constants'
+import { createLocationSchema, updateLocationSchema } from '~/schemas/location.schema'
+import type { CreateLocationFormData, UpdateLocationFormData } from '~/schemas/location.schema'
+import type { Location } from '~/types/location.types'
 
 interface Props {
-    modelValue: boolean;
-    location?: Location | null;
+    modelValue: boolean
+    location?: Location | null
 }
 
-const props = defineProps<Props>();
+const props = defineProps<Props>()
 
 const emit = defineEmits<{
-    'update:modelValue': [value: boolean];
-    'submit': [];
-}>();
+    'update:modelValue': [value: boolean]
+    submit: []
+}>()
 
-const { createLocation, updateLocation, fetchLocationById } = useLocation();
-const { organisations, fetchOrganisations } = useOrganisation();
-const { countries, countryOptions, fetchCountries, fetchStates, getStateOptions } = useCountry();
-const { successFromResponse, errorFromError } = useToast();
+const { createLocation, updateLocation, fetchLocationById } = useLocation()
+const { organisations, fetchOrganisations } = useOrganisation()
+const { countries, countryOptions, fetchCountries, fetchStates, getStateOptions } = useCountry()
+const { successFromResponse, errorFromError } = useToast()
 
-const formRef = ref();
-const valid = ref(false);
-const isSubmitting = ref(false);
-const isLoading = ref(false);
+const formRef = ref()
+const valid = ref(false)
+const isSubmitting = ref(false)
+const isLoading = ref(false)
 
-const isEditMode = computed(() => !!props.location);
+const isEditMode = computed(() => !!props.location)
 
 const formData = ref<CreateLocationFormData | UpdateLocationFormData>({
     organisationId: 0,
@@ -217,121 +215,121 @@ const formData = ref<CreateLocationFormData | UpdateLocationFormData>({
     lat: undefined,
     long: undefined,
     isActive: true,
-});
+})
 
 const organisationOptions = computed(() => {
     return organisations.value.map((c) => ({
         title: c.name,
         value: c.id,
-    }));
-});
+    }))
+})
 
 const stateOptions = computed(() => {
     if (!formData.value.country) {
-        return [];
+        return []
     }
-    const options = getStateOptions(formData.value.country);
-    return options.value;
-});
+    const options = getStateOptions(formData.value.country)
+    return options.value
+})
 
 const rules = {
     required: (v: unknown) => !!v || 'This field is required',
     latitude: (v: unknown) => {
-        if (v === null || v === undefined || v === '') return true; // Optional field
-        const num = typeof v === 'string' ? parseFloat(v) : Number(v);
-        if (isNaN(num)) return 'Latitude must be a valid number';
-        if (num < -90 || num > 90) return 'Latitude must be between -90 and 90';
-        return true;
+        if (v === null || v === undefined || v === '') return true // Optional field
+        const num = typeof v === 'string' ? parseFloat(v) : Number(v)
+        if (isNaN(num)) return 'Latitude must be a valid number'
+        if (num < -90 || num > 90) return 'Latitude must be between -90 and 90'
+        return true
     },
     longitude: (v: unknown) => {
-        if (v === null || v === undefined || v === '') return true; // Optional field
-        const num = typeof v === 'string' ? parseFloat(v) : Number(v);
-        if (isNaN(num)) return 'Longitude must be a valid number';
-        if (num < -180 || num > 180) return 'Longitude must be between -180 and 180';
-        return true;
+        if (v === null || v === undefined || v === '') return true // Optional field
+        const num = typeof v === 'string' ? parseFloat(v) : Number(v)
+        if (isNaN(num)) return 'Longitude must be a valid number'
+        if (num < -180 || num > 180) return 'Longitude must be between -180 and 180'
+        return true
     },
-};
+}
 
 const handleCountryChange = async (countryId: string | null) => {
     // Clear state when country changes
-    formData.value.state = undefined;
-    
+    formData.value.state = undefined
+
     if (countryId) {
-        await fetchStates(countryId);
+        await fetchStates(countryId)
     }
-};
+}
 
 // Watch for dialog open to load data
-watch(() => props.modelValue, async (isOpen, wasOpen) => {
-    if (isOpen && !wasOpen) {
-        isLoading.value = true;
-        try {
-            await Promise.all([
-                fetchOrganisations(),
-                fetchCountries(),
-            ]);
+watch(
+    () => props.modelValue,
+    async (isOpen, wasOpen) => {
+        if (isOpen && !wasOpen) {
+            isLoading.value = true
+            try {
+                await Promise.all([fetchOrganisations(), fetchCountries()])
 
-            if (isEditMode.value && props.location) {
-                // Load location data for editing
-                formData.value = {
-                    organisationId: props.location.organisationId,
-                    name: props.location.name,
-                    address: props.location.address || undefined,
-                    city: props.location.city || undefined,
-                    state: props.location.state || undefined,
-                    country: props.location.country || undefined,
-                    phoneNumber: props.location.phoneNumber || undefined,
-                    lat: props.location.lat || undefined,
-                    long: props.location.long || undefined,
-                    isActive: props.location.isActive,
-                };
+                if (isEditMode.value && props.location) {
+                    // Load location data for editing
+                    formData.value = {
+                        organisationId: props.location.organisationId,
+                        name: props.location.name,
+                        address: props.location.address || undefined,
+                        city: props.location.city || undefined,
+                        state: props.location.state || undefined,
+                        country: props.location.country || undefined,
+                        phoneNumber: props.location.phoneNumber || undefined,
+                        lat: props.location.lat || undefined,
+                        long: props.location.long || undefined,
+                        isActive: props.location.isActive,
+                    }
 
-                // Load states if country is set
-                if (formData.value.country) {
-                    await fetchStates(formData.value.country);
+                    // Load states if country is set
+                    if (formData.value.country) {
+                        await fetchStates(formData.value.country)
+                    }
+                } else {
+                    // Reset form for new location
+                    formData.value = {
+                        organisationId: 0,
+                        name: '',
+                        address: undefined,
+                        city: undefined,
+                        state: undefined,
+                        country: undefined,
+                        phoneNumber: undefined,
+                        lat: undefined,
+                        long: undefined,
+                        isActive: true,
+                    }
                 }
-            } else {
-                // Reset form for new location
-                formData.value = {
-                    organisationId: 0,
-                    name: '',
-                    address: undefined,
-                    city: undefined,
-                    state: undefined,
-                    country: undefined,
-                    phoneNumber: undefined,
-                    lat: undefined,
-                    long: undefined,
-                    isActive: true,
-                };
+            } finally {
+                isLoading.value = false
             }
-        } finally {
-            isLoading.value = false;
-        }
-    } else if (!isOpen && wasOpen) {
-        // Reset form when dialog closes
-        formData.value = {
-            organisationId: 0,
-            name: '',
-            address: undefined,
-            city: undefined,
-            state: undefined,
-            country: undefined,
-            phoneNumber: undefined,
-            lat: undefined,
-            long: undefined,
-            isActive: true,
-        };
-        if (formRef.value) {
-            formRef.value.reset();
+        } else if (!isOpen && wasOpen) {
+            // Reset form when dialog closes
+            formData.value = {
+                organisationId: 0,
+                name: '',
+                address: undefined,
+                city: undefined,
+                state: undefined,
+                country: undefined,
+                phoneNumber: undefined,
+                lat: undefined,
+                long: undefined,
+                isActive: true,
+            }
+            if (formRef.value) {
+                formRef.value.reset()
+            }
         }
     }
-});
+)
 
 const handleSubmit = async () => {
-    if (!formRef.value?.validate()) return;
+    if (!formRef.value?.validate()) return
 
-    isSubmitting.value = true;
+    isSubmitting.value = true
 
     try {
         // Clean and format the data before submission
@@ -346,31 +344,34 @@ const handleSubmit = async () => {
             long: formData.value.long
                 ? Number(parseFloat(String(formData.value.long)).toFixed(8)).toString()
                 : undefined,
-        };
+        }
 
         // Remove empty strings
-        if (submitData.lat === '' || submitData.lat === 'NaN') submitData.lat = undefined;
-        if (submitData.long === '' || submitData.long === 'NaN') submitData.long = undefined;
+        if (submitData.lat === '' || submitData.lat === 'NaN') submitData.lat = undefined
+        if (submitData.long === '' || submitData.long === 'NaN') submitData.long = undefined
 
         if (isEditMode.value && props.location) {
-            updateLocationSchema.parse(submitData);
-            const response = await updateLocation(props.location.id, submitData);
-            successFromResponse(response, LOCATION_MESSAGES.UPDATE_SUCCESS);
+            updateLocationSchema.parse(submitData)
+            const response = await updateLocation(props.location.id, submitData)
+            successFromResponse(response, LOCATION_MESSAGES.UPDATE_SUCCESS)
         } else {
-            createLocationSchema.parse(submitData);
-            const response = await createLocation(submitData as CreateLocationFormData);
-            successFromResponse(response, LOCATION_MESSAGES.CREATE_SUCCESS);
+            createLocationSchema.parse(submitData)
+            const response = await createLocation(submitData as CreateLocationFormData)
+            successFromResponse(response, LOCATION_MESSAGES.CREATE_SUCCESS)
         }
-        
-        emit('submit');
-        emit('update:modelValue', false);
+
+        emit('submit')
+        emit('update:modelValue', false)
     } catch (err) {
-        console.error('Validation or save error:', err);
-        errorFromError(err, isEditMode.value ? LOCATION_MESSAGES.UPDATE_ERROR : LOCATION_MESSAGES.CREATE_ERROR);
+        console.error('Validation or save error:', err)
+        errorFromError(
+            err,
+            isEditMode.value ? LOCATION_MESSAGES.UPDATE_ERROR : LOCATION_MESSAGES.CREATE_ERROR
+        )
     } finally {
-        isSubmitting.value = false;
+        isSubmitting.value = false
     }
-};
+}
 </script>
 
 <style scoped>

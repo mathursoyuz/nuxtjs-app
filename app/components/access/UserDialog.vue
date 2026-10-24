@@ -7,17 +7,20 @@
         @update:model-value="close"
     >
         <v-card rounded="lg">
-            <v-card-title class="d-flex align-center justify-space-between px-6 pt-5 pb-2">
-                <span class="text-h6">{{ userId ? 'Edit user' : 'Create user' }}</span>
-                <v-btn
-                    icon="mdi-close"
-                    variant="text"
-                    size="small"
-                    aria-label="Close user form"
-                    :disabled="saving"
-                    @click="close"
-                />
-            </v-card-title>
+            <DialogsDialogHeader
+                :title="userId ? 'Edit user' : 'Create user'"
+                :organisation-name="contextName"
+                entity-label="User"
+                :entity-name="
+                    form.firstName || form.lastName
+                        ? `${form.firstName} ${form.lastName}`.trim()
+                        : userId
+                          ? 'Selected user'
+                          : 'New user'
+                "
+                :close-disabled="saving"
+                @close="close"
+            />
             <v-card-text class="px-6 pt-3 pb-2">
                 <v-progress-linear v-if="loading" indeterminate color="primary" class="mb-4" />
                 <v-alert v-if="error" type="error" variant="tonal" class="mb-4" role="alert">
@@ -227,7 +230,9 @@
                             class="border rounded pa-3 mt-3"
                         >
                             <div class="d-flex align-center justify-space-between ga-3 mb-2">
-                                <h3 class="text-body-2 font-weight-medium">{{ organisation.name }}</h3>
+                                <h3 class="text-body-2 font-weight-medium">
+                                    {{ organisation.name }}
+                                </h3>
                                 <v-switch
                                     v-model="organisationGrants[organisation.id]!.isActive"
                                     label="Access active"
@@ -244,7 +249,9 @@
                                     (role) => ({
                                         disabled:
                                             !role.isActive &&
-                                            !organisationGrants[organisation.id]!.roleIds.includes(role.id),
+                                            !organisationGrants[organisation.id]!.roleIds.includes(
+                                                role.id
+                                            ),
                                     })
                                 "
                                 item-title="name"
@@ -341,7 +348,9 @@ let revision = 0
 const customRoles = computed(() => options.value?.roles.filter((role) => !role.isSystem) ?? [])
 const selectedOrganisations = computed(
     () =>
-        options.value?.organisations.filter((organisation) => selectedOrganisationIds.value.includes(organisation.id)) ?? []
+        options.value?.organisations.filter((organisation) =>
+            selectedOrganisationIds.value.includes(organisation.id)
+        ) ?? []
 )
 const acceptsGrants = computed(
     () =>
@@ -391,7 +400,9 @@ async function load() {
     try {
         const [optionsResponse, userResponse] = await Promise.all([
             api.userOptions(props.organisationId),
-            props.userId ? api.managedUser(props.organisationId, props.userId) : Promise.resolve(null),
+            props.userId
+                ? api.managedUser(props.organisationId, props.userId)
+                : Promise.resolve(null),
         ])
         if (current !== revision) return
         if (!optionsResponse.data) throw new Error('User options could not be loaded.')
@@ -418,7 +429,9 @@ async function load() {
             form.systemRole = preferred ?? options.value.systemRoles[0] ?? SYSTEM_ROLE.PLATFORM_USER
         }
         for (const organisation of options.value.organisations) {
-            const grant = user?.organisationAssignments.find((item) => item.organisationId === organisation.id)
+            const grant = user?.organisationAssignments.find(
+                (item) => item.organisationId === organisation.id
+            )
             organisationGrants[organisation.id] = {
                 organisationId: organisation.id,
                 roleIds: grant ? [...grant.roleIds] : [],

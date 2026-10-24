@@ -104,12 +104,6 @@ export interface CreateCustomerDTO {
         isActive: boolean
         cvc: string
     } | null
-    wineClub?: {
-        wineClubId: number
-        wineClubName: string
-        wineClubStatus: number
-        wineClubJoinDate: string
-    } | null
 }
 
 export interface UpdateCustomerDTO extends Partial<CreateCustomerDTO> {
@@ -374,11 +368,16 @@ export class CustomerApiService {
 
     async checkEmailExists(
         email: string,
-        customerId?: number
+        customerId?: number,
+        organisationId?: number
     ): Promise<ApiResponse<{ available: boolean }>> {
         return this.cachedApi.post<{ available: boolean }>(
             `/customers/check-email`,
-            { email, customerId },
+            {
+                email,
+                ...(customerId === undefined ? {} : { customerId }),
+                ...(organisationId === undefined ? {} : { organisationId }),
+            },
             undefined,
             undefined
         )

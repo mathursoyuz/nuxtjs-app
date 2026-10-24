@@ -7,15 +7,12 @@
         @update:model-value="emit('update:modelValue', $event)"
     >
         <v-card>
-            <v-card-title class="d-flex align-center justify-space-between pa-4">
-                <div>
-                    <div class="text-h5">Add product</div>
-                    <div class="text-caption text-medium-emphasis">
-                        Create the catalog product and at least one sellable variant.
-                    </div>
-                </div>
-                <v-btn icon="mdi-close" variant="text" @click="close" />
-            </v-card-title>
+            <DialogsDialogHeader
+                title="Add product"
+                entity-label="Product"
+                entity-name="New product"
+                @close="close"
+            />
 
             <v-divider />
 

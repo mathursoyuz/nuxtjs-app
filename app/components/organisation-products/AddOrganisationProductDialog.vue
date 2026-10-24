@@ -7,15 +7,13 @@
         @update:model-value="emit('update:modelValue', $event)"
     >
         <v-card>
-            <v-card-title class="d-flex align-center justify-space-between pa-4">
-                <div>
-                    <div class="text-h5">Add organisation white-label product</div>
-                    <div class="text-caption text-medium-emphasis">
-                        Organisation: {{ organisationName || 'No organisation selected' }}
-                    </div>
-                </div>
-                <v-btn icon="mdi-close" variant="text" @click="close" />
-            </v-card-title>
+            <DialogsDialogHeader
+                title="Add organisation white-label product"
+                :organisation-name="organisationName"
+                entity-label="Product"
+                entity-name="New product"
+                @close="close"
+            />
 
             <v-divider />
 
@@ -50,6 +48,24 @@
                                     <FormsRichTextEditor
                                         :model-value="description ?? ''"
                                         @update:model-value="description = $event || null"
+                                    />
+                                </v-col>
+                                <v-col cols="12">
+                                    <v-autocomplete
+                                        :model-value="values.categoryIds"
+                                        :items="categoryOptions"
+                                        item-title="title"
+                                        item-value="value"
+                                        label="Product categories"
+                                        variant="outlined"
+                                        multiple
+                                        chips
+                                        closable-chips
+                                        :loading="loadingCategories"
+                                        :error-messages="errors.categoryIds"
+                                        @update:model-value="
+                                            setFieldValue('categoryIds', toNumberArray($event))
+                                        "
                                     />
                                 </v-col>
                                 <v-col cols="12" md="4">
@@ -157,8 +173,12 @@ import {
     type OrganisationProductVariantFormData,
 } from '~/schemas/organisation-product.schema'
 import type { OrganisationProductApiService } from '~/services/api/wrappers/organisation-product.api'
-import type { OrganisationProduct, CreateOrganisationProductDTO } from '~/types/organisation-product.types'
+import type {
+    OrganisationProduct,
+    CreateOrganisationProductDTO,
+} from '~/types/organisation-product.types'
 import type { InventoryDraftBalance } from '~/types/inventory.types'
+import type { CategoryApiService } from '~/services/api/wrappers/category.api'
 
 interface Props {
     modelValue: boolean
@@ -170,9 +190,13 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
     availableProducts: () => [],
 })
-const hasTarget = computed(() => props.organisationId > 0 && props.organisationName.trim().length > 0)
+const hasTarget = computed(
+    () => props.organisationId > 0 && props.organisationName.trim().length > 0
+)
 const access = useAccessStore()
-const canManageInventory = computed(() => access.can(INVENTORY_PERMISSIONS.WRITE, props.organisationId))
+const canManageInventory = computed(() =>
+    access.can(INVENTORY_PERMISSIONS.WRITE, props.organisationId)
+)
 const emit = defineEmits<{
     'update:modelValue': [value: boolean]
     submit: []
@@ -180,6 +204,7 @@ const emit = defineEmits<{
 
 const nuxtApp = useNuxtApp()
 const organisationProductApi = nuxtApp.$organisationProductApi as OrganisationProductApiService
+const categoryApi = nuxtApp.$categoryApi as CategoryApiService
 const { successFromResponse, errorFromError } = useToast()
 const saving = ref(false)
 const thumbnail = ref<File | null>(null)
@@ -187,6 +212,8 @@ const gallery = ref<File[]>([])
 const inventoryDialogOpen = ref(false)
 const inventoryVariantIndex = ref<number | null>(null)
 const loadedProducts = ref<OrganisationProduct[]>([])
+const categoryOptions = ref<Array<{ title: string; value: number }>>([])
+const loadingCategories = ref(false)
 let productRequest = 0
 const componentVariantOptions = computed(() =>
     (props.availableProducts.length > 0 ? props.availableProducts : loadedProducts.value).flatMap(
@@ -210,7 +237,9 @@ const loadComponentProducts = async (): Promise<void> => {
     )
         return
     try {
-        const response = await organisationProductApi.getAllOrganisationProducts(props.organisationId)
+        const response = await organisationProductApi.getAllOrganisationProducts(
+            props.organisationId
+        )
         if (current === productRequest) loadedProducts.value = response.data ?? []
     } catch {
         if (current === productRequest) loadedProducts.value = []
@@ -235,11 +264,12 @@ const emptyForm = (): OrganisationProductFormData => ({
     slug: '',
     name: '',
     description: null,
+    categoryIds: [],
     variants: [emptyVariant()],
     isActive: true,
 })
 
-const { errors, handleSubmit, isSubmitting, resetForm, defineField, values } =
+const { errors, handleSubmit, isSubmitting, resetForm, defineField, setFieldValue, values } =
     useForm<OrganisationProductFormData>({
         validationSchema: toTypedSchema(organisationProductFormSchema),
         initialValues: emptyForm(),
@@ -249,6 +279,24 @@ const [name] = defineField('name')
 const [slug] = defineField('slug')
 const [description] = defineField('description')
 const [isActive] = defineField('isActive')
+const toNumberArray = (value: unknown): number[] =>
+    Array.isArray(value)
+        ? value.map(Number).filter((item) => Number.isInteger(item) && item > 0)
+        : []
+
+const loadCategories = async (): Promise<void> => {
+    loadingCategories.value = true
+    try {
+        const response = await categoryApi.getAllCategories()
+        categoryOptions.value = (response.data ?? [])
+            .filter((category) => category.isActive)
+            .map((category) => ({ title: category.name, value: category.id }))
+    } catch {
+        categoryOptions.value = []
+    } finally {
+        loadingCategories.value = false
+    }
+}
 const {
     push: appendVariant,
     remove: removeVariantAt,
@@ -290,7 +338,11 @@ const uploadImages = async (organisationProductId: number): Promise<void> => {
     const data = new FormData()
     if (thumbnail.value) data.append('uploadThumbnail', thumbnail.value)
     gallery.value.forEach((file) => data.append('uploadGallery', file))
-    await organisationProductApi.uploadOrganisationProductImages(props.organisationId, organisationProductId, data)
+    await organisationProductApi.uploadOrganisationProductImages(
+        props.organisationId,
+        organisationProductId,
+        data
+    )
 }
 
 const submitForm = handleSubmit(async (data) => {
@@ -345,7 +397,7 @@ watch(
     (isOpen) => {
         if (!isOpen) return
         reset()
-        void loadComponentProducts()
+        void Promise.all([loadComponentProducts(), loadCategories()])
     },
     { immediate: true }
 )

@@ -6,12 +6,13 @@
         persistent
     >
         <v-card>
-            <v-card-title class="d-flex align-center justify-space-between bg-primary">
-                <span class="text-h5">Edit Organisation</span>
-                <v-btn icon variant="text" @click="$emit('update:modelValue', false)">
-                    <v-icon>mdi-close</v-icon>
-                </v-btn>
-            </v-card-title>
+            <DialogsDialogHeader
+                title="Edit organisation"
+                :organisation-name="organisation?.name"
+                entity-label="Organisation"
+                :entity-name="organisation?.name"
+                @close="$emit('update:modelValue', false)"
+            />
 
             <v-divider />
 
@@ -529,7 +530,10 @@ const handleEmailBlur = async () => {
     }
 
     // Don't check if email hasn't changed
-    if (props.organisation && formData.value.email.toLowerCase() === props.organisation.email.toLowerCase()) {
+    if (
+        props.organisation &&
+        formData.value.email.toLowerCase() === props.organisation.email.toLowerCase()
+    ) {
         emailUniqueError.value = ''
         return
     }
@@ -539,7 +543,10 @@ const handleEmailBlur = async () => {
 
     try {
         const organisationId = props.organisation?.id
-        const response = await organisationApi.checkEmailExists(formData.value.email, organisationId)
+        const response = await organisationApi.checkEmailExists(
+            formData.value.email,
+            organisationId
+        )
         if (response.success && response.data) {
             if (!response.data.available) {
                 emailUniqueError.value = 'This email is already in use'
@@ -705,7 +712,10 @@ const handleSubmit = async () => {
         // Update organisation basic info if on basic tab, or billing info if on billing tab
         if (tab.value === 'basic') {
             // Only update basic organisation information
-            const response = await organisationApi.updateOrganisation(props.organisation.id, updateData)
+            const response = await organisationApi.updateOrganisation(
+                props.organisation.id,
+                updateData
+            )
             if (response.success) {
                 successFromResponse(response, ORGANISATION_MESSAGES.UPDATE_SUCCESS)
 
@@ -723,22 +733,25 @@ const handleSubmit = async () => {
                 emit('update:modelValue', false)
             }
         } else if (tab.value === 'billing') {
-            const creditCardResponse = await creditCardApi.createOrganisationCreditCard(props.organisation.id, {
-                cardNumber: creditCardData.value.cardNumber,
-                expMonth: creditCardData.value.expMonth,
-                expYear: creditCardData.value.expYear,
-                cvc: creditCardData.value.cvc,
-                isActive: creditCardData.value.isActive,
-                billingFirstName: formData.value.billingFirstName,
-                billingLastName: formData.value.billingLastName,
-                billingCompany: formData.value.billingCompany,
-                billingAddress: formData.value.billingAddress,
-                billingCity: formData.value.billingCity,
-                billingStateCode: formData.value.billingStateCode,
-                billingPostalCode: formData.value.billingPostalCode,
-                billingCountryCode: formData.value.billingCountryCode,
-                billingPhone: formData.value.billingPhone,
-            })
+            const creditCardResponse = await creditCardApi.createOrganisationCreditCard(
+                props.organisation.id,
+                {
+                    cardNumber: creditCardData.value.cardNumber,
+                    expMonth: creditCardData.value.expMonth,
+                    expYear: creditCardData.value.expYear,
+                    cvc: creditCardData.value.cvc,
+                    isActive: creditCardData.value.isActive,
+                    billingFirstName: formData.value.billingFirstName,
+                    billingLastName: formData.value.billingLastName,
+                    billingCompany: formData.value.billingCompany,
+                    billingAddress: formData.value.billingAddress,
+                    billingCity: formData.value.billingCity,
+                    billingStateCode: formData.value.billingStateCode,
+                    billingPostalCode: formData.value.billingPostalCode,
+                    billingCountryCode: formData.value.billingCountryCode,
+                    billingPhone: formData.value.billingPhone,
+                }
+            )
             successFromResponse(creditCardResponse, ORGANISATION_MESSAGES.CREDIT_CARD_ADD_SUCCESS)
 
             emit('submit')

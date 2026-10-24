@@ -1,16 +1,12 @@
 <template>
     <v-dialog :model-value="modelValue" max-width="1200" scrollable @update:model-value="close">
         <v-card>
-            <v-card-title class="d-flex align-center pa-4">
-                <div>
-                    <div>Customer orders</div>
-                    <div class="text-caption text-medium-emphasis">
-                        {{ customer.firstName }} {{ customer.lastName }} · {{ customer.email }}
-                    </div>
-                </div>
-                <v-spacer />
-                <v-btn icon="mdi-close" variant="text" @click="close(false)" />
-            </v-card-title>
+            <DialogsDialogHeader
+                title="Customer orders"
+                entity-label="Customer"
+                :entity-name="`${customer.firstName} ${customer.lastName}`"
+                @close="close(false)"
+            />
             <v-divider />
             <v-tabs v-model="tab" class="px-4">
                 <v-tab value="all">All</v-tab>
@@ -92,7 +88,6 @@
                 </v-data-table>
             </v-card-text>
         </v-card>
-
     </v-dialog>
 
     <OrderDetailsDialog

@@ -7,10 +7,13 @@
         @update:model-value="emit('update:modelValue', $event)"
     >
         <v-card>
-            <v-card-title class="d-flex align-center justify-space-between">
-                <span>Procurement orders — {{ organisationName }}</span>
-                <v-btn icon="mdi-close" variant="text" @click="close" />
-            </v-card-title>
+            <DialogsDialogHeader
+                title="Procurement orders"
+                :organisation-name="organisationName"
+                entity-label="Organisation"
+                :entity-name="organisationName"
+                @close="close"
+            />
             <v-divider />
             <v-tabs v-model="activeTab" color="primary">
                 <v-tab value="all">All</v-tab>
@@ -48,7 +51,8 @@ const props = defineProps<Props>()
 const emit = defineEmits<{
     'update:modelValue': [value: boolean]
 }>()
-const { ordersForOrganisation, isLoadingOrganisation, fetchProcurementOrders } = useProcurementOrders()
+const { ordersForOrganisation, isLoadingOrganisation, fetchProcurementOrders } =
+    useProcurementOrders()
 const activeTab = ref<'all' | 'paid' | 'pending' | 'failed'>('all')
 const orders = computed(() => ordersForOrganisation(props.organisationId))
 const loading = computed(() => isLoadingOrganisation(props.organisationId))

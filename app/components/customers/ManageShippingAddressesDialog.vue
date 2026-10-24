@@ -8,11 +8,12 @@
         @update:model-value="emit('update:modelValue', $event)"
     >
         <v-card>
-            <v-card-title class="d-flex align-center pa-4">
-                <span class="text-h5">Manage Shipping Addresses</span>
-                <v-spacer />
-                <v-btn icon="mdi-close" variant="text" @click="closeDialog" />
-            </v-card-title>
+            <DialogsDialogHeader
+                title="Manage shipping addresses"
+                entity-label="Customer"
+                :entity-name="customer ? `${customer.firstName} ${customer.lastName}` : undefined"
+                @close="closeDialog"
+            />
 
             <v-divider />
 

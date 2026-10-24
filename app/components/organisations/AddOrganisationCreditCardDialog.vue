@@ -1,12 +1,19 @@
 <template>
-    <v-dialog :model-value="modelValue" @update:model-value="$emit('update:modelValue', $event)" max-width="900" scrollable persistent>
+    <v-dialog
+        :model-value="modelValue"
+        @update:model-value="$emit('update:modelValue', $event)"
+        max-width="900"
+        scrollable
+        persistent
+    >
         <v-card>
-            <v-card-title class="d-flex align-center justify-space-between">
-                <span class="text-h5">Add Credit Card</span>
-                <v-btn icon variant="text" @click="$emit('update:modelValue', false)">
-                    <v-icon>mdi-close</v-icon>
-                </v-btn>
-            </v-card-title>
+            <DialogsDialogHeader
+                title="Manage organisation credit cards"
+                :organisation-name="organisation?.name"
+                entity-label="Organisation"
+                :entity-name="organisation?.name"
+                @close="$emit('update:modelValue', false)"
+            />
 
             <v-divider />
 
@@ -15,7 +22,12 @@
                     <!-- Existing Credit Cards -->
                     <div v-if="existingCreditCards.length > 0" class="mb-6">
                         <h3 class="text-h6 mb-4">Existing Credit Cards</h3>
-                        <v-card v-for="card in existingCreditCards" :key="card.id" class="mb-3" variant="outlined">
+                        <v-card
+                            v-for="card in existingCreditCards"
+                            :key="card.id"
+                            class="mb-3"
+                            variant="outlined"
+                        >
                             <v-card-text class="d-flex align-center justify-space-between">
                                 <div>
                                     <div class="text-body-1 font-weight-medium">
@@ -31,7 +43,9 @@
                                     color="primary"
                                     hide-details
                                     :loading="togglingCardId === card.id"
-                                    @update:model-value="toggleCreditCardActive(card.id, $event ?? false)"
+                                    @update:model-value="
+                                        toggleCreditCardActive(card.id, $event ?? false)
+                                    "
                                 />
                             </v-card-text>
                         </v-card>
@@ -227,58 +241,61 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
-import { useNuxtApp } from '#app';
-import { useCountry } from '~/composables/useCountry';
-import { useToast } from '~/composables/useToast';
-import { useOrganisation } from '~/composables/useOrganisation';
-import { ORGANISATION_MESSAGES } from '~/constants/messages.constants';
-import type { OrganisationCreditCard } from '~/services/api/wrappers/organisation-credit-card.api';
+import { ref, watch } from 'vue'
+import { useNuxtApp } from '#app'
+import { useCountry } from '~/composables/useCountry'
+import { useToast } from '~/composables/useToast'
+import { useOrganisation } from '~/composables/useOrganisation'
+import { ORGANISATION_MESSAGES } from '~/constants/messages.constants'
+import type { OrganisationCreditCard } from '~/services/api/wrappers/organisation-credit-card.api'
+import type { Organisation } from '~/types/organisation.types'
 
 interface Props {
-    modelValue: boolean;
-    organisationId: number;
+    modelValue: boolean
+    organisationId: number
+    organisation?: Organisation | null
 }
 
-const props = defineProps<Props>();
+const props = defineProps<Props>()
 
 const emit = defineEmits<{
-    'update:modelValue': [value: boolean];
-    'submit': [];
-}>();
+    'update:modelValue': [value: boolean]
+    submit: []
+}>()
 
-const nuxtApp = useNuxtApp();
-const creditCardApi = nuxtApp.$organisationCreditCardApi as import('~/services/api/wrappers/organisation-credit-card.api').OrganisationCreditCardApiService;
-const { countryOptions, fetchCountries, fetchStates } = useCountry();
-const { successFromResponse, errorFromError, success } = useToast();
-const { fetchOrganisationById } = useOrganisation();
+const nuxtApp = useNuxtApp()
+const creditCardApi =
+    nuxtApp.$organisationCreditCardApi as import('~/services/api/wrappers/organisation-credit-card.api').OrganisationCreditCardApiService
+const { countryOptions, fetchCountries, fetchStates } = useCountry()
+const { successFromResponse, errorFromError } = useToast()
+const { fetchOrganisationById } = useOrganisation()
 
-const formRef = ref();
-const valid = ref(false);
-const loading = ref(false);
-const togglingCardId = ref<number | null>(null);
-const existingCreditCards = ref<OrganisationCreditCard[]>([]);
-const billingCountryCode = ref<string | null>(null);
-const billingStateOptions = ref<Array<{ title: string; value: string }>>([]);
+const formRef = ref()
+const valid = ref(false)
+const loading = ref(false)
+const togglingCardId = ref<number | null>(null)
+const existingCreditCards = ref<OrganisationCreditCard[]>([])
+const billingCountryCode = ref<string | null>(null)
+const billingStateOptions = ref<Array<{ title: string; value: string }>>([])
 
 // Month options (1-12)
 const monthOptions = Array.from({ length: 12 }, (_, i) => {
-    const month = i + 1;
+    const month = i + 1
     return {
         title: month.toString().padStart(2, '0'),
         value: month.toString().padStart(2, '0'),
-    };
-});
+    }
+})
 
 // Year options (current year to next 15 years)
-const currentYear = new Date().getFullYear();
+const currentYear = new Date().getFullYear()
 const yearOptions = Array.from({ length: 16 }, (_, i) => {
-    const year = currentYear + i;
+    const year = currentYear + i
     return {
         title: year.toString(),
         value: year.toString(),
-    };
-});
+    }
+})
 
 const formData = ref({
     billingFirstName: '',
@@ -290,7 +307,7 @@ const formData = ref({
     billingPostalCode: '',
     billingCountryCode: '',
     billingPhone: '',
-});
+})
 
 const creditCardData = ref({
     cardNumber: '',
@@ -298,72 +315,80 @@ const creditCardData = ref({
     expYear: '',
     cvc: '',
     isActive: true,
-});
+})
 
 const rules = {
     required: (v: unknown) => !!v || 'This field is required',
     billingCompany: (v: string) => {
-        if (!v || !v.trim()) return true; // Optional
-        return v.trim().length >= 5 || 'Company name must be at least 5 characters if provided';
+        if (!v || !v.trim()) return true // Optional
+        return v.trim().length >= 5 || 'Company name must be at least 5 characters if provided'
     },
-};
+}
 
 const handleBillingCountryChange = async (countryId: string) => {
-    billingCountryCode.value = countryId;
-        formData.value.billingCountryCode = countryId;
+    billingCountryCode.value = countryId
+    formData.value.billingCountryCode = countryId
     if (countryId) {
-        const states = await fetchStates(countryId);
+        const states = await fetchStates(countryId)
         billingStateOptions.value = states.map((s) => ({
             title: s.name,
             value: s.id,
-        }));
+        }))
     } else {
-        billingStateOptions.value = [];
+        billingStateOptions.value = []
     }
-    formData.value.billingStateCode = '';
-};
+    formData.value.billingStateCode = ''
+}
 
 const loadCreditCards = async () => {
     try {
-        const response = await creditCardApi.getAllOrganisationCreditCards(props.organisationId);
+        const response = await creditCardApi.refreshOrganisationCreditCards(props.organisationId)
         if (response.success && response.data) {
-            existingCreditCards.value = response.data;
+            existingCreditCards.value = response.data
         }
     } catch (error) {
-        console.error('Error loading credit cards:', error);
+        console.error('Error loading credit cards:', error)
     }
-};
+}
 
 const toggleCreditCardActive = async (cardId: number, isActive: boolean) => {
-    togglingCardId.value = cardId;
+    togglingCardId.value = cardId
     try {
         // If activating, deactivate all other cards first
         if (isActive) {
             for (const card of existingCreditCards.value) {
                 if (card.id !== cardId && card.isActive) {
-                    await creditCardApi.toggleActive(props.organisationId, card.id, false);
+                    await creditCardApi.toggleActive(props.organisationId, card.id, false)
                 }
             }
         }
-        
-        const response = await creditCardApi.toggleActive(props.organisationId, cardId, isActive);
+
+        const response = await creditCardApi.toggleActive(props.organisationId, cardId, isActive)
         if (response.success) {
-            successFromResponse(response, isActive ? ORGANISATION_MESSAGES.CREDIT_CARD_ACTIVATE_SUCCESS : ORGANISATION_MESSAGES.CREDIT_CARD_DEACTIVATE_SUCCESS);
-            await loadCreditCards();
+            successFromResponse(
+                response,
+                isActive
+                    ? ORGANISATION_MESSAGES.CREDIT_CARD_ACTIVATE_SUCCESS
+                    : ORGANISATION_MESSAGES.CREDIT_CARD_DEACTIVATE_SUCCESS
+            )
+            await loadCreditCards()
         }
     } catch (error) {
-        console.error('Error toggling credit card:', error);
-        errorFromError(error, ORGANISATION_MESSAGES.CREDIT_CARD_UPDATE_ERROR);
+        console.error('Error toggling credit card:', error)
+        errorFromError(error, ORGANISATION_MESSAGES.CREDIT_CARD_UPDATE_ERROR)
     } finally {
-        togglingCardId.value = null;
+        togglingCardId.value = null
     }
-};
+}
 
 const loadOrganisationBillingInfo = async () => {
-    if (!props.organisationId) return;
-    
+    if (!props.organisationId) return
+
     try {
-        const organisation = await fetchOrganisationById(props.organisationId);
+        const organisation =
+            props.organisation?.id === props.organisationId
+                ? props.organisation
+                : await fetchOrganisationById(props.organisationId)
         if (organisation) {
             // Auto-fill billing information from organisation
             formData.value = {
@@ -376,23 +401,23 @@ const loadOrganisationBillingInfo = async () => {
                 billingPostalCode: organisation.billingPostalCode || '',
                 billingCountryCode: organisation.billingCountryCode || '',
                 billingPhone: organisation.billingPhone || '',
-            };
-            
+            }
+
             // Set billing country and load states
             if (organisation.billingCountryCode) {
-                billingCountryCode.value = organisation.billingCountryCode;
-                await handleBillingCountryChange(organisation.billingCountryCode);
+                billingCountryCode.value = organisation.billingCountryCode
+                await handleBillingCountryChange(organisation.billingCountryCode)
                 // Set state after states are loaded
                 if (organisation.billingStateCode) {
-                    formData.value.billingStateCode = organisation.billingStateCode;
+                    formData.value.billingStateCode = organisation.billingStateCode
                 }
             }
         }
     } catch (error) {
-        console.error('Error loading organisation billing info:', error);
+        console.error('Error loading organisation billing info:', error)
         // Don't show error, just proceed with empty form
     }
-};
+}
 
 const resetForm = () => {
     formData.value = {
@@ -405,25 +430,26 @@ const resetForm = () => {
         billingPostalCode: '',
         billingCountryCode: '',
         billingPhone: '',
-    };
+    }
     creditCardData.value = {
         cardNumber: '',
         expMonth: '',
         expYear: '',
         cvc: '',
         isActive: true,
-    };
-    billingCountryCode.value = null;
-    billingStateOptions.value = [];
-    if (formRef.value) {
-        formRef.value.resetValidation();
     }
-};
+    billingCountryCode.value = null
+    billingStateOptions.value = []
+    if (formRef.value) {
+        formRef.value.resetValidation()
+    }
+}
 
 const handleSubmit = async () => {
-    if (!formRef.value?.validate()) return;
+    const validation = await formRef.value?.validate()
+    if (!validation?.valid) return
 
-    loading.value = true;
+    loading.value = true
     try {
         const response = await creditCardApi.createOrganisationCreditCard(props.organisationId, {
             cardNumber: creditCardData.value.cardNumber,
@@ -440,35 +466,30 @@ const handleSubmit = async () => {
             billingPostalCode: formData.value.billingPostalCode,
             billingCountryCode: formData.value.billingCountryCode,
             billingPhone: formData.value.billingPhone,
-        });
-        
+        })
+
         if (response.success) {
-            successFromResponse(response, ORGANISATION_MESSAGES.CREDIT_CARD_ADDED_SUCCESS);
-            resetForm();
-            emit('submit');
-            emit('update:modelValue', false);
+            successFromResponse(response, ORGANISATION_MESSAGES.CREDIT_CARD_ADDED_SUCCESS)
+            resetForm()
+            emit('submit')
+            emit('update:modelValue', false)
         }
     } catch (error) {
-        console.error('Error adding credit card:', error);
-        errorFromError(error, ORGANISATION_MESSAGES.CREDIT_CARD_ADDED_ERROR);
+        console.error('Error adding credit card:', error)
+        errorFromError(error, ORGANISATION_MESSAGES.CREDIT_CARD_ADDED_ERROR)
     } finally {
-        loading.value = false;
+        loading.value = false
     }
-};
+}
 
-watch(() => props.modelValue, async (isOpen) => {
-    if (isOpen) {
-        resetForm();
-        await loadOrganisationBillingInfo();
-        loadCreditCards();
-    }
-});
-
-// Use useLazyAsyncData for initial data fetching
-const { pending: addOrganisationCreditCardDataPending } = await useLazyAsyncData(
-    'add-organisation-credit-card-form-data',
-    async () => {
-        await fetchCountries();
-    }
-);
+watch(
+    () => [props.modelValue, props.organisationId] as const,
+    async ([isOpen]) => {
+        if (!isOpen || !props.organisationId) return
+        resetForm()
+        await fetchCountries()
+        await Promise.all([loadOrganisationBillingInfo(), loadCreditCards()])
+    },
+    { immediate: true }
+)
 </script>

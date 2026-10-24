@@ -10,15 +10,13 @@
             <v-progress-circular indeterminate color="primary" size="48" />
         </v-overlay>
         <v-card>
-            <v-card-title class="d-flex align-center justify-space-between pa-4">
-                <div>
-                    <div class="text-h5">Manage Platform Organisation inventory</div>
-                    <div class="text-caption text-medium-emphasis">
-                        {{ title }} — stock is maintained per Platform Organisation location.
-                    </div>
-                </div>
-                <v-btn icon="mdi-close" variant="text" @click="close" />
-            </v-card-title>
+            <DialogsDialogHeader
+                title="Manage Platform Organisation inventory"
+                scope="Platform"
+                entity-label="Product"
+                :entity-name="title"
+                @close="close"
+            />
             <v-divider />
 
             <v-card-text class="pa-5">

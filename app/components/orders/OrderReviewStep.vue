@@ -96,11 +96,13 @@
                         <v-card
                             v-for="card in cards"
                             :key="card.id"
-                            variant="outlined"
-                            class="mb-2"
+                            :color="selectedCardId === card.id ? 'primary' : undefined"
+                            :variant="selectedCardId === card.id ? 'tonal' : 'outlined'"
+                            class="mb-2 cursor-pointer"
+                            @click="emit('update:selectedCardId', card.id)"
                         >
                             <v-card-text class="d-flex align-center ga-3">
-                                <v-radio :value="card.id" />
+                                <v-radio :value="card.id" @click.stop />
                                 <v-icon icon="mdi-credit-card" />
                                 <div>
                                     <div class="font-weight-medium">

@@ -1,10 +1,19 @@
 <template>
-    <v-dialog :model-value="modelValue" :max-width="maxWidth" :persistent="persistent" @update:model-value="$emit('update:modelValue', $event)">
+    <v-dialog
+        :model-value="modelValue"
+        :max-width="maxWidth"
+        :persistent="persistent"
+        @update:model-value="$emit('update:modelValue', $event)"
+    >
         <v-card>
-            <v-card-title class="d-flex align-center justify-space-between">
-                <span>{{ title }}</span>
-                <v-btn icon="mdi-close" variant="text" size="small" @click="$emit('close')" />
-            </v-card-title>
+            <DialogsDialogHeader
+                :title="title"
+                :organisation-name="organisationName"
+                :entity-label="entityLabel"
+                :entity-name="entityName"
+                :scope="scope"
+                @close="$emit('close')"
+            />
 
             <v-divider />
 
@@ -29,21 +38,25 @@
 
 <script setup lang="ts">
 interface Props {
-    modelValue: boolean;
-    title: string;
-    submitText?: string;
-    cancelText?: string;
-    submitColor?: string;
-    loading?: boolean;
-    persistent?: boolean;
-    maxWidth?: number | string;
+    modelValue: boolean
+    title: string
+    submitText?: string
+    cancelText?: string
+    submitColor?: string
+    loading?: boolean
+    persistent?: boolean
+    maxWidth?: number | string
+    organisationName?: string
+    entityLabel?: string
+    entityName?: string
+    scope?: string
 }
 
 interface Emits {
-    (e: 'update:modelValue', value: boolean): void;
-    (e: 'submit'): void;
-    (e: 'cancel'): void;
-    (e: 'close'): void;
+    (e: 'update:modelValue', value: boolean): void
+    (e: 'submit'): void
+    (e: 'cancel'): void
+    (e: 'close'): void
 }
 
 withDefaults(defineProps<Props>(), {
@@ -53,7 +66,11 @@ withDefaults(defineProps<Props>(), {
     loading: false,
     persistent: false,
     maxWidth: 600,
-});
+    organisationName: undefined,
+    entityLabel: undefined,
+    entityName: undefined,
+    scope: undefined,
+})
 
-defineEmits<Emits>();
+defineEmits<Emits>()
 </script>
