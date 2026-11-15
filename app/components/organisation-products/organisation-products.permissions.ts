@@ -1,5 +1,6 @@
 export const ORGANISATION_PRODUCT_PERMISSIONS = {
     READ: 'organisation-products.read',
-    WRITE: 'organisation-products.write',
+    CREATE: 'organisation-products.create',
+    UPDATE: 'organisation-products.update',
     DELETE: 'organisation-products.delete',
 } as const

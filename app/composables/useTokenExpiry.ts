@@ -6,7 +6,13 @@ import { isTokenExpired, getTokenExpirationTime } from '~/utils/jwt.util'
  * Composable for handling token expiry
  * Shows popup when token is about to expire or has expired
  */
-export const useTokenExpiry = () => {
+export const useTokenExpiry = (): {
+    showExpiryModal: globalThis.Ref<boolean, boolean>
+    isExpired: globalThis.Ref<boolean, boolean>
+    checkTokenExpiry: (thresholdMinutes?: number) => boolean
+    handleReLogin: () => Promise<void>
+    dismissModal: () => void
+} => {
     const authStore = useAuthStore()
     const { token } = storeToRefs(authStore)
     const showExpiryModal = ref(false)
@@ -16,7 +22,7 @@ export const useTokenExpiry = () => {
      * Check if token is expired or about to expire
      * @param thresholdMinutes - Minutes before expiry to show warning (default: 5)
      */
-    const checkTokenExpiry = (thresholdMinutes = 5): boolean => {
+    const checkTokenExpiry = (thresholdMinutes: number = 5): boolean => {
         if (!token.value) {
             isExpired.value = true
             showExpiryModal.value = true

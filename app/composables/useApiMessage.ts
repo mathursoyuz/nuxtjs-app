@@ -1,5 +1,5 @@
-import type { ApiResponse } from '~/types/api.types';
-import type { ApiErrorResponse } from '~/types/errors.types';
+import type { ApiResponse } from '~/types/api.types'
+import type { ApiErrorResponse } from '~/types/errors.types'
 import {
     ORGANISATION_MESSAGES,
     CUSTOMER_MESSAGES,
@@ -13,16 +13,55 @@ import {
     DISCOUNT_MESSAGES,
     INVENTORY_MESSAGES,
     GENERAL_MESSAGES,
-} from '~/constants/messages.constants';
+} from '~/constants/messages.constants'
+
+interface ApiMessageComposable {
+    getMessage: (
+        response: ApiResponse<unknown> | ApiErrorResponse | string | undefined | null,
+        fallbackMessage: string
+    ) => string
+    getSuccessMessage: (
+        response: ApiResponse<unknown> | undefined | null,
+        fallbackMessage: string
+    ) => string
+    getErrorMessage: (error: unknown, fallbackMessage?: string) => string
+    getImportResultMessage: (
+        result: { created: number; updated: number; skipped: number },
+        successMessage: string
+    ) => string
+    getBulkImportMessage: (
+        selectedCount: number,
+        result: {
+            created: number
+            updated: number
+            skipped: number
+            errors: Array<{ error: string }>
+        },
+        itemName?: string
+    ) => string
+    getFetchSuccessMessage: (count: number, itemName?: string, source?: string) => string
+    ORGANISATION_MESSAGES: typeof ORGANISATION_MESSAGES
+    CUSTOMER_MESSAGES: typeof CUSTOMER_MESSAGES
+    PRODUCT_MESSAGES: typeof PRODUCT_MESSAGES
+    CATEGORY_MESSAGES: typeof CATEGORY_MESSAGES
+    LOCATION_MESSAGES: typeof LOCATION_MESSAGES
+    ORDER_MESSAGES: typeof ORDER_MESSAGES
+    INTEGRATION_MESSAGES: typeof INTEGRATION_MESSAGES
+    TRANSACTION_MESSAGES: typeof TRANSACTION_MESSAGES
+    VENDOR_MESSAGES: typeof VENDOR_MESSAGES
+    DISCOUNT_MESSAGES: typeof DISCOUNT_MESSAGES
+    INVENTORY_MESSAGES: typeof INVENTORY_MESSAGES
+    GENERAL_MESSAGES: typeof GENERAL_MESSAGES
+}
 
 /**
  * Composable for extracting messages from API responses with fallback to constants
- * 
+ *
  * @example
  * const { getSuccessMessage, getErrorMessage } = useApiMessage();
  * const message = getSuccessMessage(response, ORGANISATION_MESSAGES.CREATE_SUCCESS);
  */
-export function useApiMessage() {
+export const useApiMessage = (): ApiMessageComposable => {
     /**
      * Get message from API response, fallback to constant
      * @param response - API response object, error object, or string
@@ -35,27 +74,22 @@ export function useApiMessage() {
     ): string => {
         // If response is a string, return it
         if (typeof response === 'string') {
-            return response;
+            return response
         }
 
         // If response is null/undefined, use fallback
         if (!response) {
-            return fallbackMessage;
+            return fallbackMessage
         }
 
         // Extract message from ApiResponse
         if ('message' in response && response.message) {
-            return response.message;
-        }
-
-        // Extract message from ApiErrorResponse
-        if ('error' in response && response.error) {
-            return response.error;
+            return response.message
         }
 
         // Use fallback
-        return fallbackMessage;
-    };
+        return fallbackMessage
+    }
 
     /**
      * Get success message from API response
@@ -67,8 +101,8 @@ export function useApiMessage() {
         response: ApiResponse<unknown> | undefined | null,
         fallbackMessage: string
     ): string => {
-        return getMessage(response, fallbackMessage);
-    };
+        return getMessage(response, fallbackMessage)
+    }
 
     /**
      * Get error message from API response or error object
@@ -82,26 +116,26 @@ export function useApiMessage() {
     ): string => {
         // If error is a string, return it
         if (typeof error === 'string') {
-            return error;
+            return error
         }
 
         // If error is Error instance, check if it has API response
         if (error instanceof Error) {
             // Check if error has response property (AxiosError)
-            const axiosError = error as { response?: { data?: ApiErrorResponse } };
+            const axiosError = error as { response?: { data?: ApiErrorResponse } }
             if (axiosError.response?.data) {
-                return getMessage(axiosError.response.data, fallbackMessage);
+                return getMessage(axiosError.response.data, fallbackMessage)
             }
-            return error.message || fallbackMessage;
+            return error.message || fallbackMessage
         }
 
         // If error is ApiErrorResponse
         if (error && typeof error === 'object' && 'message' in error) {
-            return getMessage(error as ApiErrorResponse, fallbackMessage);
+            return getMessage(error as ApiErrorResponse, fallbackMessage)
         }
 
-        return fallbackMessage;
-    };
+        return fallbackMessage
+    }
 
     /**
      * Helper to get formatted import result message
@@ -113,9 +147,9 @@ export function useApiMessage() {
         result: { created: number; updated: number; skipped: number },
         successMessage: string
     ): string => {
-        const details = `${result.created} created, ${result.updated} updated, ${result.skipped} skipped`;
-        return `${successMessage}: ${details}`;
-    };
+        const details = `${result.created} created, ${result.updated} updated, ${result.skipped} skipped`
+        return `${successMessage}: ${details}`
+    }
 
     /**
      * Helper to get formatted bulk import message
@@ -126,24 +160,29 @@ export function useApiMessage() {
      */
     const getBulkImportMessage = (
         selectedCount: number,
-        result: { created: number; updated: number; skipped: number; errors: Array<{ error: string }> },
+        result: {
+            created: number
+            updated: number
+            skipped: number
+            errors: Array<{ error: string }>
+        },
         itemName: string = 'item'
     ): string => {
-        const itemPlural = selectedCount !== 1 ? `${itemName}s` : itemName;
-        const successCount = result.created + result.updated;
-        const totalProcessed = result.created + result.updated + result.skipped;
+        const itemPlural = selectedCount !== 1 ? `${itemName}s` : itemName
+        const successCount = result.created + result.updated
+        const totalProcessed = result.created + result.updated + result.skipped
 
-        let message = `Imported ${selectedCount} ${itemPlural}: `;
-        message += `${successCount} successful (${result.created} created, ${result.updated} updated)`;
+        let message = `Imported ${selectedCount} ${itemPlural}: `
+        message += `${successCount} successful (${result.created} created, ${result.updated} updated)`
         if (result.skipped > 0) {
-            message += `, ${result.skipped} skipped`;
+            message += `, ${result.skipped} skipped`
         }
         if (result.errors.length > 0) {
-            message += `, ${result.errors.length} failed`;
+            message += `, ${result.errors.length} failed`
         }
 
-        return message;
-    };
+        return message
+    }
 
     /**
      * Helper to get formatted fetch success message
@@ -157,10 +196,10 @@ export function useApiMessage() {
         itemName: string = 'item',
         source?: string
     ): string => {
-        const itemPlural = count !== 1 ? `${itemName}s` : itemName;
-        const sourceText = source ? ` from ${source}` : '';
-        return `Successfully fetched ${count} ${itemPlural}${sourceText}`;
-    };
+        const itemPlural = count !== 1 ? `${itemName}s` : itemName
+        const sourceText = source ? ` from ${source}` : ''
+        return `Successfully fetched ${count} ${itemPlural}${sourceText}`
+    }
 
     return {
         getMessage,
@@ -182,5 +221,5 @@ export function useApiMessage() {
         DISCOUNT_MESSAGES,
         INVENTORY_MESSAGES,
         GENERAL_MESSAGES,
-    };
+    }
 }

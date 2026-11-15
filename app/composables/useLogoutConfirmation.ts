@@ -1,4 +1,10 @@
-export const useLogoutConfirmation = () => {
+export const useLogoutConfirmation = (): {
+    isOpen: globalThis.Ref<boolean, boolean>
+    isLoggingOut: globalThis.ComputedRef<boolean>
+    requestLogoutAll: () => void
+    cancelLogoutAll: () => void
+    confirmLogoutAll: () => Promise<void>
+} => {
     const authStore = useAuthStore()
     const session = useSessionStore()
     const isOpen = useState<boolean>('logout-all-confirmation', () => false)

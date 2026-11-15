@@ -26,7 +26,7 @@
             </div>
             <div class="d-flex flex-wrap align-center ga-2">
                 <v-btn
-                    v-if="organisationId && access.can(PROCUREMENT_ORDER_PERMISSIONS.WRITE)"
+                    v-if="organisationId && access.can(PROCUREMENT_ORDER_PERMISSIONS.CREATE)"
                     color="success"
                     prepend-icon="mdi-cart-plus"
                     :disabled="access.busy"
@@ -47,7 +47,8 @@
         </div>
 
         <v-alert v-if="isOverview" type="info" variant="tonal" class="mb-4">
-            This is a read-only overview. Use the sidebar switcher to manage a organisation’s products.
+            This is a read-only overview. Use the sidebar switcher to manage a organisation’s
+            products.
         </v-alert>
 
         <v-alert v-if="errorMessage" type="error" class="mb-4">{{ errorMessage }}</v-alert>
@@ -258,8 +259,6 @@ import PurchaseWizardDialog from '~/components/organisation-products/PurchaseWiz
 import ConfirmDialog from '~/components/dialogs/ConfirmDialog.vue'
 import OrganisationInventoryManagementDialog from '~/components/inventory/OrganisationInventoryManagementDialog.vue'
 import type { OrganisationProduct } from '~/types/organisation-product.types'
-import type { OrganisationProductApiService } from '~/services/api/wrappers/organisation-product.api'
-import type { InventoryApiService } from '~/services/api/wrappers/inventory.api'
 definePageMeta({
     middleware: ['auth', 'permission'],
     access: { permission: ORGANISATION_PRODUCT_PERMISSIONS.READ, allowCrossOrganisation: true },
@@ -268,28 +267,40 @@ definePageMeta({
 const access = useAccessStore()
 const filters = useFilterStore()
 const isOverview = computed(
-    () => access.isPlatformContext && access.canAcrossOrganisations(ORGANISATION_PRODUCT_PERMISSIONS.READ)
+    () =>
+        access.isPlatformContext &&
+        access.canAcrossOrganisations(ORGANISATION_PRODUCT_PERMISSIONS.READ)
 )
-const organisationId = computed(() => (access.isPlatformContext ? null : access.actingOrganisationId))
+const organisationId = computed(() =>
+    access.isPlatformContext ? null : access.actingOrganisationId
+)
 const overviewOrganisationId = computed(() => (isOverview.value ? filters.organisationId : null))
-const canCreate = computed(() => !!organisationId.value && access.can(ORGANISATION_PRODUCT_PERMISSIONS.WRITE))
-const canUpdate = computed(() => !!organisationId.value && access.can(ORGANISATION_PRODUCT_PERMISSIONS.WRITE))
-const canDelete = computed(() => !!organisationId.value && access.can(ORGANISATION_PRODUCT_PERMISSIONS.DELETE))
+const canCreate = computed(
+    () => !!organisationId.value && access.can(ORGANISATION_PRODUCT_PERMISSIONS.CREATE)
+)
+const canUpdate = computed(
+    () => !!organisationId.value && access.can(ORGANISATION_PRODUCT_PERMISSIONS.UPDATE)
+)
+const canDelete = computed(
+    () => !!organisationId.value && access.can(ORGANISATION_PRODUCT_PERMISSIONS.DELETE)
+)
 const contextName = computed(() =>
     isOverview.value
         ? overviewOrganisationId.value
-            ? (access.organisations.find((organisation) => organisation.id === overviewOrganisationId.value)?.name ??
-              'Selected organisation')
+            ? (access.organisations.find(
+                  (organisation) => organisation.id === overviewOrganisationId.value
+              )?.name ?? 'Selected organisation')
             : 'All accessible organisations'
         : (access.actingContext?.organisationName ?? 'No organisation selected')
 )
 const targetOrganisationName = computed(() =>
     organisationId.value
-        ? (access.organisations.find((organisation) => organisation.id === organisationId.value)?.name ?? '')
+        ? (access.organisations.find((organisation) => organisation.id === organisationId.value)
+              ?.name ?? '')
         : ''
 )
-const api = useNuxtApp().$organisationProductApi as OrganisationProductApiService
-const inventoryApi = useNuxtApp().$inventoryApi as InventoryApiService
+const api = useOrganisationProducts()
+const { fetchInventoryLocations } = useInventory()
 const locations = ref<Array<{ id: number; name: string }>>([])
 const products = ref<(OrganisationProduct & { organisationName?: string })[]>([])
 const selected = ref<OrganisationProduct | null>(null)
@@ -325,55 +336,58 @@ const filteredProducts = computed(() => {
             product.variants.some((variant) => variant.sku.toLowerCase().includes(query))
     )
 })
-function money(value: number) {
+const money = (value: number): string => {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value)
 }
-function locationName(id: number) {
+const locationName = (id: number): string => {
     return locations.value.find((location) => location.id === id)?.name ?? `#${id}`
 }
-function formatAttributes(attributes: Record<string, string>) {
+const formatAttributes = (attributes: Record<string, string>): string => {
     return Object.entries(attributes)
         .map(([key, value]) => `${key}: ${value}`)
         .join(' · ')
 }
-function formatVariantDetails(variant: OrganisationProduct['variants'][number]) {
+const formatVariantDetails = (variant: OrganisationProduct['variants'][number]): string => {
     return [variant.size, variant.color, formatAttributes(variant.attributes)]
         .filter(Boolean)
         .join(' · ')
 }
-function managedVariants(product: OrganisationProduct): OrganisationProduct['variants'] {
+const managedVariants = (product: OrganisationProduct): OrganisationProduct['variants'] => {
     return product.variants.filter((variant) => variant.stockManaged && !variant.isDeleted)
 }
-function hasManagedInventory(product: OrganisationProduct): boolean {
+const hasManagedInventory = (product: OrganisationProduct): boolean => {
     return managedVariants(product).length > 0
 }
-function canManageProductInventory(product: OrganisationProduct): boolean {
+const canManageProductInventory = (product: OrganisationProduct): boolean => {
     return access.can(INVENTORY_PERMISSIONS.WRITE, product.organisationId)
 }
-function openEdit(product: OrganisationProduct) {
+const openEdit = (product: OrganisationProduct): void => {
     if (canUpdate.value) {
         selected.value = product
         showEdit.value = true
     }
 }
-function requestDelete(product: OrganisationProduct) {
+const requestDelete = (product: OrganisationProduct): void => {
     if (canDelete.value) {
         selected.value = product
         showDelete.value = true
     }
 }
-function openInventory(product: OrganisationProduct, variant: OrganisationProduct['variants'][number]): void {
+const openInventory = (
+    product: OrganisationProduct,
+    variant: OrganisationProduct['variants'][number]
+): void => {
     selectedInventoryProduct.value = product
     selectedInventoryVariant.value = variant
     showInventory.value = true
 }
-async function handleInventorySaved(): Promise<void> {
+const handleInventorySaved = async (): Promise<void> => {
     showInventory.value = false
     selectedInventoryProduct.value = null
     selectedInventoryVariant.value = null
     await loadProducts()
 }
-function clear() {
+const clear = (): void => {
     request++
     locations.value = []
     loading.value = false
@@ -394,19 +408,25 @@ watch(
     },
     { flush: 'sync' }
 )
-async function fetchPage() {
+const fetchPage = async (): Promise<void> => {
     const current = ++request
     products.value = []
     errorMessage.value = ''
     if (!access.ready) return
-    if (!isOverview.value && (!organisationId.value || !access.can(ORGANISATION_PRODUCT_PERMISSIONS.READ))) {
+    if (
+        !isOverview.value &&
+        (!organisationId.value || !access.can(ORGANISATION_PRODUCT_PERMISSIONS.READ))
+    ) {
         errorMessage.value = 'You do not have permission to read products in this organisation.'
         return
     }
     loading.value = true
     try {
         if (isOverview.value) {
-            const response = await api.getOverview(page.value, overviewOrganisationId.value ?? undefined)
+            const response = await api.getOverview(
+                page.value,
+                overviewOrganisationId.value ?? undefined
+            )
             if (current !== request) return
             products.value = response.data?.items ?? []
             total.value = response.data?.total ?? 0
@@ -415,9 +435,9 @@ async function fetchPage() {
             if (current !== request) return
             products.value = response.data ?? []
             if (access.can(INVENTORY_PERMISSIONS.WRITE, organisationId.value)) {
-                const locationResponse = await inventoryApi.getInventoryLocations(organisationId.value)
+                const loadedLocations = await fetchInventoryLocations(organisationId.value)
                 if (current !== request) return
-                locations.value = locationResponse.data ?? []
+                locations.value = loadedLocations
             }
         }
     } catch (error) {
@@ -427,12 +447,12 @@ async function fetchPage() {
         if (current === request) loading.value = false
     }
 }
-async function loadProducts() {
+const loadProducts = async (): Promise<void> => {
     clear()
     page.value = 1
     await fetchPage()
 }
-async function toggle(product: OrganisationProduct, isActive: boolean) {
+const toggle = async (product: OrganisationProduct, isActive: boolean): Promise<void> => {
     if (access.busy || !organisationId.value || !canUpdate.value) return
     const current = request
     try {
@@ -442,7 +462,7 @@ async function toggle(product: OrganisationProduct, isActive: boolean) {
         if (current === request) useToast().errorFromError(error, 'Unable to update product.')
     }
 }
-async function remove() {
+const remove = async (): Promise<void> => {
     if (access.busy || !selected.value || !organisationId.value || !canDelete.value) return
     const current = request
     try {

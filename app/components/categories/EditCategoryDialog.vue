@@ -124,7 +124,6 @@
 import { ref, computed, watch, nextTick } from 'vue'
 import { useLoadingStore } from '~/stores/loading.store'
 import { useCategory } from '~/composables/useCategory'
-import { useToast } from '~/composables/useToast'
 
 import ImageUpload from '~/components/forms/ImageUpload.vue'
 import { updateCategorySchema } from '~/schemas/category.schema'
@@ -147,7 +146,6 @@ const emit = defineEmits<{
 
 const { updateCategory, uploadImage, categories, fetchCategories, fetchCategoryById } =
     useCategory()
-const { successFromResponse, errorFromError } = useToast()
 const loadingStore = useLoadingStore()
 
 const formRef = ref()
@@ -158,7 +156,7 @@ const imageFile = ref<File | null>(null)
 const existingImageUrl = ref<string | null>(null)
 
 const formData = ref<UpdateCategoryFormData>({
-    parentId: 0,
+    parentId: null,
     name: '',
     slug: '',
     description: null,
@@ -169,7 +167,7 @@ const formData = ref<UpdateCategoryFormData>({
 const parentCategoryOptions = computed(() => {
     const categoryId = props.category?.id
     return [
-        { title: 'Root (No Parent)', value: 0 },
+        { title: 'Root (No Parent)', value: null },
         ...categories.value
             .filter((c) => c.id !== categoryId)
             .map((c) => ({
@@ -180,7 +178,7 @@ const parentCategoryOptions = computed(() => {
 })
 
 const rules = {
-    required: (v: unknown) => !!v || 'This field is required',
+    required: (v: unknown): true | 'This field is required' => !!v || 'This field is required',
 }
 
 // Watch for dialog open to load category data
@@ -214,7 +212,7 @@ watch(
         } else if (!isOpen && wasOpen) {
             // Reset form when dialog closes
             formData.value = {
-                parentId: 0,
+                parentId: null,
                 name: '',
                 slug: '',
                 description: null,
@@ -262,8 +260,9 @@ watch(
     { deep: true }
 )
 
-const handleSubmit = async () => {
-    if (!formRef.value?.validate() || !props.category) return
+const handleSubmit = async (): Promise<void> => {
+    const validation = await formRef.value?.validate()
+    if (!validation?.valid || !props.category) return
 
     isSubmitting.value = true
     const taskId = `update-category-${props.category.id}`
@@ -271,18 +270,16 @@ const handleSubmit = async () => {
 
     try {
         updateCategorySchema.parse(formData.value)
-        const response = await updateCategory(props.category.id, formData.value)
+        await updateCategory(props.category.id, formData.value)
 
         if (imageFile.value) {
             await uploadImage(props.category.id, imageFile.value)
         }
 
-        successFromResponse(response, CATEGORY_MESSAGES.UPDATE_SUCCESS)
         emit('submit')
         emit('update:modelValue', false)
     } catch (err) {
         console.error('Validation or update error:', err)
-        errorFromError(err, CATEGORY_MESSAGES.UPDATE_ERROR)
     } finally {
         isSubmitting.value = false
         loadingStore.stopTask(taskId)

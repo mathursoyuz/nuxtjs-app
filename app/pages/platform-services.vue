@@ -73,7 +73,14 @@ const organisationName = computed(
 const canWrite = computed(
     () =>
         organisationId.value !== null &&
-        access.can(ORGANISATION_MEMBERSHIP_SUBSCRIPTION_PERMISSIONS.WRITE, organisationId.value)
+        (access.can(
+            ORGANISATION_MEMBERSHIP_SUBSCRIPTION_PERMISSIONS.CREATE,
+            organisationId.value
+        ) ||
+            access.can(
+                ORGANISATION_MEMBERSHIP_SUBSCRIPTION_PERMISSIONS.UPDATE,
+                organisationId.value
+            ))
 )
 onMounted(async () => {
     await access.ensureReady()

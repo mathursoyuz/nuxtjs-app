@@ -12,19 +12,19 @@ export const useCustomerCreditCardStore = defineStore('customer-credit-card', ()
         () => (customerId: number) => cardsByCustomer.value[customerId] ?? []
     )
 
-    function setCards(customerId: number, cards: CustomerCreditCard[]): void {
+    const setCards = (customerId: number, cards: CustomerCreditCard[]): void => {
         cardsByCustomer.value[customerId] = cards
     }
 
-    function setLoading(value: boolean): void {
+    const setLoading = (value: boolean): void => {
         loading.value = value
     }
 
-    function setError(value: string | null): void {
+    const setError = (value: string | null): void => {
         error.value = value
     }
 
-    function resetForOrganisationContext(): void {
+    const resetForOrganisationContext = (): void => {
         cardsByCustomer.value = {}
         loading.value = false
         error.value = null

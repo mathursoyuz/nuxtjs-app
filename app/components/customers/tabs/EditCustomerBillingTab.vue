@@ -276,53 +276,20 @@ import { useLoadingTask } from '~/composables/useLoadingTask'
 import { CUSTOMER_MESSAGES } from '~/constants/messages.constants'
 import { CUSTOMER_LIMITS } from '~/constants/customer.constants'
 import type { Customer } from '~/services/api/wrappers/customer.api'
+import { optionalCompanySchema, paymentAddressFieldSchemas } from '~/schemas/payment-card.schema'
+import { customerCreditCardSchema } from '~/schemas/customer.schema'
 
 const MAX_CREDIT_CARDS = CUSTOMER_LIMITS.CREDIT_CARDS
 
 // Billing + Credit Card schema
 const billingSchema = z.object({
-    billingCompany: z.preprocess(
-        (value) => (value === '' ? null : value),
-        z.string().min(2).max(100).nullable().optional()
-    ),
-    billingAddress: z.string().min(10).max(100),
-    billingCity: z.string().min(3).max(50),
-    billingStateCode: z.string().min(2).max(10),
-    billingPostalCode: z.string().min(5).max(10),
-    billingCountryCode: z.string().min(2).max(5),
-    creditCard: z
-        .object({
-            cardNumber: z.string().max(18),
-            expMonth: z.string().max(2),
-            expYear: z.string().max(4),
-            isActive: z.boolean(),
-            cvc: z.string().max(4),
-        })
-        .refine(
-            (data) => {
-                const hasAny = !!(
-                    data.cardNumber?.trim() ||
-                    data.expMonth?.trim() ||
-                    data.expYear?.trim() ||
-                    data.cvc?.trim()
-                )
-                if (hasAny) {
-                    return !!(
-                        data.cardNumber?.trim() &&
-                        data.expMonth?.trim() &&
-                        data.expYear?.trim() &&
-                        data.cvc?.trim()
-                    )
-                }
-                return true
-            },
-            {
-                message: 'If any credit card field is entered, all fields are required',
-                path: ['cardNumber'],
-            }
-        )
-        .optional()
-        .nullable(),
+    billingCompany: optionalCompanySchema,
+    billingAddress: paymentAddressFieldSchemas.address,
+    billingCity: paymentAddressFieldSchemas.city,
+    billingStateCode: paymentAddressFieldSchemas.stateCode,
+    billingPostalCode: paymentAddressFieldSchemas.postalCode,
+    billingCountryCode: paymentAddressFieldSchemas.countryCode,
+    creditCard: customerCreditCardSchema.optional().nullable(),
 })
 
 interface Props {
@@ -404,7 +371,10 @@ const { handleSubmit, setFieldValue, errors, resetForm } = useForm({
     validateOnMount: false,
 })
 
-const handleBillingCountryChange = async (onChange: (value: any) => void, countryId: string) => {
+const handleBillingCountryChange = async (
+    onChange: (value: unknown) => void,
+    countryId: string
+): Promise<void> => {
     selectedBillingCountryId.value = countryId
     onChange(countryId)
     if (countryId) {
@@ -420,7 +390,7 @@ const handleBillingCountryChange = async (onChange: (value: any) => void, countr
 }
 
 // Fetch credit cards
-const fetchCreditCards = async () => {
+const fetchCreditCards = async (): Promise<void> => {
     if (!props.customer) return
     try {
         await fetchCards()
@@ -430,7 +400,7 @@ const fetchCreditCards = async () => {
 }
 
 // Toggle credit card active status
-const toggleCreditCardActive = async (cardId: number, isActive: boolean) => {
+const toggleCreditCardActive = async (cardId: number, isActive: boolean): Promise<void> => {
     if (!props.customer) return
 
     togglingCardId.value = cardId
@@ -447,7 +417,7 @@ const toggleCreditCardActive = async (cardId: number, isActive: boolean) => {
 }
 
 // Load customer data from prop
-const loadData = async () => {
+const loadData = async (): Promise<void> => {
     if (!props.fullCustomerData) return
 
     const fullCustomer = props.fullCustomerData
@@ -519,7 +489,11 @@ const submitForm = handleSubmit(async (formValues) => {
 
             const creditCard = formValues.creditCard
             const hasCardDetails = !!creditCard?.cardNumber?.trim()
-            if (hasCardDetails && existingCreditCards.value.length < MAX_CREDIT_CARDS) {
+            if (
+                creditCard &&
+                hasCardDetails &&
+                existingCreditCards.value.length < MAX_CREDIT_CARDS
+            ) {
                 const ccData = {
                     firstName: props.basicValues?.firstName || props.customer.firstName,
                     lastName: props.basicValues?.lastName || props.customer.lastName,
@@ -552,7 +526,7 @@ const submitForm = handleSubmit(async (formValues) => {
     }
 })
 
-const handleBillingFormSubmit = () => {
+const handleBillingFormSubmit = (): void => {
     submitForm()
 }
 

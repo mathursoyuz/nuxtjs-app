@@ -1,5 +1,6 @@
 export const PRODUCT_PERMISSIONS = {
     READ: 'products.read',
-    WRITE: 'products.write',
+    CREATE: 'products.create',
+    UPDATE: 'products.update',
     DELETE: 'products.delete',
 } as const

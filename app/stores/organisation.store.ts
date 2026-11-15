@@ -8,43 +8,46 @@ export const useOrganisationStore = defineStore('organisation', () => {
     const loading = ref(false)
     const error = ref<string | null>(null)
 
-    const activeOrganisations = computed(() => organisations.value.filter((organisation) => organisation.isActive))
+    const activeOrganisations = computed(() =>
+        organisations.value.filter((organisation) => organisation.isActive)
+    )
     const organisationById = computed(
         () => (id: number) => organisations.value.find((organisation) => organisation.id === id)
     )
 
-    function setOrganisations(value: Organisation[]): void {
+    const setOrganisations = (value: Organisation[]): void => {
         organisations.value = value
     }
 
-    function setCurrentOrganisation(value: Organisation | null): void {
+    const setCurrentOrganisation = (value: Organisation | null): void => {
         currentOrganisation.value = value
     }
 
-    function addOrganisation(organisation: Organisation): void {
+    const addOrganisation = (organisation: Organisation): void => {
         organisations.value.push(organisation)
     }
 
-    function updateOrganisation(organisation: Organisation): void {
+    const updateOrganisation = (organisation: Organisation): void => {
         const index = organisations.value.findIndex((item) => item.id === organisation.id)
         if (index >= 0) organisations.value[index] = organisation
-        if (currentOrganisation.value?.id === organisation.id) currentOrganisation.value = organisation
+        if (currentOrganisation.value?.id === organisation.id)
+            currentOrganisation.value = organisation
     }
 
-    function removeOrganisation(id: number): void {
+    const removeOrganisation = (id: number): void => {
         organisations.value = organisations.value.filter((organisation) => organisation.id !== id)
         if (currentOrganisation.value?.id === id) currentOrganisation.value = null
     }
 
-    function setLoading(value: boolean): void {
+    const setLoading = (value: boolean): void => {
         loading.value = value
     }
 
-    function setError(value: string | null): void {
+    const setError = (value: string | null): void => {
         error.value = value
     }
 
-    function clearError(): void {
+    const clearError = (): void => {
         error.value = null
     }
 

@@ -121,11 +121,11 @@ const selectedOption = computed(() =>
     options.value.find((option) => option.key === selectedKey.value)
 )
 
-function close(value: boolean): void {
+const close = (value: boolean): void => {
     emit('update:modelValue', value)
 }
 
-function select(): void {
+const select = (): void => {
     if (!selectedOption.value) return
     emit('select', {
         id: selectedOption.value.id,
@@ -134,7 +134,7 @@ function select(): void {
     close(false)
 }
 
-function manage(): void {
+const manage = (): void => {
     close(false)
     emit('manage')
 }

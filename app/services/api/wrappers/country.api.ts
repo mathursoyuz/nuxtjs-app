@@ -1,4 +1,4 @@
-import type { CachedApiClient } from '../CachedApiClient';
+import HttpFactory from '@/repository/factory';
 import type { ApiResponse } from '~/types/api.types';
 
 export interface Country {
@@ -21,22 +21,34 @@ export interface PhoneCountryCode {
 /**
  * Country API wrapper service
  */
-export class CountryApiService {
-    constructor(private readonly cachedApi: CachedApiClient) {}
-
+export class CountryApiService extends HttpFactory {
     async getCountries(): Promise<ApiResponse<Country[]>> {
-        return this.cachedApi.get<Country[]>('/countries', undefined, 'countries:all', 60 * 60 * 1000); // 1 hour cache (rarely changes)
+        return await this.call<Country[]>('GET', '/countries', undefined, {
+            cacheKey: 'countries:all',
+            ttl: 60 * 60 * 1000,
+        });
     }
 
     async getStatesByCountry(countryId: string): Promise<ApiResponse<State[]>> {
-        return this.cachedApi.get<State[]>(`/countries/${countryId}/states`, undefined, `countries:${countryId}:states`, 60 * 60 * 1000);
+        return await this.call<State[]>('GET', `/countries/${countryId}/states`, undefined, {
+            cacheKey: `countries:${countryId}:states`,
+            ttl: 60 * 60 * 1000,
+        });
     }
 
     async getPhoneCountryCodes(): Promise<ApiResponse<PhoneCountryCode[]>> {
-        return this.cachedApi.get<PhoneCountryCode[]>('/countries/phone-codes', undefined, 'countries:phone-codes', 60 * 60 * 1000);
+        return await this.call<PhoneCountryCode[]>('GET', '/countries/phone-codes', undefined, {
+            cacheKey: 'countries:phone-codes',
+            ttl: 60 * 60 * 1000,
+        });
     }
 
     async refreshCountries(): Promise<ApiResponse<Country[]>> {
-        return this.cachedApi.get<Country[]>('/countries', undefined, 'countries:all', undefined, true);
+        return await this.call<Country[]>('GET', '/countries', undefined, {
+            cacheKey: 'countries:all',
+            skipCache: true,
+        });
     }
 }
+
+export default CountryApiService;

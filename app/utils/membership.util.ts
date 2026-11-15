@@ -21,13 +21,13 @@ export interface MembershipProrationPreview {
     finalAmountCharged: number
 }
 
-export function calculateMembershipProration(
+export const calculateMembershipProration = (
     existingPriceAmount: number,
     newPriceAmount: number,
     periodStart: string,
     periodEnd: string,
     calculatedAt: Date = new Date()
-): MembershipProrationPreview {
+): MembershipProrationPreview => {
     const start = new Date(periodStart).getTime()
     const end = new Date(periodEnd).getTime()
     const duration = end - start

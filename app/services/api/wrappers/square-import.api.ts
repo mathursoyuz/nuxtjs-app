@@ -1,4 +1,4 @@
-import type { CachedApiClient } from '../CachedApiClient';
+import HttpFactory from '@/repository/factory';
 import type { ApiResponse } from '~/types/api.types';
 import type {
     SquareCategory,
@@ -9,29 +9,86 @@ import type {
     SquareDiscount,
     SquareCustomer,
     SyncResult,
-    SearchResponse,
-    ImportResponse,
     BatchSyncResponse,
 } from '~/types/square-import.types';
+
+export interface SquareImportResult<T> {
+    data: T[];
+    result: SyncResult;
+}
+
+export interface SquareCustomerCursorPage {
+    customers: SquareCustomer[];
+    cursor?: string;
+    hasMore: boolean;
+    count?: number;
+}
+
+export interface SquareCustomerStorePage {
+    result: SyncResult;
+    cursor?: string;
+    hasMore: boolean;
+}
+
+export interface SquareInventoryRecord {
+    id: number;
+    productId: number;
+    squareVariationId: string;
+    locationId: number;
+    qtyCustom: number;
+    qtyInStock: number;
+    qtySold: number;
+    qtySoldOnline: number;
+    qtyReservedForSale: number;
+    qtyReturnedByCustomer: number;
+    qtyWaitingForSupplier: number;
+    qtyOrderedFromVendor: number;
+    qtyNone: number;
+    qtyDamaged: number;
+    qtyWaste: number;
+    qtyUnlinkedReturn: number;
+    qtyComposed: number;
+    qtyDecomposed: number;
+    qtySupportedByNewerVersion: number;
+    qtyInTransit: number;
+    qtyOnHand: number;
+    lastSyncedAt: string | null;
+    updatedAt: string;
+    createdAt: string;
+    product: {
+        id: number;
+        name: string;
+        sku: string;
+        squareVariationId: string | null;
+    } | null;
+    location: {
+        id: number;
+        name: string;
+        squareLocationId: string | null;
+    } | null;
+}
 
 /**
  * Square Import API wrapper service
  */
-export class SquareImportApiService {
-    constructor(private readonly cachedApi: CachedApiClient) {}
-
+export class SquareImportApiService extends HttpFactory {
     // Categories
     async searchCategories(): Promise<ApiResponse<SquareCategory[]>> {
-        return this.cachedApi.get<SquareCategory[]>(
+        return await this.call<SquareCategory[]>(
+            'GET',
             '/square-import/categories/search',
             undefined,
-            'square-import:categories:search',
-            0
+            { cacheKey: 'square-import:categories:search', ttl: 0 }
         );
     }
 
-    async importCategories(categories?: SquareCategory[]): Promise<ApiResponse<{ data: SquareCategory[]; result: SyncResult }>> {
-        return this.cachedApi.post<{ data: SquareCategory[]; result: SyncResult }>('/square-import/categories/import', { categories }, undefined, 'square-import:categories:.*');
+    async importCategories(categories?: SquareCategory[]): Promise<ApiResponse<SquareImportResult<SquareCategory>>> {
+        return await this.call<SquareImportResult<SquareCategory>, { categories?: SquareCategory[] }>(
+            'POST',
+            '/square-import/categories/import',
+            { categories },
+            { invalidatePattern: 'square-import:categories:.*' }
+        );
     }
 
     // Products
@@ -49,31 +106,40 @@ export class SquareImportApiService {
         if (params?.skus?.length) queryParams.skus = params.skus.join(',');
         if (params?.limit) queryParams.limit = params.limit.toString();
 
-        return this.cachedApi.get<SquareProduct[]>(
+        return await this.call<SquareProduct[]>(
+            'GET',
             '/square-import/products/search',
-            { params: queryParams },
-            undefined, // Let it auto-generate cache key based on params
-            0, // TTL 0 means don't cache
-            true // Skip cache to always fetch fresh data
+            undefined,
+            { config: { params: queryParams }, ttl: 0, skipCache: true }
         );
     }
 
-    async importProducts(products?: SquareProduct[]): Promise<ApiResponse<{ data: SquareProduct[]; result: SyncResult }>> {
-        return this.cachedApi.post<{ data: SquareProduct[]; result: SyncResult }>('/square-import/products/import', { products }, undefined, 'square-import:products:.*');
+    async importProducts(products?: SquareProduct[]): Promise<ApiResponse<SquareImportResult<SquareProduct>>> {
+        return await this.call<SquareImportResult<SquareProduct>, { products?: SquareProduct[] }>(
+            'POST',
+            '/square-import/products/import',
+            { products },
+            { invalidatePattern: 'square-import:products:.*' }
+        );
     }
 
     // Locations
     async searchLocations(): Promise<ApiResponse<SquareLocation[]>> {
-        return this.cachedApi.get<SquareLocation[]>(
+        return await this.call<SquareLocation[]>(
+            'GET',
             '/square-import/locations/search',
             undefined,
-            'square-import:locations:search',
-            0
+            { cacheKey: 'square-import:locations:search', ttl: 0 }
         );
     }
 
-    async importLocations(locations?: SquareLocation[]): Promise<ApiResponse<{ data: SquareLocation[]; result: SyncResult }>> {
-        return this.cachedApi.post<{ data: SquareLocation[]; result: SyncResult }>('/square-import/locations/import', { locations }, undefined, 'square-import:locations:.*');
+    async importLocations(locations?: SquareLocation[]): Promise<ApiResponse<SquareImportResult<SquareLocation>>> {
+        return await this.call<SquareImportResult<SquareLocation>, { locations?: SquareLocation[] }>(
+            'POST',
+            '/square-import/locations/import',
+            { locations },
+            { invalidatePattern: 'square-import:locations:.*' }
+        );
     }
 
     // Transactions
@@ -89,44 +155,63 @@ export class SquareImportApiService {
         if (params?.cursor) queryParams.cursor = params.cursor;
         if (params?.limit) queryParams.limit = params.limit.toString();
 
-        return this.cachedApi.get<SquareTransaction[]>(
+        return await this.call<SquareTransaction[]>(
+            'GET',
             '/square-import/transactions/search',
-            { params: queryParams },
-            'square-import:transactions:search',
-            0
+            undefined,
+            {
+                config: { params: queryParams },
+                cacheKey: 'square-import:transactions:search',
+                ttl: 0,
+            }
         );
     }
 
-    async importTransactions(transactions?: SquareTransaction[]): Promise<ApiResponse<{ data: SquareTransaction[]; result: SyncResult }>> {
-        return this.cachedApi.post<{ data: SquareTransaction[]; result: SyncResult }>('/square-import/transactions/import', { transactions }, undefined, 'square-import:transactions:.*');
+    async importTransactions(transactions?: SquareTransaction[]): Promise<ApiResponse<SquareImportResult<SquareTransaction>>> {
+        return await this.call<SquareImportResult<SquareTransaction>, { transactions?: SquareTransaction[] }>(
+            'POST',
+            '/square-import/transactions/import',
+            { transactions },
+            { invalidatePattern: 'square-import:transactions:.*' }
+        );
     }
 
     // Vendors
     async searchVendors(): Promise<ApiResponse<SquareVendor[]>> {
-        return this.cachedApi.get<SquareVendor[]>(
+        return await this.call<SquareVendor[]>(
+            'GET',
             '/square-import/vendors/search',
             undefined,
-            'square-import:vendors:search',
-            0
+            { cacheKey: 'square-import:vendors:search', ttl: 0 }
         );
     }
 
-    async importVendors(vendors?: SquareVendor[]): Promise<ApiResponse<{ data: SquareVendor[]; result: SyncResult }>> {
-        return this.cachedApi.post<{ data: SquareVendor[]; result: SyncResult }>('/square-import/vendors/import', { vendors }, undefined, 'square-import:vendors:.*');
+    async importVendors(vendors?: SquareVendor[]): Promise<ApiResponse<SquareImportResult<SquareVendor>>> {
+        return await this.call<SquareImportResult<SquareVendor>, { vendors?: SquareVendor[] }>(
+            'POST',
+            '/square-import/vendors/import',
+            { vendors },
+            { invalidatePattern: 'square-import:vendors:.*' }
+        );
     }
 
     // Discounts
     async searchDiscounts(): Promise<ApiResponse<SquareDiscount[]>> {
-        return this.cachedApi.get<SquareDiscount[]>(
+        return await this.call<SquareDiscount[]>(
+            'GET',
             '/square-import/discounts/search',
             undefined,
-            'square-import:discounts:search',
-            0
+            { cacheKey: 'square-import:discounts:search', ttl: 0 }
         );
     }
 
-    async importDiscounts(discounts?: SquareDiscount[]): Promise<ApiResponse<{ data: SquareDiscount[]; result: SyncResult }>> {
-        return this.cachedApi.post<{ data: SquareDiscount[]; result: SyncResult }>('/square-import/discounts/import', { discounts }, undefined, 'square-import:discounts:.*');
+    async importDiscounts(discounts?: SquareDiscount[]): Promise<ApiResponse<SquareImportResult<SquareDiscount>>> {
+        return await this.call<SquareImportResult<SquareDiscount>, { discounts?: SquareDiscount[] }>(
+            'POST',
+            '/square-import/discounts/import',
+            { discounts },
+            { invalidatePattern: 'square-import:discounts:.*' }
+        );
     }
 
     // Batch Sync
@@ -147,21 +232,24 @@ export class SquareImportApiService {
         if (params.endTime) queryParams.endTime = params.endTime;
         if (params.defaultOrganisationId) queryParams.defaultOrganisationId = params.defaultOrganisationId.toString();
 
-        return this.cachedApi.post<BatchSyncResponse>(
+        return await this.call<BatchSyncResponse, Record<string, never>>(
+            'POST',
             '/square-import/batch/sync',
             {},
-            { params: queryParams },
-            'square-import:batch:.*'
+            {
+                config: { params: queryParams },
+                invalidatePattern: 'square-import:batch:.*',
+            }
         );
     }
 
     // Customers
     async getAllCustomers(): Promise<ApiResponse<SquareCustomer[]>> {
-        return this.cachedApi.get<SquareCustomer[]>(
+        return await this.call<SquareCustomer[]>(
+            'GET',
             '/square-import/customers',
             undefined,
-            'square-import:customers:all',
-            0
+            { cacheKey: 'square-import:customers:all', ttl: 0 }
         );
     }
 
@@ -185,174 +273,97 @@ export class SquareImportApiService {
         if (params?.customAttributeKey) queryParams.customAttributeKey = params.customAttributeKey;
         if (params?.customAttributeValue) queryParams.customAttributeValue = params.customAttributeValue;
 
-        return this.cachedApi.get<SquareCustomer[]>(
+        return await this.call<SquareCustomer[]>(
+            'GET',
             '/square-import/customers/search',
-            { params: queryParams },
-            undefined, // Let it auto-generate cache key based on params
-            0, // TTL 0 means don't cache
-            true // Skip cache to always fetch fresh data
+            undefined,
+            { config: { params: queryParams }, ttl: 0, skipCache: true }
         );
     }
 
-    async importCustomers(customers?: SquareCustomer[], organisationId?: number): Promise<ApiResponse<{ data: SquareCustomer[]; result: SyncResult }>> {
+    async importCustomers(customers?: SquareCustomer[], organisationId?: number): Promise<ApiResponse<SquareImportResult<SquareCustomer>>> {
         const queryParams: Record<string, string> = {};
         if (organisationId) queryParams.organisationId = organisationId.toString();
 
-        return this.cachedApi.post<{ data: SquareCustomer[]; result: SyncResult }>(
+        return await this.call<SquareImportResult<SquareCustomer>, { customers?: SquareCustomer[] }>(
+            'POST',
             '/square-import/customers/import',
             { customers },
-            { params: queryParams },
-            'square-import:customers:.*'
+            {
+                config: { params: queryParams },
+                invalidatePattern: 'square-import:customers:.*',
+            }
         );
     }
 
-    async fetchAndImportCustomers(organisationId?: number): Promise<ApiResponse<{ data: SquareCustomer[]; result: SyncResult }>> {
+    async fetchAndImportCustomers(organisationId?: number): Promise<ApiResponse<SquareImportResult<SquareCustomer>>> {
         const queryParams: Record<string, string> = {};
         if (organisationId) queryParams.organisationId = organisationId.toString();
 
-        return this.cachedApi.post<{ data: SquareCustomer[]; result: SyncResult }>(
+        return await this.call<SquareImportResult<SquareCustomer>, Record<string, never>>(
+            'POST',
             '/square-import/customers/fetch-and-import',
             {},
-            { params: queryParams },
-            'square-import:customers:.*'
+            {
+                config: { params: queryParams },
+                invalidatePattern: 'square-import:customers:.*',
+            }
         );
     }
 
     // New cursor-based pagination methods
-    async fetchCustomersWithCursor(cursor?: string): Promise<ApiResponse<{
-        customers: SquareCustomer[];
-        cursor?: string;
-        hasMore: boolean;
-        count?: number;
-    }>> {
+    async fetchCustomersWithCursor(cursor?: string): Promise<ApiResponse<SquareCustomerCursorPage>> {
         const queryParams: Record<string, string> = {};
         if (cursor) queryParams.cursor = cursor;
 
-        return this.cachedApi.get<{
-            customers: SquareCustomer[];
-            cursor?: string;
-            hasMore: boolean;
-        }>(
+        return await this.call<SquareCustomerCursorPage>(
+            'GET',
             '/square-import/customers/fetch',
-            { params: queryParams },
-            undefined, // No cache key for pagination
-            0, // TTL 0 means don't cache
-            true // Skip cache to always fetch fresh data
+            undefined,
+            { config: { params: queryParams }, ttl: 0, skipCache: true }
         );
     }
 
-    async fetchAndStoreCustomersWithCursor(cursor?: string, organisationId?: number): Promise<ApiResponse<{
-        result: SyncResult;
-        cursor?: string;
-        hasMore: boolean;
-    }>> {
+    async fetchAndStoreCustomersWithCursor(cursor?: string, organisationId?: number): Promise<ApiResponse<SquareCustomerStorePage>> {
         const queryParams: Record<string, string> = {};
         if (cursor) queryParams.cursor = cursor;
         if (organisationId) queryParams.organisationId = organisationId.toString();
 
-        return this.cachedApi.post<{
-            result: SyncResult;
-            cursor?: string;
-            hasMore: boolean;
-        }>(
+        return await this.call<SquareCustomerStorePage, Record<string, never>>(
+            'POST',
             '/square-import/customers/fetch-and-store',
             {},
-            { params: queryParams },
-            'square-import:customers:.*'
+            {
+                config: { params: queryParams },
+                invalidatePattern: 'square-import:customers:.*',
+            }
         );
     }
 
-    async storeSelectedCustomers(customers: SquareCustomer[], organisationId?: number): Promise<ApiResponse<{ data: SquareCustomer[]; result: SyncResult }>> {
+    async storeSelectedCustomers(customers: SquareCustomer[], organisationId?: number): Promise<ApiResponse<SquareImportResult<SquareCustomer>>> {
         const queryParams: Record<string, string> = {};
         if (organisationId) queryParams.organisationId = organisationId.toString();
 
-        return this.cachedApi.post<{ data: SquareCustomer[]; result: SyncResult }>(
+        return await this.call<SquareImportResult<SquareCustomer>, { customers: SquareCustomer[] }>(
+            'POST',
             '/square-import/customers/store-selected',
             { customers },
-            { params: queryParams },
-            'square-import:customers:.*'
+            {
+                config: { params: queryParams },
+                invalidatePattern: 'square-import:customers:.*',
+            }
         );
     }
 
     // Inventory
-    async getAllInventory(organisationId: number): Promise<ApiResponse<Array<{
-        id: number;
-        productId: number;
-        squareVariationId: string;
-        locationId: number;
-        qtyCustom: number;
-        qtyInStock: number;
-        qtySold: number;
-        qtySoldOnline: number;
-        qtyReservedForSale: number;
-        qtyReturnedByCustomer: number;
-        qtyWaitingForSupplier: number;
-        qtyOrderedFromVendor: number;
-        qtyNone: number;
-        qtyDamaged: number;
-        qtyWaste: number;
-        qtyUnlinkedReturn: number;
-        qtyComposed: number;
-        qtyDecomposed: number;
-        qtySupportedByNewerVersion: number;
-        qtyInTransit: number;
-        qtyOnHand: number;
-        lastSyncedAt: string | null;
-        updatedAt: string;
-        createdAt: string;
-        product: {
-            id: number;
-            name: string;
-            sku: string;
-            squareVariationId: string | null;
-        } | null;
-        location: {
-            id: number;
-            name: string;
-            squareLocationId: string | null;
-        } | null;
-    }>>> {
-        return this.cachedApi.get<Array<{
-            id: number;
-            productId: number;
-            squareVariationId: string;
-            locationId: number;
-            qtyCustom: number;
-            qtyInStock: number;
-            qtySold: number;
-            qtySoldOnline: number;
-            qtyReservedForSale: number;
-            qtyReturnedByCustomer: number;
-            qtyWaitingForSupplier: number;
-            qtyOrderedFromVendor: number;
-            qtyNone: number;
-            qtyDamaged: number;
-            qtyWaste: number;
-            qtyUnlinkedReturn: number;
-            qtyComposed: number;
-            qtyDecomposed: number;
-            qtySupportedByNewerVersion: number;
-            qtyInTransit: number;
-            qtyOnHand: number;
-            lastSyncedAt: string | null;
-            updatedAt: string;
-            createdAt: string;
-            product: {
-                id: number;
-                name: string;
-                sku: string;
-                squareVariationId: string | null;
-            } | null;
-            location: {
-                id: number;
-                name: string;
-                squareLocationId: string | null;
-            } | null;
-        }>>(
+    async getAllInventory(organisationId: number): Promise<ApiResponse<SquareInventoryRecord[]>> {
+        return await this.call<SquareInventoryRecord[]>(
+            'GET',
             `/organisations/${organisationId}/square-import/inventory`,
             undefined,
-            `square-import:inventory:${organisationId}`,
-            0
+            { cacheKey: `square-import:inventory:${organisationId}`, ttl: 0 }
         );
     }
 }
+
+export default SquareImportApiService;

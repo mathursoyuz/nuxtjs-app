@@ -1,7 +1,9 @@
-import type { CachedApiClient } from '../CachedApiClient'
+import HttpFactory from '@/repository/factory'
 import type { ApiResponse } from '~/types/api.types'
+import type { Location } from '~/types/location.types'
 
 export interface BillingAddress {
+    billingEmail: string
     company: string | null
     address: string
     city: string
@@ -131,12 +133,17 @@ export interface PaginatedCustomersResponse {
     totalPages: number
 }
 
+export interface CustomerImportResult {
+    created: number
+    updated: number
+    skipped: number
+    errors: Array<{ item: string; error: string }>
+}
+
 /**
  * Customer API wrapper service
  */
-export class CustomerApiService {
-    constructor(private readonly cachedApi: CachedApiClient) {}
-
+export class CustomerApiService extends HttpFactory {
     async getAllCustomers(
         organisationId: number | null | undefined,
         page: number = 1,
@@ -156,32 +163,26 @@ export class CustomerApiService {
         const cacheKey = organisationId
             ? `customers:organisation:${organisationId}:page:${page}:limit:${limit}:search:${search ?? ''}`
             : `customers:all:page:${page}:limit:${limit}:search:${search ?? ''}`
-        return this.cachedApi.get<PaginatedCustomersResponse>(
-            `/customers`,
-            { params },
+        return await this.call<PaginatedCustomersResponse>('GET', '/customers', undefined, {
+            config: { params },
             cacheKey,
-            5 * 60 * 1000
-        )
+            ttl: 5 * 60 * 1000,
+        })
     }
 
     async getCustomerById(customerId: number): Promise<ApiResponse<Customer>> {
-        return this.cachedApi.get<Customer>(
-            `/customers/${customerId}`,
-            undefined,
-            `customers:${customerId}`,
-            5 * 60 * 1000
-        )
+        return await this.call<Customer>('GET', `/customers/${customerId}`, undefined, {
+            cacheKey: `customers:${customerId}`,
+            ttl: 5 * 60 * 1000,
+        })
     }
 
     async createCustomer(data: CreateCustomerDTO): Promise<ApiResponse<Customer>> {
-        const response = await this.cachedApi.post<Customer>(
-            `/customers`,
-            data,
-            undefined,
-            `customers:organisation:${data.organisationId}.*`
-        )
-        this.cachedApi.invalidatePattern(`customers:organisation:${data.organisationId}.*`)
-        this.cachedApi.invalidatePattern('customers:all.*')
+        const response = await this.call<Customer, CreateCustomerDTO>('POST', '/customers', data, {
+            invalidatePattern: `customers:organisation:${data.organisationId}.*`,
+        })
+        this.invalidateCachePattern(`customers:organisation:${data.organisationId}.*`)
+        this.invalidateCachePattern('customers:all.*')
         return response
     }
 
@@ -189,17 +190,17 @@ export class CustomerApiService {
         customerId: number,
         data: UpdateCustomerDTO
     ): Promise<ApiResponse<Customer>> {
-        const response = await this.cachedApi.put<Customer>(
+        const response = await this.call<Customer, UpdateCustomerDTO>(
+            'PUT',
             `/customers/${customerId}`,
             data,
-            undefined,
-            `customers:organisation:${data.organisationId}.*`
+            { invalidatePattern: `customers:organisation:${data.organisationId}.*` }
         )
-        this.cachedApi.invalidate(`customers:${customerId}`)
+        this.invalidateCacheKey(`customers:${customerId}`)
         if (data.organisationId) {
-            this.cachedApi.invalidatePattern(`customers:organisation:${data.organisationId}.*`)
+            this.invalidateCachePattern(`customers:organisation:${data.organisationId}.*`)
         }
-        this.cachedApi.invalidatePattern('customers:all.*')
+        this.invalidateCachePattern('customers:all.*')
         return response
     }
 
@@ -207,14 +208,14 @@ export class CustomerApiService {
         customerId: number,
         data: CustomerShippingAddressDTO
     ): Promise<ApiResponse<CustomerShippingAddress>> {
-        const response = await this.cachedApi.post<CustomerShippingAddress>(
+        const response = await this.call<CustomerShippingAddress, CustomerShippingAddressDTO>(
+            'POST',
             `/customers/${customerId}/shipping`,
             data,
-            undefined,
-            `customers:.*`
+            { invalidatePattern: 'customers:.*' }
         )
-        this.cachedApi.invalidate(`customers:${customerId}`)
-        this.cachedApi.invalidatePattern('customers:.*')
+        this.invalidateCacheKey(`customers:${customerId}`)
+        this.invalidateCachePattern('customers:.*')
         return response
     }
 
@@ -223,14 +224,14 @@ export class CustomerApiService {
         shippingId: number,
         data: CustomerShippingAddressDTO
     ): Promise<ApiResponse<CustomerShippingAddress>> {
-        const response = await this.cachedApi.put<CustomerShippingAddress>(
+        const response = await this.call<CustomerShippingAddress, CustomerShippingAddressDTO>(
+            'PUT',
             `/customers/${customerId}/shipping/${shippingId}`,
             data,
-            undefined,
-            `customers:.*`
+            { invalidatePattern: 'customers:.*' }
         )
-        this.cachedApi.invalidate(`customers:${customerId}`)
-        this.cachedApi.invalidatePattern('customers:.*')
+        this.invalidateCacheKey(`customers:${customerId}`)
+        this.invalidateCachePattern('customers:.*')
         return response
     }
 
@@ -238,13 +239,14 @@ export class CustomerApiService {
         customerId: number,
         shippingId: number
     ): Promise<ApiResponse<{ message: string }>> {
-        const response = await this.cachedApi.delete<{ message: string }>(
+        const response = await this.call<{ message: string }>(
+            'DELETE',
             `/customers/${customerId}/shipping/${shippingId}`,
             undefined,
-            `customers:.*`
+            { invalidatePattern: 'customers:.*' }
         )
-        this.cachedApi.invalidate(`customers:${customerId}`)
-        this.cachedApi.invalidatePattern('customers:.*')
+        this.invalidateCacheKey(`customers:${customerId}`)
+        this.invalidateCachePattern('customers:.*')
         return response
     }
 
@@ -255,31 +257,70 @@ export class CustomerApiService {
         const formData = new FormData()
         formData.append('uploadImage', file)
 
-        const response = await this.cachedApi.patch<{ message: string }>(
+        const response = await this.call<{ message: string }, FormData>(
+            'PATCH',
             `/customers/${customerId}/uploadImage`,
             formData,
             {
-                headers: {
-                    'Content-Type': 'multipart/form-data',
+                config: {
+                    headers: {
+                        'Content-Type': 'multipart/form-data',
+                    },
                 },
-            },
-            `customers:.*`
+                invalidatePattern: 'customers:.*',
+            }
         )
 
-        this.cachedApi.invalidate(`customers:${customerId}`)
-        this.cachedApi.invalidatePattern('customers:.*')
+        this.invalidateCacheKey(`customers:${customerId}`)
+        this.invalidateCachePattern('customers:.*')
         return response
     }
 
+    async stageCustomerAvatar(
+        organisationId: number,
+        file: File
+    ): Promise<ApiResponse<{ token: string }>> {
+        const formData = new FormData()
+        formData.append('uploadImage', file)
+        return await this.call<{ token: string }, FormData>(
+            'POST',
+            `/organisations/${organisationId}/customers/avatar-staging`,
+            formData,
+            { config: { headers: { 'Content-Type': 'multipart/form-data' } } }
+        )
+    }
+
+    async getCustomerCreateFormData(
+        organisationId: number
+    ): Promise<ApiResponse<{ locations: Location[] }>> {
+        return await this.call<{ locations: Location[] }>(
+            'GET',
+            `/organisations/${organisationId}/customer-create-context`,
+            undefined,
+            { skipCache: true }
+        )
+    }
+
+    async checkCustomerCreateEmail(
+        organisationId: number,
+        email: string
+    ): Promise<ApiResponse<{ available: boolean }>> {
+        return await this.call<{ available: boolean }, { email: string }>(
+            'POST',
+            `/organisations/${organisationId}/customer-create-context/check-email`,
+            { email }
+        )
+    }
+
     async toggleActive(customerId: number, isActive: boolean): Promise<ApiResponse<Customer>> {
-        const response = await this.cachedApi.patch<Customer>(
+        const response = await this.call<Customer, { isActive: boolean }>(
+            'PATCH',
             `/customers/${customerId}`,
             { isActive },
-            undefined,
-            `customers:.*`
+            { invalidatePattern: 'customers:.*' }
         )
-        this.cachedApi.invalidate(`customers:${customerId}`)
-        this.cachedApi.invalidatePattern('customers:.*')
+        this.invalidateCacheKey(`customers:${customerId}`)
+        this.invalidateCachePattern('customers:.*')
         return response
     }
 
@@ -295,74 +336,61 @@ export class CustomerApiService {
         const cacheKey = organisationId
             ? `customers:organisation:${organisationId}:page:${page}:limit:${limit}`
             : `customers:all:page:${page}:limit:${limit}`
-        return this.cachedApi.get<PaginatedCustomersResponse>(
-            `/customers`,
-            { params },
+        return await this.call<PaginatedCustomersResponse>('GET', '/customers', undefined, {
+            config: { params },
             cacheKey,
-            undefined,
-            true
-        )
+            skipCache: true,
+        })
     }
 
     async syncCustomerToQB(
         customerId: number
     ): Promise<ApiResponse<{ created: boolean; qbId: string }>> {
-        const response = await this.cachedApi.post<{ created: boolean; qbId: string }>(
+        const response = await this.call<{ created: boolean; qbId: string }, Record<string, never>>(
+            'POST',
             `/quickbooks-sync/customers/${customerId}/sync-to-qb`,
             {},
-            undefined,
-            `customers:.*`
+            { invalidatePattern: 'customers:.*' }
         )
-        this.cachedApi.invalidatePattern('customers:.*')
+        this.invalidateCachePattern('customers:.*')
         return response
     }
 
-    async importCustomersFromQB(): Promise<
-        ApiResponse<{
-            created: number
-            updated: number
-            skipped: number
-            errors: Array<{ item: string; error: string }>
-        }>
-    > {
-        const response = await this.cachedApi.post<{
-            created: number
-            updated: number
-            skipped: number
-            errors: Array<{ item: string; error: string }>
-        }>(`/quickbooks-sync/customers/import`, {}, undefined, `customers:.*`)
-        this.cachedApi.invalidatePattern('customers:.*')
+    async importCustomersFromQB(): Promise<ApiResponse<CustomerImportResult>> {
+        const response = await this.call<CustomerImportResult, Record<string, never>>(
+            'POST',
+            '/quickbooks-sync/customers/import',
+            {},
+            { invalidatePattern: 'customers:.*' }
+        )
+        this.invalidateCachePattern('customers:.*')
         return response
     }
 
-    async importCustomersFromSquare(): Promise<
-        ApiResponse<{
-            created: number
-            updated: number
-            skipped: number
-            errors: Array<{ item: string; error: string }>
-        }>
-    > {
-        const response = await this.cachedApi.post<{
-            created: number
-            updated: number
-            skipped: number
-            errors: Array<{ item: string; error: string }>
-        }>(`/square-sync/customers`, {}, undefined, `customers:.*`)
-        this.cachedApi.invalidatePattern('customers:.*')
+    async importCustomersFromSquare(): Promise<ApiResponse<CustomerImportResult>> {
+        const response = await this.call<CustomerImportResult, Record<string, never>>(
+            'POST',
+            '/square-sync/customers',
+            {},
+            { invalidatePattern: 'customers:.*' }
+        )
+        this.invalidateCachePattern('customers:.*')
         return response
     }
 
     async syncCustomerToSquare(
         customerId: number
     ): Promise<ApiResponse<{ created: boolean; squareId: string }>> {
-        const response = await this.cachedApi.post<{ created: boolean; squareId: string }>(
+        const response = await this.call<
+            { created: boolean; squareId: string },
+            Record<string, never>
+        >(
+            'POST',
             `/square-sync/customers/${customerId}/sync-to-square`,
             {},
-            undefined,
-            `customers:.*`
+            { invalidatePattern: 'customers:.*' }
         )
-        this.cachedApi.invalidatePattern('customers:.*')
+        this.invalidateCachePattern('customers:.*')
         return response
     }
 
@@ -371,26 +399,29 @@ export class CustomerApiService {
         customerId?: number,
         organisationId?: number
     ): Promise<ApiResponse<{ available: boolean }>> {
-        return this.cachedApi.post<{ available: boolean }>(
-            `/customers/check-email`,
-            {
-                email,
-                ...(customerId === undefined ? {} : { customerId }),
-                ...(organisationId === undefined ? {} : { organisationId }),
-            },
-            undefined,
-            undefined
+        const data = {
+            email,
+            ...(customerId === undefined ? {} : { customerId }),
+            ...(organisationId === undefined ? {} : { organisationId }),
+        }
+        return await this.call<{ available: boolean }, typeof data>(
+            'POST',
+            '/customers/check-email',
+            data
         )
     }
 
     async deleteCustomer(customerId: number): Promise<ApiResponse<{ message: string }>> {
-        const response = await this.cachedApi.delete<{ message: string }>(
+        const response = await this.call<{ message: string }>(
+            'DELETE',
             `/customers/${customerId}`,
             undefined,
-            `customers:.*`
+            { invalidatePattern: 'customers:.*' }
         )
-        this.cachedApi.invalidate(`customers:${customerId}`)
-        this.cachedApi.invalidatePattern('customers:.*')
+        this.invalidateCacheKey(`customers:${customerId}`)
+        this.invalidateCachePattern('customers:.*')
         return response
     }
 }
+
+export default CustomerApiService

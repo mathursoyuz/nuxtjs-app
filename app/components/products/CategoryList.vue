@@ -28,11 +28,15 @@
                 <v-list-item-title>{{ category.title }}</v-list-item-title>
             </v-list-item>
             <v-list-item v-if="filteredCategories.length === 0">
-                <v-list-item-title class="text-medium-emphasis">No categories found</v-list-item-title>
+                <v-list-item-title class="text-medium-emphasis">
+                    No categories found
+                </v-list-item-title>
             </v-list-item>
         </v-list>
         <div v-if="selected.length > 0" class="mt-3">
-            <div class="text-caption text-medium-emphasis mb-2">Selected ({{ selected.length }})</div>
+            <div class="text-caption text-medium-emphasis mb-2">
+                Selected ({{ selected.length }})
+            </div>
             <div class="d-flex flex-wrap gap-2">
                 <v-chip
                     v-for="catId in selected"
@@ -49,62 +53,62 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed } from 'vue'
 
 interface Props {
-    selected: number[];
-    available: Array<{ title: string; value: number }>;
+    selected: number[]
+    available: Array<{ title: string; value: number }>
 }
 
-const props = defineProps<Props>();
+const props = defineProps<Props>()
 
 const emit = defineEmits<{
-    'update:selected': [value: number[]];
-}>();
+    'update:selected': [value: number[]]
+}>()
 
-const searchQuery = ref('');
+const searchQuery = ref('')
 
 const filteredCategories = computed(() => {
     if (!searchQuery.value) {
-        return props.available;
+        return props.available
     }
-    const query = searchQuery.value.toLowerCase();
-    return props.available.filter((cat) => cat.title.toLowerCase().includes(query));
-});
+    const query = searchQuery.value.toLowerCase()
+    return props.available.filter((cat) => cat.title.toLowerCase().includes(query))
+})
 
 const isSelected = (categoryId: number): boolean => {
-    return props.selected.includes(categoryId);
-};
+    return props.selected.includes(categoryId)
+}
 
-const toggleCategory = (categoryId: number) => {
-    const newSelected = [...props.selected];
-    const index = newSelected.indexOf(categoryId);
-    
+const toggleCategory = (categoryId: number): void => {
+    const newSelected = [...props.selected]
+    const index = newSelected.indexOf(categoryId)
+
     if (index > -1) {
-        newSelected.splice(index, 1);
+        newSelected.splice(index, 1)
     } else {
-        newSelected.push(categoryId);
+        newSelected.push(categoryId)
     }
-    
-    emit('update:selected', newSelected);
-};
 
-const removeCategory = (categoryId: number) => {
-    const newSelected = props.selected.filter((id) => id !== categoryId);
-    emit('update:selected', newSelected);
-};
+    emit('update:selected', newSelected)
+}
+
+const removeCategory = (categoryId: number): void => {
+    const newSelected = props.selected.filter((id) => id !== categoryId)
+    emit('update:selected', newSelected)
+}
 
 const getCategoryName = (categoryId: number): string => {
-    const category = props.available.find((cat) => cat.value === categoryId);
-    return category?.title || `Category ${categoryId}`;
-};
+    const category = props.available.find((cat) => cat.value === categoryId)
+    return category?.title || `Category ${categoryId}`
+}
 </script>
 
 <style scoped>
 .category-list {
     max-height: 300px;
     overflow-y: auto;
-    border: 1px solid rgba(0, 0, 0, 0.12);
+    border: 1px solid rgb(var(--v-theme-on-surface) / 0.12);
     border-radius: 4px;
 }
 

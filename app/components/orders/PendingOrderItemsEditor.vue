@@ -116,7 +116,6 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { useNuxtApp } from '#app'
 import { useToast } from '~/composables/useToast'
 import type { OrganisationProduct } from '~/types/organisation-product.types'
 import type { Location } from '~/types/location.types'
@@ -129,17 +128,14 @@ interface EditorRow extends CustomerOrderDraftLine {
 
 const props = defineProps<{
     organisationId: number
+    orderId: number
     currency: string
     reservedLines: CustomerOrderDraftLine[]
     reservationsActive: boolean
 }>()
 const lines = defineModel<CustomerOrderDraftLine[]>({ required: true })
 const valid = defineModel<boolean>('valid', { default: false })
-const nuxtApp = useNuxtApp()
-const locationApi =
-    nuxtApp.$locationApi as import('~/services/api/wrappers/location.api').LocationApiService
-const organisationProductApi =
-    nuxtApp.$organisationProductApi as import('~/services/api/wrappers/organisation-product.api').OrganisationProductApiService
+const { getPendingCustomerOrderCatalog } = useOrders()
 const { errorFromError } = useToast()
 
 const locations = ref<Location[]>([])
@@ -240,20 +236,20 @@ const hasUnavailableSelection = computed(() =>
     selectedRows.value.some((line) => line.available < 1 || line.quantity > line.available)
 )
 
-function money(value: number): string {
+const money = (value: number): string => {
     return new Intl.NumberFormat('en-US', {
         style: 'currency',
         currency: props.currency,
     }).format(value)
 }
 
-function isSelected(key: string): boolean {
+const isSelected = (key: string): boolean => {
     return lines.value.some(
         (line) => lineKey(line.organisationProductVariantId, line.inventoryLocationId) === key
     )
 }
 
-function toggle(row: EditorRow, selected: boolean): void {
+const toggle = (row: EditorRow, selected: boolean): void => {
     if (!selected) {
         remove(row.key)
         return
@@ -264,13 +260,13 @@ function toggle(row: EditorRow, selected: boolean): void {
     }
 }
 
-function remove(key: string): void {
+const remove = (key: string): void => {
     lines.value = lines.value.filter(
         (line) => lineKey(line.organisationProductVariantId, line.inventoryLocationId) !== key
     )
 }
 
-function setQuantity(key: string, value: number): void {
+const setQuantity = (key: string, value: number): void => {
     const row = rowByKey.value.get(key)
     const upperLimit = Math.max(1, row?.available ?? 1)
     const quantity = Math.max(
@@ -284,7 +280,7 @@ function setQuantity(key: string, value: number): void {
     )
 }
 
-function reconcileLines(): void {
+const reconcileLines = (): void => {
     lines.value = lines.value.map((line) => {
         const current = rowByKey.value.get(
             lineKey(line.organisationProductVariantId, line.inventoryLocationId)
@@ -301,18 +297,15 @@ function reconcileLines(): void {
     })
 }
 
-async function load(): Promise<void> {
+const load = async (): Promise<void> => {
     const currentRevision = ++loadRevision
     loading.value = true
     loadError.value = ''
     try {
-        const [locationResponse, productResponse] = await Promise.all([
-            locationApi.getAllLocations(props.organisationId),
-            organisationProductApi.getAllOrganisationProducts(props.organisationId, true),
-        ])
+        const response = await getPendingCustomerOrderCatalog(props.orderId)
         if (currentRevision !== loadRevision) return
-        locations.value = locationResponse.data ?? []
-        products.value = productResponse.data ?? []
+        locations.value = response.data?.locations ?? []
+        products.value = response.data?.products ?? []
         const currentLocationIsActive = locationOptions.value.some(
             (option) => option.value === locationId.value
         )

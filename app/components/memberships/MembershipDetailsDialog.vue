@@ -13,7 +13,7 @@
                 @close="emit('update:modelValue', false)"
             >
                 <template #actions>
-                    <v-chip v-if="membership" color="white" variant="outlined">
+                    <v-chip v-if="membership" color="on-primary" variant="outlined">
                         {{
                             membership.isChargeable
                                 ? formatMembershipMoney(membership.priceAmount)

@@ -122,7 +122,7 @@ const submitForm = handleSubmit(async (formValues) => {
     }
 })
 
-const handlePasswordFormSubmit = () => {
+const handlePasswordFormSubmit = (): void => {
     submitForm()
 }
 </script>

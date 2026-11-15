@@ -18,10 +18,7 @@
             </v-btn>
         </div>
 
-        <v-form
-            class="d-flex align-start ga-2 mb-6"
-            @submit.prevent="search = (query ?? '').trim()"
-        >
+        <v-form class="d-flex align-start ga-2 mb-6" @submit.prevent="submitSearch">
             <v-text-field
                 v-model="query"
                 placeholder="Search by organisation name or ID"
@@ -39,12 +36,21 @@
         <v-alert v-if="error" type="error" variant="tonal" class="mb-4">{{ error }}</v-alert>
 
         <v-row v-if="filteredOrganisations.length">
-            <v-col v-for="organisation in filteredOrganisations" :key="organisation.id" cols="12" sm="6" lg="4">
+            <v-col
+                v-for="organisation in filteredOrganisations"
+                :key="organisation.id"
+                cols="12"
+                sm="6"
+                lg="4"
+            >
                 <v-card variant="outlined" rounded="lg" class="h-100 organisation-card">
                     <v-card-text class="pa-6">
                         <div class="d-flex justify-space-between align-center mb-4">
-                            <v-avatar rounded="lg" color="grey-lighten-4" size="42">
-                                <v-icon icon="mdi-office-building-outline" color="grey-darken-3" />
+                            <v-avatar rounded="lg" color="surface-variant" size="42">
+                                <v-icon
+                                    icon="mdi-office-building-outline"
+                                    color="on-surface-variant"
+                                />
                             </v-avatar>
                             <v-chip
                                 v-if="organisation.id === access.actingOrganisationId"
@@ -54,7 +60,9 @@
                                 Current
                             </v-chip>
                         </div>
-                        <h2 class="text-body-1 font-weight-bold text-break">{{ organisation.name }}</h2>
+                        <h2 class="text-body-1 font-weight-bold text-break">
+                            {{ organisation.name }}
+                        </h2>
                         <p class="text-body-2 text-medium-emphasis mt-1 mb-6">
                             Organisation ID: {{ organisation.id }}
                         </p>
@@ -73,7 +81,9 @@
         </v-row>
         <v-sheet v-else class="text-center pa-8 text-medium-emphasis" rounded="lg" border>
             {{
-                search ? 'No organisations match your search.' : 'No organisation organisations are available.'
+                search
+                    ? 'No organisations match your search.'
+                    : 'No organisation organisations are available.'
             }}
         </v-sheet>
     </v-container>
@@ -88,6 +98,7 @@ import { ROLE_PERMISSIONS } from '~/components/access/roles.permissions'
 import { computed, onBeforeUnmount, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAccessStore } from '~/stores/access.store'
+import { organisationSearchSchema } from '~/schemas/integration.schema'
 
 definePageMeta({
     middleware: ['auth', 'permission'],
@@ -101,6 +112,10 @@ const search = ref('')
 const switching = ref(false)
 const opening = ref<number | null>(null)
 const error = ref('')
+const submitSearch = (): void => {
+    const result = organisationSearchSchema.safeParse({ query: query.value ?? '' })
+    if (result.success) search.value = result.data.query
+}
 let mounted = true
 onBeforeUnmount(() => {
     mounted = false
@@ -114,11 +129,16 @@ const filteredOrganisations = computed(() => {
     return access.organisations.filter(
         (organisation) =>
             organisation.id !== access.platformOrganisationId &&
-            (!term || organisation.name.toLowerCase().includes(term) || String(organisation.id).includes(term))
+            (!term ||
+                organisation.name.toLowerCase().includes(term) ||
+                String(organisation.id).includes(term))
     )
 })
 
-async function openOrganisation(organisationId: number, platform = false) {
+const openOrganisation = async (
+    organisationId: number,
+    platform: boolean = false
+): Promise<void> => {
     if (switching.value || access.busy || !access.canSwitchOrganisations) return
     switching.value = true
     opening.value = organisationId
@@ -134,7 +154,10 @@ async function openOrganisation(organisationId: number, platform = false) {
             await navigateTo('/users')
         } else if (destination === '/access' && access.can(ROLE_PERMISSIONS.READ)) {
             await navigateTo('/access')
-        } else if (destination === '/organisations/organisation-products' && canReadOrganisationProducts) {
+        } else if (
+            destination === '/organisations/organisation-products' &&
+            canReadOrganisationProducts
+        ) {
             await navigateTo('/organisations/organisation-products')
         } else if (platform && access.can(PRODUCT_PERMISSIONS.READ)) {
             await navigateTo('/products')
@@ -160,6 +183,6 @@ async function openOrganisation(organisationId: number, platform = false) {
 
 .organisation-card {
     border-color: rgba(var(--v-border-color), var(--v-border-opacity));
-    box-shadow: 0 1px 3px rgb(0 0 0 / 6%);
+    box-shadow: 0 1px 3px rgb(var(--v-theme-on-surface) / 6%);
 }
 </style>

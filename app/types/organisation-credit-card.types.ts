@@ -1,7 +1,6 @@
 export interface OrganisationCreditCard {
     id: number
     organisationId: number
-    ppi: string
     lastFour: string
     expMonth: string
     expYear: string
@@ -10,11 +9,7 @@ export interface OrganisationCreditCard {
     updatedAt: string
 }
 
-export interface CreateOrganisationCreditCardDTO {
-    cardNumber: string
-    expMonth: string
-    expYear: string
-    cvc: string
+export interface CreateOrganisationCreditCardDTO extends PaymentCardDetails {
     isActive: boolean
     billingFirstName: string
     billingLastName: string
@@ -28,3 +23,4 @@ export interface CreateOrganisationCreditCardDTO {
 }
 
 export type UpdateOrganisationCreditCardDTO = Partial<CreateOrganisationCreditCardDTO>
+import type { PaymentCardDetails } from './payment-details.types'

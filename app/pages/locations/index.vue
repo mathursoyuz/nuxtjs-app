@@ -5,7 +5,7 @@
                 <div class="d-flex align-center justify-space-between mb-4">
                     <h1 class="text-h4">Locations</h1>
                     <v-btn
-                        v-if="access.can(LOCATION_PERMISSIONS.WRITE)"
+                        v-if="access.can(LOCATION_PERMISSIONS.CREATE)"
                         color="primary"
                         prepend-icon="mdi-plus"
                         @click="openDialog()"
@@ -35,9 +35,9 @@
                             title="Locations"
                             searchable
                             search-label="Search locations..."
-                            :selectable="access.can(LOCATION_PERMISSIONS.WRITE)"
+                            :selectable="access.can(LOCATION_PERMISSIONS.UPDATE)"
                             :show-actions="true"
-                            :can-edit="access.can(LOCATION_PERMISSIONS.WRITE)"
+                            :can-edit="access.can(LOCATION_PERMISSIONS.UPDATE)"
                             :can-delete="access.can(LOCATION_PERMISSIONS.DELETE)"
                             @search="handleSearch"
                             @edit="handleEdit"
@@ -45,11 +45,12 @@
                         >
                             <template #item.isActive="{ item }">
                                 <v-switch
+                                    :disabled="!access.can(LOCATION_PERMISSIONS.UPDATE)"
                                     :model-value="item.isActive"
                                     density="compact"
                                     hide-details
                                     color="primary"
-                                    @update:model-value="toggleActive(item.id, $event)"
+                                    @update:model-value="toggleActive(item.id, !!$event)"
                                 />
                             </template>
 
@@ -82,7 +83,7 @@
                             <template #item.syncActions="{ item }">
                                 <div class="d-flex gap-2 justify-space-between">
                                     <v-btn
-                                        v-if="access.can(LOCATION_PERMISSIONS.WRITE)"
+                                        v-if="access.can(LOCATION_PERMISSIONS.UPDATE)"
                                         size="small"
                                         color="primary"
                                         variant="tonal"
@@ -159,7 +160,13 @@
         </v-row>
 
         <!-- Location Dialog -->
-        <LocationDialog
+        <CreateLocationDialog
+            v-if="selectedLocation === null"
+            v-model="showDialog"
+            @submit="handleDialogSubmit"
+        />
+        <EditLocationDialog
+            v-else
             v-model="showDialog"
             :location="selectedLocation"
             @submit="handleDialogSubmit"
@@ -182,19 +189,21 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-import { useNuxtApp } from '#app';
-import { useLocation } from '~/composables/useLocation';
-import { useOrganisation } from '~/composables/useOrganisation';
-import { useAccessStore } from '~/stores/access.store';
-import { LOCATION_PERMISSIONS } from '~/components/locations/location.permissions';
-import { useQuickbooks } from '~/composables/useQuickbooks';
-import { useToast } from '~/composables/useToast';
-import { LOCATION_MESSAGES } from '~/constants/messages.constants';
-import DataTable from '~/components/data-table/DataTable.vue';
-import LocationDialog from '~/components/locations/LocationDialog.vue';
-import ConfirmDialog from '~/components/dialogs/ConfirmDialog.vue';
-import type { Location } from '~/types/location.types';
+import { ref, computed } from 'vue'
+import { useLocation } from '~/composables/useLocation'
+import { useSquareImport } from '~/composables/useSquareImport'
+import { useOrganisation } from '~/composables/useOrganisation'
+import { useAccessStore } from '~/stores/access.store'
+import { LOCATION_PERMISSIONS } from '~/components/locations/location.permissions'
+import { useQuickbooks } from '~/composables/useQuickbooks'
+import { useToast } from '~/composables/useToast'
+import { LOCATION_MESSAGES } from '~/constants/messages.constants'
+import DataTable from '~/components/data-table/DataTable.vue'
+import CreateLocationDialog from '~/components/locations/CreateLocationDialog.vue'
+import EditLocationDialog from '~/components/locations/EditLocationDialog.vue'
+import ConfirmDialog from '~/components/dialogs/ConfirmDialog.vue'
+import type { Location } from '~/types/location.types'
+import type { SquareLocation } from '~/types/square-import.types'
 
 definePageMeta({
     middleware: ['auth', 'permission'],
@@ -203,28 +212,30 @@ definePageMeta({
         allowCrossOrganisation: true,
         allowCurrentContext: true,
     },
-});
+})
 
-const nuxtApp = useNuxtApp();
-const squareImportApi =
-    nuxtApp.$squareImportApi as import('~/services/api/wrappers/square-import.api').SquareImportApiService;
-const locationApi =
-    nuxtApp.$locationApi as import('~/services/api/wrappers/location.api').LocationApiService;
-
-const { locations, loading, fetchLocations, deleteLocation } = useLocation();
-const { organisations, fetchOrganisations } = useOrganisation();
-const access = useAccessStore();
-const { successFromResponse, errorFromError, success, error, warning, info } = useToast();
+const { operations: squareImport } = useSquareImport<SquareLocation>()
+const {
+    locations,
+    loading,
+    fetchLocations,
+    refreshLocations,
+    deleteLocation,
+    updateLocationStatus,
+} = useLocation()
+const { organisations, fetchOrganisations } = useOrganisation()
+const access = useAccessStore()
+const { successFromResponse, errorFromError, success, error, warning, info } = useToast()
 // Track sync state for each location
-const syncingSquare = ref<Record<number, boolean>>({});
-const syncingQb = ref<Record<number, boolean>>({});
+const syncingSquare = ref<Record<number, boolean>>({})
+const syncingQb = ref<Record<number, boolean>>({})
 
-const selectedOrganisationId = ref<number | null>(null);
-const searchQuery = ref('');
-const showDialog = ref(false);
-const selectedLocation = ref<Location | null>(null);
-const showDeleteDialog = ref(false);
-const locationToDelete = ref<Location | null>(null);
+const selectedOrganisationId = ref<number | null>(null)
+const searchQuery = ref('')
+const showDialog = ref(false)
+const selectedLocation = ref<Location | null>(null)
+const showDeleteDialog = ref(false)
+const locationToDelete = ref<Location | null>(null)
 
 const headers = [
     { title: 'Name', key: 'name', sortable: true },
@@ -237,198 +248,178 @@ const headers = [
     { title: 'QB Synced', key: 'qbSynced', sortable: true },
     { title: 'SyncActions', key: 'syncActions', sortable: false },
     { title: 'Actions', key: 'actions', sortable: false },
-];
+]
 
 const organisationOptions = computed(() => {
     return organisations.value.map((c) => ({
         title: c.name,
         value: c.id,
-    }));
-});
+    }))
+})
 
 const filteredLocations = computed(() => {
-    let filtered = locations.value;
-    
+    let filtered = locations.value
+
     if (selectedOrganisationId.value) {
-        filtered = filtered.filter((l) => l.organisationId === selectedOrganisationId.value);
+        filtered = filtered.filter((l) => l.organisationId === selectedOrganisationId.value)
     }
-    
+
     if (searchQuery.value) {
-        const query = searchQuery.value.toLowerCase();
-        filtered = filtered.filter((l) =>
-            l.name.toLowerCase().includes(query) ||
-            l.address?.toLowerCase().includes(query) ||
-            l.city?.toLowerCase().includes(query)
-        );
+        const query = searchQuery.value.toLowerCase()
+        filtered = filtered.filter(
+            (l) =>
+                l.name.toLowerCase().includes(query) ||
+                l.address?.toLowerCase().includes(query) ||
+                l.city?.toLowerCase().includes(query)
+        )
     }
-    
-    return filtered;
-});
 
-const handleOrganisationFilter = () => {
+    return filtered
+})
+
+const handleOrganisationFilter = (): void => {
     if (selectedOrganisationId.value) {
-        fetchLocations(selectedOrganisationId.value);
+        fetchLocations(selectedOrganisationId.value)
     } else {
-        fetchLocations();
+        fetchLocations()
     }
-};
+}
 
-const handleSearch = (query: string) => {
-    searchQuery.value = query;
-};
+const handleSearch = (query: string): void => {
+    searchQuery.value = query
+}
 
-const openDialog = (location?: Location) => {
-    selectedLocation.value = location || null;
-    showDialog.value = true;
-};
+const openDialog = (location?: Location): void => {
+    selectedLocation.value = location || null
+    showDialog.value = true
+}
 
-const handleEdit = (item: Location) => {
-    openDialog(item);
-};
+const isLocation = (item: unknown): item is Location =>
+    typeof item === 'object' && item !== null && 'id' in item && 'name' in item
 
-const handleDelete = (item: Location) => {
-    locationToDelete.value = item;
-    showDeleteDialog.value = true;
-};
+const handleEdit = (item: unknown): void => {
+    if (isLocation(item)) openDialog(item)
+}
 
-const confirmDelete = async () => {
-    if (!locationToDelete.value) return;
-    
+const handleDelete = (item: unknown): void => {
+    if (!isLocation(item)) return
+    locationToDelete.value = item
+    showDeleteDialog.value = true
+}
+
+const confirmDelete = async (): Promise<void> => {
+    if (!locationToDelete.value) return
+
     try {
-        await deleteLocation(locationToDelete.value.id);
-        showDeleteDialog.value = false;
-        locationToDelete.value = null;
+        await deleteLocation(locationToDelete.value.id)
+        showDeleteDialog.value = false
+        locationToDelete.value = null
     } catch (error) {
-        console.error('Failed to delete location:', error);
+        console.error('Failed to delete location:', error)
     }
-};
+}
 
-const handleDialogSubmit = async () => {
+const handleDialogSubmit = async (): Promise<void> => {
     // Refresh locations after create/update
-    await fetchLocations(selectedOrganisationId.value || undefined);
-};
+    await fetchLocations(selectedOrganisationId.value || undefined)
+}
 
-const toggleActive = async (id: number, isActive: boolean) => {
-    // Implement toggle active if backend supports it
-    console.log('Toggle active:', id, isActive);
-};
+const toggleActive = async (id: number, isActive: boolean): Promise<void> => {
+    try {
+        await updateLocationStatus(id, isActive)
+        success(`Location ${isActive ? 'activated' : 'deactivated'}.`)
+        await fetchLocations(selectedOrganisationId.value || undefined)
+    } catch (error) {
+        errorFromError(error, 'Unable to update location status.')
+        await fetchLocations(selectedOrganisationId.value || undefined)
+    }
+}
 
-const importFromSquare = async (item: Location) => {
-    syncingSquare.value[item.id] = true;
+const importFromSquare = async (item: Location): Promise<void> => {
+    syncingSquare.value[item.id] = true
 
     try {
         // Search all Square locations
-        const searchResponse = await squareImportApi.searchLocations();
+        const searchResponse = await squareImport.searchLocations()
         if (!searchResponse.success || !searchResponse.data) {
-            errorFromError(searchResponse, LOCATION_MESSAGES.IMPORT_SQUARE_FETCH_ERROR);
-            return;
+            errorFromError(searchResponse, LOCATION_MESSAGES.IMPORT_SQUARE_FETCH_ERROR)
+            return
         }
 
-        const squareLocations = Array.isArray(searchResponse.data) ? searchResponse.data : [];
+        const squareLocations = Array.isArray(searchResponse.data) ? searchResponse.data : []
 
         // Try to find matching Square location by squareLocationId first, then by name
         let matchingSquareLocation = item.squareLocationId
             ? squareLocations.find((sl) => sl.id === item.squareLocationId)
-            : null;
+            : null
 
         // If not found by ID, try to find by name
         if (!matchingSquareLocation) {
             matchingSquareLocation = squareLocations.find(
                 (sl) => sl.name?.toLowerCase() === item.name.toLowerCase()
-            );
+            )
         }
 
         if (!matchingSquareLocation) {
             const warningMessage = item.squareLocationId
                 ? 'Square location not found. It may have been deleted in Square.'
-                : LOCATION_MESSAGES.IMPORT_SQUARE_NO_LOCATIONS;
-            warning(warningMessage);
-            return;
+                : LOCATION_MESSAGES.IMPORT_SQUARE_NO_LOCATIONS
+            warning(warningMessage)
+            return
         }
 
         // Import the matching Square location
-        const importResponse = await squareImportApi.importLocations([matchingSquareLocation]);
+        const importResponse = await squareImport.importLocations([matchingSquareLocation])
         if (importResponse.success && importResponse.data) {
-            const result = importResponse.data.result;
-            const successCount = result.created + result.updated;
+            const result = importResponse.data.result
+            const successCount = result.created + result.updated
 
             if (successCount > 0) {
-                successFromResponse(importResponse, LOCATION_MESSAGES.IMPORT_SQUARE_SUCCESS);
+                successFromResponse(importResponse, LOCATION_MESSAGES.IMPORT_SQUARE_SUCCESS)
             } else {
-                info(LOCATION_MESSAGES.IMPORT_SQUARE_SKIPPED);
+                info(LOCATION_MESSAGES.IMPORT_SQUARE_SKIPPED)
             }
 
             if (result.errors.length > 0) {
-                const firstError = result.errors[0];
+                const firstError = result.errors[0]
                 if (firstError) {
-                    warning(`Import warning: ${firstError.error}`);
+                    warning(`Import warning: ${firstError.error}`)
                 }
             }
 
-            // Refresh locations to show updated sync status (skip cache)
-            const refreshResponse = await locationApi.refreshLocations(selectedOrganisationId.value || undefined);
-            if (refreshResponse.success && refreshResponse.data) {
-                // Update the store with fresh data
-                const { useLocationStore } = await import('~/stores/location.store');
-                const locationStore = useLocationStore();
-                locationStore.setLocations(refreshResponse.data);
-            } else {
-                // Fallback: invalidate cache and fetch
-                const cachedApi = (locationApi as any).cachedApi as import('~/services/api/CachedApiClient').CachedApiClient;
-                if (cachedApi) {
-                    cachedApi.invalidate('locations:.*');
-                }
-                await fetchLocations(selectedOrganisationId.value || undefined);
-            }
+            await refreshLocations(selectedOrganisationId.value || undefined)
         } else {
-            errorFromError(importResponse, LOCATION_MESSAGES.IMPORT_SQUARE_ERROR);
+            errorFromError(importResponse, LOCATION_MESSAGES.IMPORT_SQUARE_ERROR)
         }
     } catch (err) {
-        console.error('Error importing location from Square:', err);
-        errorFromError(err, LOCATION_MESSAGES.IMPORT_SQUARE_ERROR);
+        console.error('Error importing location from Square:', err)
+        errorFromError(err, LOCATION_MESSAGES.IMPORT_SQUARE_ERROR)
     } finally {
-        syncingSquare.value[item.id] = false;
+        syncingSquare.value[item.id] = false
     }
-};
+}
 
-const importToQB = async (item: Location) => {
-    syncingQb.value[item.id] = true;
+const importToQB = async (item: Location): Promise<void> => {
+    syncingQb.value[item.id] = true
 
     try {
         // Location sync to QuickBooks is not yet implemented in the backend
-        info(LOCATION_MESSAGES.SYNC_QB_NOT_IMPLEMENTED);
+        info(LOCATION_MESSAGES.SYNC_QB_NOT_IMPLEMENTED)
 
-        // Refresh locations to show updated sync status (skip cache)
-        const refreshResponse = await locationApi.refreshLocations(selectedOrganisationId.value || undefined);
-        if (refreshResponse.success && refreshResponse.data) {
-            // Update the store with fresh data
-            const { useLocationStore } = await import('~/stores/location.store');
-            const locationStore = useLocationStore();
-            locationStore.setLocations(refreshResponse.data);
-        } else {
-            // Fallback: invalidate cache and fetch
-            const cachedApi = (locationApi as any).cachedApi as import('~/services/api/CachedApiClient').CachedApiClient;
-            if (cachedApi) {
-                cachedApi.invalidate('locations:.*');
-            }
-            await fetchLocations(selectedOrganisationId.value || undefined);
-        }
+        await refreshLocations(selectedOrganisationId.value || undefined)
     } catch (err) {
-        errorFromError(err, LOCATION_MESSAGES.SYNC_QB_ERROR);
-        console.error('Error syncing location to QuickBooks:', err);
+        errorFromError(err, LOCATION_MESSAGES.SYNC_QB_ERROR)
+        console.error('Error syncing location to QuickBooks:', err)
     } finally {
-        syncingQb.value[item.id] = false;
+        syncingQb.value[item.id] = false
     }
-};
+}
 
 // Use useLazyAsyncData for initial data fetching
-const { pending: locationsPending } = await useLazyAsyncData(
-    'locations-initial',
-    async () => {
-        await Promise.all([
-            fetchOrganisations(),
-            fetchLocations(selectedOrganisationId.value || undefined),
-        ]);
-    }
-);
+const { pending: locationsPending } = await useLazyAsyncData('locations-initial', async () => {
+    await Promise.all([
+        fetchOrganisations(),
+        fetchLocations(selectedOrganisationId.value || undefined),
+    ])
+})
 </script>

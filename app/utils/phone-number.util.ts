@@ -5,10 +5,10 @@ export interface ParsedInternationalPhoneNumber {
     nationalNumber: string
 }
 
-export function parseInternationalPhoneNumber(
+export const parseInternationalPhoneNumber = (
     value: string,
     countries: PhoneCountryCode[]
-): ParsedInternationalPhoneNumber | null {
+): ParsedInternationalPhoneNumber | null => {
     if (!value || countries.length === 0) return null
 
     const compact = value.trim().replace(/[\s().-]/g, '')
@@ -24,11 +24,11 @@ export function parseInternationalPhoneNumber(
     return nationalNumber ? { country, nationalNumber } : null
 }
 
-export function buildInternationalPhoneNumber(
+export const buildInternationalPhoneNumber = (
     countryCode: string,
     nationalNumber: string,
     countries: PhoneCountryCode[]
-): string {
+): string => {
     const digits = nationalNumber.replace(/\D/g, '')
     if (!digits) return ''
 

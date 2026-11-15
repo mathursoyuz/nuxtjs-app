@@ -58,7 +58,6 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { useNuxtApp } from '#app'
 import { useToast } from '~/composables/useToast'
 import { ORGANISATION_MESSAGES } from '~/constants/messages.constants'
 import type { Organisation } from '~/types/organisation.types'
@@ -75,14 +74,12 @@ const emit = defineEmits<{
     submit: []
 }>()
 
-const nuxtApp = useNuxtApp()
-const organisationApi =
-    nuxtApp.$organisationApi as import('~/services/api/wrappers/organisation.api').OrganisationApiService
+const organisationApi = useOrganisationManagement()
 const { successFromResponse, errorFromError, show: showToast } = useToast()
 
 const loading = ref(false)
 
-const handleDelete = async () => {
+const handleDelete = async (): Promise<void> => {
     if (!props.organisation) return
 
     loading.value = true

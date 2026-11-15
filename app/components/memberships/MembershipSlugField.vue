@@ -12,7 +12,6 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
-import type { MembershipApiService } from '~/services/api/wrappers/membership.api'
 import { createMembershipSlug, isMembershipSlugValid } from '~/utils/membership-slug.util'
 
 const props = defineProps<{
@@ -29,7 +28,7 @@ const emit = defineEmits<{
     'update:modelValue': [value: string]
     'update:available': [value: boolean | null]
 }>()
-const api = useNuxtApp().$membershipApi as MembershipApiService
+const { checkMembershipSlugAvailability } = useMemberships()
 const checking = ref(false)
 const available = ref<boolean | null>(null)
 const checkFailed = ref(false)
@@ -63,23 +62,14 @@ const checkAvailability = async (slug: string): Promise<void> => {
     checking.value = true
     checkFailed.value = false
     try {
-        const response =
-            props.scope === 'PLATFORM'
-                ? props.entity === 'GROUP'
-                    ? await api.checkPlatformGroupSlug(slug, props.excludeId)
-                    : await api.checkPlatformMembershipSlug(slug, props.excludeId)
-                : props.entity === 'GROUP'
-                  ? await api.checkOrganisationGroupSlug(
-                        props.organisationId!,
-                        slug,
-                        props.excludeId
-                    )
-                  : await api.checkOrganisationMembershipSlug(
-                        props.organisationId!,
-                        slug,
-                        props.excludeId
-                    )
-        if (currentRevision === revision) setAvailability(response.data?.available ?? false)
+        const isAvailable = await checkMembershipSlugAvailability({
+            scope: props.scope,
+            entity: props.entity,
+            slug,
+            organisationId: props.organisationId,
+            excludeId: props.excludeId,
+        })
+        if (currentRevision === revision) setAvailability(isAvailable)
     } catch {
         if (currentRevision === revision) {
             checkFailed.value = true

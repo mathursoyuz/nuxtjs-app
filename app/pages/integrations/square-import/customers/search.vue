@@ -117,7 +117,7 @@
                                         Found: {{ fetchedData.data.length }} customer(s)
                                     </v-chip>
                                     <v-chip
-                                        v-if="selectedItems.length > 0"
+                                        v-if="canWrite && selectedItems.length > 0"
                                         color="primary"
                                         size="small"
                                     >
@@ -136,7 +136,7 @@
                                 </div>
                             </div>
 
-                            <div v-if="hasSelectedItems" class="mb-4">
+                            <div v-if="canWrite && hasSelectedItems" class="mb-4">
                                 <v-alert type="info" density="compact" class="mb-2">
                                     <div class="d-flex align-center justify-space-between">
                                         <span>
@@ -163,7 +163,7 @@
                             :items="fetchedData.data"
                             :loading="loading"
                             item-value="id"
-                            show-select
+                            :show-select="canWrite"
                             class="elevation-1"
                         >
                             <template #item.email_address="{ item }">
@@ -196,6 +196,7 @@
                             <template #item.actions="{ item }">
                                 <div class="d-flex align-center gap-2">
                                     <v-btn
+                                        v-if="canWrite"
                                         icon="mdi-import"
                                         size="small"
                                         variant="text"
@@ -242,16 +243,21 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useToast } from '~/composables/useToast'
+import { useSquareImport } from '~/composables/useSquareImport'
 import type { SquareCustomer } from '~/types/square-import.types'
 import type { SyncResult } from '~/types/square-import.types'
+import { SQUARE_SYNC_PERMISSIONS } from '~/constants/integration-permissions.constants'
+import { useAccessStore } from '~/stores/access.store'
 
 definePageMeta({
-    middleware: ['auth'],
+    middleware: ['auth', 'permission'],
+    access: { permission: SQUARE_SYNC_PERMISSIONS.READ },
 })
 
-const nuxtApp = useNuxtApp()
-const squareImportApi =
-    nuxtApp.$squareImportApi as import('~/services/api/wrappers/square-import.api').SquareImportApiService
+const access = useAccessStore()
+const canWrite = computed(() => access.can(SQUARE_SYNC_PERMISSIONS.WRITE))
+
+const { operations: squareImport } = useSquareImport<SquareCustomer>()
 
 const { success, error, warning, info, successFromResponse, errorFromError } = useToast()
 
@@ -397,7 +403,7 @@ const searchCustomers = async () => {
             return
         }
 
-        const response = await squareImportApi.searchCustomers(params)
+        const response = await squareImport.searchCustomers(params)
 
         if (response.success && response.data) {
             const customers = Array.isArray(response.data) ? response.data : []
@@ -447,7 +453,7 @@ const bulkImport = async () => {
                 rawCustomersToImport.push(rawCustomer)
             }
         }
-        const response = await squareImportApi.importCustomers(rawCustomersToImport)
+        const response = await squareImport.importCustomers(rawCustomersToImport)
 
         if (response.success && response.data) {
             const result = response.data.result
@@ -489,7 +495,7 @@ const importSingle = async (item: SquareCustomer) => {
             console.warn(`Raw customer not found for ID: ${itemId}, using enriched customer`)
         }
 
-        const response = await squareImportApi.importCustomers([customerToImport])
+        const response = await squareImport.importCustomers([customerToImport])
         if (response.success && response.data) {
             const result = response.data.result
             const successCount = result.created + result.updated
@@ -522,8 +528,8 @@ const importSingle = async (item: SquareCustomer) => {
 
 <style scoped>
 .raw-json {
-    background-color: #f5f5f5;
-    border: 1px solid #e0e0e0;
+    background-color: rgb(var(--v-theme-surface-variant));
+    border: 1px solid rgb(var(--v-border-color) / var(--v-border-opacity));
     border-radius: 4px;
     padding: 16px;
     font-family: 'Courier New', monospace;

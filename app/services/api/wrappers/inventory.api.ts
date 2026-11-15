@@ -1,4 +1,4 @@
-import type { CachedApiClient } from '../CachedApiClient'
+import HttpFactory from '@/repository/factory'
 import type { ApiResponse } from '~/types/api.types'
 import type {
     CreateInventoryMovementDTO,
@@ -7,94 +7,103 @@ import type {
     UpdateInventoryThresholdDTO,
 } from '~/types/inventory.types'
 
-export class InventoryApiService {
-    constructor(private readonly cachedApi: CachedApiClient) {}
-
-    getInventoryLocations(organisationId: number): Promise<ApiResponse<InventoryLocation[]>> {
-        return this.cachedApi.get<InventoryLocation[]>(
+export class InventoryApiService extends HttpFactory {
+    async getInventoryLocations(organisationId: number): Promise<ApiResponse<InventoryLocation[]>> {
+        return await this.call<InventoryLocation[]>(
+            'GET',
             `/organisations/${organisationId}/inventory-locations`,
             undefined,
-            `inventory:locations:${organisationId}`,
-            5 * 60 * 1000,
-            true
+            {
+                cacheKey: `inventory:locations:${organisationId}`,
+                ttl: 5 * 60 * 1000,
+                skipCache: true,
+            }
         )
     }
 
-    getOrganisationInventory(
+    async getOrganisationInventory(
         organisationId: number,
         organisationProductVariantId: number
     ): Promise<ApiResponse<InventorySnapshot>> {
-        return this.cachedApi.get<InventorySnapshot>(
+        return await this.call<InventorySnapshot>(
+            'GET',
             `/organisations/${organisationId}/organisation-product-variants/${organisationProductVariantId}/inventory`,
             undefined,
-            `inventory:organisation:${organisationId}:${organisationProductVariantId}`,
-            60 * 1000,
-            true
+            {
+                cacheKey: `inventory:organisation:${organisationId}:${organisationProductVariantId}`,
+                ttl: 60 * 1000,
+                skipCache: true,
+            }
         )
     }
 
-    recordOrganisationMovement(
+    async recordOrganisationMovement(
         organisationId: number,
         organisationProductVariantId: number,
         data: CreateInventoryMovementDTO
     ): Promise<ApiResponse<InventorySnapshot>> {
-        return this.cachedApi.post<InventorySnapshot>(
+        return await this.call<InventorySnapshot, CreateInventoryMovementDTO>(
+            'POST',
             `/organisations/${organisationId}/organisation-product-variants/${organisationProductVariantId}/inventory/movements`,
             data,
-            undefined,
-            'inventory:.*'
+            { invalidatePattern: 'inventory:.*' }
         )
     }
 
-    updateOrganisationThreshold(
+    async updateOrganisationThreshold(
         organisationId: number,
         organisationProductVariantId: number,
         data: UpdateInventoryThresholdDTO
     ): Promise<ApiResponse<InventorySnapshot>> {
-        return this.cachedApi.patch<InventorySnapshot>(
+        return await this.call<InventorySnapshot, UpdateInventoryThresholdDTO>(
+            'PATCH',
             `/organisations/${organisationId}/organisation-product-variants/${organisationProductVariantId}/inventory/threshold`,
             data,
-            undefined,
-            'inventory:.*'
+            { invalidatePattern: 'inventory:.*' }
         )
     }
 
-    getPlatformSupplyInventory(
+    async getPlatformSupplyInventory(
         productId: number,
         productVariantId: number
     ): Promise<ApiResponse<InventorySnapshot>> {
-        return this.cachedApi.get<InventorySnapshot>(
+        return await this.call<InventorySnapshot>(
+            'GET',
             `/products/${productId}/variants/${productVariantId}/supply-inventory`,
             undefined,
-            `inventory:platform:${productId}:${productVariantId}`,
-            60 * 1000,
-            true
+            {
+                cacheKey: `inventory:platform:${productId}:${productVariantId}`,
+                ttl: 60 * 1000,
+                skipCache: true,
+            }
         )
     }
 
-    recordPlatformSupplyMovement(
+    async recordPlatformSupplyMovement(
         productId: number,
         productVariantId: number,
         data: CreateInventoryMovementDTO
     ): Promise<ApiResponse<InventorySnapshot>> {
-        return this.cachedApi.post<InventorySnapshot>(
+        return await this.call<InventorySnapshot, CreateInventoryMovementDTO>(
+            'POST',
             `/products/${productId}/variants/${productVariantId}/supply-inventory/movements`,
             data,
-            undefined,
-            'inventory:.*'
+            { invalidatePattern: 'inventory:.*' }
         )
     }
 
-    updatePlatformSupplyThreshold(
+    async updatePlatformSupplyThreshold(
         productId: number,
         productVariantId: number,
         data: UpdateInventoryThresholdDTO
     ): Promise<ApiResponse<InventorySnapshot>> {
-        return this.cachedApi.patch<InventorySnapshot>(
+        return await this.call<InventorySnapshot, UpdateInventoryThresholdDTO>(
+            'PATCH',
             `/products/${productId}/variants/${productVariantId}/supply-inventory/threshold`,
             data,
-            undefined,
-            'inventory:.*'
+            { invalidatePattern: 'inventory:.*' }
         )
     }
 }
+
+export default InventoryApiService

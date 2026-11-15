@@ -174,8 +174,6 @@ import { ref, computed, watch, nextTick } from 'vue'
 import { useLocation } from '~/composables/useLocation'
 import { useOrganisation } from '~/composables/useOrganisation'
 import { useCountry } from '~/composables/useCountry'
-import { useToast } from '~/composables/useToast'
-import { LOCATION_MESSAGES } from '~/constants/messages.constants'
 import { createLocationSchema, updateLocationSchema } from '~/schemas/location.schema'
 import type { CreateLocationFormData, UpdateLocationFormData } from '~/schemas/location.schema'
 import type { Location } from '~/types/location.types'
@@ -195,7 +193,6 @@ const emit = defineEmits<{
 const { createLocation, updateLocation, fetchLocationById } = useLocation()
 const { organisations, fetchOrganisations } = useOrganisation()
 const { countries, countryOptions, fetchCountries, fetchStates, getStateOptions } = useCountry()
-const { successFromResponse, errorFromError } = useToast()
 
 const formRef = ref()
 const valid = ref(false)
@@ -233,15 +230,19 @@ const stateOptions = computed(() => {
 })
 
 const rules = {
-    required: (v: unknown) => !!v || 'This field is required',
-    latitude: (v: unknown) => {
+    required: (v: unknown): true | 'This field is required' => !!v || 'This field is required',
+    latitude: (
+        v: unknown
+    ): true | 'Latitude must be a valid number' | 'Latitude must be between -90 and 90' => {
         if (v === null || v === undefined || v === '') return true // Optional field
         const num = typeof v === 'string' ? parseFloat(v) : Number(v)
         if (isNaN(num)) return 'Latitude must be a valid number'
         if (num < -90 || num > 90) return 'Latitude must be between -90 and 90'
         return true
     },
-    longitude: (v: unknown) => {
+    longitude: (
+        v: unknown
+    ): true | 'Longitude must be a valid number' | 'Longitude must be between -180 and 180' => {
         if (v === null || v === undefined || v === '') return true // Optional field
         const num = typeof v === 'string' ? parseFloat(v) : Number(v)
         if (isNaN(num)) return 'Longitude must be a valid number'
@@ -250,7 +251,7 @@ const rules = {
     },
 }
 
-const handleCountryChange = async (countryId: string | null) => {
+const handleCountryChange = async (countryId: string | null): Promise<void> => {
     // Clear state when country changes
     formData.value.state = undefined
 
@@ -326,8 +327,9 @@ watch(
     }
 )
 
-const handleSubmit = async () => {
-    if (!formRef.value?.validate()) return
+const handleSubmit = async (): Promise<void> => {
+    const validation = await formRef.value?.validate()
+    if (!validation?.valid) return
 
     isSubmitting.value = true
 
@@ -352,22 +354,16 @@ const handleSubmit = async () => {
 
         if (isEditMode.value && props.location) {
             updateLocationSchema.parse(submitData)
-            const response = await updateLocation(props.location.id, submitData)
-            successFromResponse(response, LOCATION_MESSAGES.UPDATE_SUCCESS)
+            await updateLocation(props.location.id, submitData)
         } else {
             createLocationSchema.parse(submitData)
-            const response = await createLocation(submitData as CreateLocationFormData)
-            successFromResponse(response, LOCATION_MESSAGES.CREATE_SUCCESS)
+            await createLocation(submitData as CreateLocationFormData)
         }
 
         emit('submit')
         emit('update:modelValue', false)
     } catch (err) {
         console.error('Validation or save error:', err)
-        errorFromError(
-            err,
-            isEditMode.value ? LOCATION_MESSAGES.UPDATE_ERROR : LOCATION_MESSAGES.CREATE_ERROR
-        )
     } finally {
         isSubmitting.value = false
     }

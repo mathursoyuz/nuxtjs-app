@@ -1,4 +1,4 @@
-import type { CachedApiClient } from '../CachedApiClient'
+import HttpFactory from '@/repository/factory'
 import type { ApiResponse } from '~/types/api.types'
 import type {
     Membership,
@@ -16,29 +16,25 @@ import type {
     PublicMembershipAction,
 } from '~/types/membership.types'
 
-export class MembershipApiService {
-    constructor(private readonly api: CachedApiClient) {}
-
+export class MembershipApiService extends HttpFactory {
     async getPlatformTypes(): Promise<ApiResponse<MembershipType[]>> {
-        return await this.api.get(
-            '/platform-membership-types',
-            undefined,
-            undefined,
-            undefined,
-            true
-        )
+        return await this.call<MembershipType[]>('GET', '/platform-membership-types', undefined, {
+            skipCache: true,
+        })
     }
 
     async checkPlatformGroupSlug(
         slug: string,
         excludeId?: number
     ): Promise<ApiResponse<{ available: boolean }>> {
-        return await this.api.get(
+        return await this.call<{ available: boolean }>(
+            'GET',
             '/platform-membership-types/slug-availability',
-            { params: { slug, ...(excludeId === undefined ? {} : { excludeId }) } },
             undefined,
-            undefined,
-            true
+            {
+                config: { params: { slug, ...(excludeId === undefined ? {} : { excludeId }) } },
+                skipCache: true,
+            }
         )
     }
 
@@ -46,73 +42,94 @@ export class MembershipApiService {
         slug: string,
         excludeId?: number
     ): Promise<ApiResponse<{ available: boolean }>> {
-        return await this.api.get(
+        return await this.call<{ available: boolean }>(
+            'GET',
             '/platform-memberships/slug-availability',
-            { params: { slug, ...(excludeId === undefined ? {} : { excludeId }) } },
             undefined,
-            undefined,
-            true
+            {
+                config: { params: { slug, ...(excludeId === undefined ? {} : { excludeId }) } },
+                skipCache: true,
+            }
         )
     }
 
     async createPlatformType(data: MembershipTypeInput): Promise<ApiResponse<MembershipType>> {
-        return await this.api.post('/platform-membership-types', data, undefined, 'membership:.*')
+        return await this.call<MembershipType, MembershipTypeInput>(
+            'POST',
+            '/platform-membership-types',
+            data,
+            { invalidatePattern: 'membership:.*' }
+        )
     }
 
     async updatePlatformType(
         id: number,
         data: Partial<MembershipTypeInput>
     ): Promise<ApiResponse<MembershipType>> {
-        return await this.api.put(
+        return await this.call<MembershipType, Partial<MembershipTypeInput>>(
+            'PUT',
             `/platform-membership-types/${id}`,
             data,
-            undefined,
-            'membership:.*'
+            { invalidatePattern: 'membership:.*' }
         )
     }
 
     async deletePlatformType(id: number): Promise<ApiResponse<void>> {
-        return await this.api.delete(`/platform-membership-types/${id}`, undefined, 'membership:.*')
+        return await this.call<void>('DELETE', `/platform-membership-types/${id}`, undefined, {
+            invalidatePattern: 'membership:.*',
+        })
     }
 
     async getPlatformMemberships(): Promise<ApiResponse<Membership[]>> {
-        return await this.api.get('/platform-memberships', undefined, undefined, undefined, true)
+        return await this.call<Membership[]>('GET', '/platform-memberships', undefined, {
+            skipCache: true,
+        })
     }
 
     async getPlatformServiceSubscribers(
         membershipId: number
     ): Promise<ApiResponse<MembershipSubscriber[]>> {
-        return await this.api.get(
+        return await this.call<MembershipSubscriber[]>(
+            'GET',
             `/platform-memberships/${membershipId}/subscribers`,
             undefined,
-            undefined,
-            undefined,
-            true
+            { skipCache: true }
         )
     }
 
     async createPlatformMembership(data: MembershipInput): Promise<ApiResponse<Membership>> {
-        return await this.api.post('/platform-memberships', data, undefined, 'membership:.*')
+        return await this.call<Membership, MembershipInput>(
+            'POST',
+            '/platform-memberships',
+            data,
+            { invalidatePattern: 'membership:.*' }
+        )
     }
 
     async updatePlatformMembership(
         id: number,
         data: Partial<MembershipInput>
     ): Promise<ApiResponse<Membership>> {
-        return await this.api.put(`/platform-memberships/${id}`, data, undefined, 'membership:.*')
+        return await this.call<Membership, Partial<MembershipInput>>(
+            'PUT',
+            `/platform-memberships/${id}`,
+            data,
+            { invalidatePattern: 'membership:.*' }
+        )
     }
 
     async deletePlatformMembership(id: number): Promise<ApiResponse<void>> {
-        return await this.api.delete(`/platform-memberships/${id}`, undefined, 'membership:.*')
+        return await this.call<void>('DELETE', `/platform-memberships/${id}`, undefined, {
+            invalidatePattern: 'membership:.*',
+        })
     }
 
     async getOrganisationTypes(organisationId: number): Promise<ApiResponse<MembershipType[]>> {
-        return await this.api.get(
+        return await this.call<MembershipType[]>(
+            'GET',
             `/organisations/${organisationId}/membership-types`,
             undefined,
-            undefined,
-            undefined,
-            true
+            { skipCache: true }
         )
     }
 
@@ -121,12 +138,14 @@ export class MembershipApiService {
         slug: string,
         excludeId?: number
     ): Promise<ApiResponse<{ available: boolean }>> {
-        return await this.api.get(
+        return await this.call<{ available: boolean }>(
+            'GET',
             `/organisations/${organisationId}/membership-types/slug-availability`,
-            { params: { slug, ...(excludeId === undefined ? {} : { excludeId }) } },
             undefined,
-            undefined,
-            true
+            {
+                config: { params: { slug, ...(excludeId === undefined ? {} : { excludeId }) } },
+                skipCache: true,
+            }
         )
     }
 
@@ -135,12 +154,14 @@ export class MembershipApiService {
         slug: string,
         excludeId?: number
     ): Promise<ApiResponse<{ available: boolean }>> {
-        return await this.api.get(
+        return await this.call<{ available: boolean }>(
+            'GET',
             `/organisations/${organisationId}/memberships/slug-availability`,
-            { params: { slug, ...(excludeId === undefined ? {} : { excludeId }) } },
             undefined,
-            undefined,
-            true
+            {
+                config: { params: { slug, ...(excludeId === undefined ? {} : { excludeId }) } },
+                skipCache: true,
+            }
         )
     }
 
@@ -148,11 +169,11 @@ export class MembershipApiService {
         organisationId: number,
         data: MembershipTypeInput
     ): Promise<ApiResponse<MembershipType>> {
-        return await this.api.post(
+        return await this.call<MembershipType, MembershipTypeInput>(
+            'POST',
             `/organisations/${organisationId}/membership-types`,
             data,
-            undefined,
-            'membership:.*'
+            { invalidatePattern: 'membership:.*' }
         )
     }
 
@@ -161,29 +182,29 @@ export class MembershipApiService {
         id: number,
         data: Partial<MembershipTypeInput>
     ): Promise<ApiResponse<MembershipType>> {
-        return await this.api.put(
+        return await this.call<MembershipType, Partial<MembershipTypeInput>>(
+            'PUT',
             `/organisations/${organisationId}/membership-types/${id}`,
             data,
-            undefined,
-            'membership:.*'
+            { invalidatePattern: 'membership:.*' }
         )
     }
 
     async deleteOrganisationType(organisationId: number, id: number): Promise<ApiResponse<void>> {
-        return await this.api.delete(
+        return await this.call<void>(
+            'DELETE',
             `/organisations/${organisationId}/membership-types/${id}`,
             undefined,
-            'membership:.*'
+            { invalidatePattern: 'membership:.*' }
         )
     }
 
     async getOrganisationMemberships(organisationId: number): Promise<ApiResponse<Membership[]>> {
-        return await this.api.get(
+        return await this.call<Membership[]>(
+            'GET',
             `/organisations/${organisationId}/memberships`,
             undefined,
-            undefined,
-            undefined,
-            true
+            { skipCache: true }
         )
     }
 
@@ -191,12 +212,11 @@ export class MembershipApiService {
         organisationId: number,
         membershipId: number
     ): Promise<ApiResponse<MembershipProductBenefit[]>> {
-        return await this.api.get(
+        return await this.call<MembershipProductBenefit[]>(
+            'GET',
             `/organisations/${organisationId}/memberships/${membershipId}/products`,
             undefined,
-            undefined,
-            undefined,
-            true
+            { skipCache: true }
         )
     }
 
@@ -204,11 +224,11 @@ export class MembershipApiService {
         organisationId: number,
         data: OrganisationMembershipInput
     ): Promise<ApiResponse<Membership>> {
-        return await this.api.post(
+        return await this.call<Membership, OrganisationMembershipInput>(
+            'POST',
             `/organisations/${organisationId}/memberships`,
             data,
-            undefined,
-            'membership:.*'
+            { invalidatePattern: 'membership:.*' }
         )
     }
 
@@ -217,11 +237,11 @@ export class MembershipApiService {
         id: number,
         data: Partial<OrganisationMembershipInput>
     ): Promise<ApiResponse<Membership>> {
-        return await this.api.put(
+        return await this.call<Membership, Partial<OrganisationMembershipInput>>(
+            'PUT',
             `/organisations/${organisationId}/memberships/${id}`,
             data,
-            undefined,
-            'membership:.*'
+            { invalidatePattern: 'membership:.*' }
         )
     }
 
@@ -229,10 +249,11 @@ export class MembershipApiService {
         organisationId: number,
         id: number
     ): Promise<ApiResponse<MembershipSubscription>> {
-        return await this.api.delete(
+        return await this.call<MembershipSubscription>(
+            'DELETE',
             `/organisations/${organisationId}/memberships/${id}`,
             undefined,
-            'membership:.*'
+            { invalidatePattern: 'membership:.*' }
         )
     }
 
@@ -240,14 +261,14 @@ export class MembershipApiService {
         organisationId: number,
         customerId?: number
     ): Promise<ApiResponse<MembershipSubscription[]>> {
-        return await this.api.get(
+        return await this.call<MembershipSubscription[]>(
+            'GET',
             `/organisations/${organisationId}/customer-membership-subscriptions`,
+            undefined,
             {
-                params: customerId ? { customerId } : undefined,
-            },
-            undefined,
-            undefined,
-            true
+                config: { params: customerId ? { customerId } : undefined },
+                skipCache: true,
+            }
         )
     }
 
@@ -255,12 +276,11 @@ export class MembershipApiService {
         organisationId: number,
         membershipId: number
     ): Promise<ApiResponse<MembershipSubscriber[]>> {
-        return await this.api.get(
+        return await this.call<MembershipSubscriber[]>(
+            'GET',
             `/organisations/${organisationId}/memberships/${membershipId}/members`,
             undefined,
-            undefined,
-            undefined,
-            true
+            { skipCache: true }
         )
     }
 
@@ -268,34 +288,34 @@ export class MembershipApiService {
         organisationId: number,
         customerId?: number
     ): Promise<ApiResponse<MembershipSubscriptionOrder[]>> {
-        return await this.api.get(
+        return await this.call<MembershipSubscriptionOrder[]>(
+            'GET',
             `/organisations/${organisationId}/customer-membership-orders`,
-            { params: customerId ? { customerId } : undefined },
             undefined,
-            undefined,
-            true
+            {
+                config: { params: customerId ? { customerId } : undefined },
+                skipCache: true,
+            }
         )
     }
 
     async getAvailablePlatformServices(organisationId: number): Promise<ApiResponse<Membership[]>> {
-        return await this.api.get(
+        return await this.call<Membership[]>(
+            'GET',
             `/organisations/${organisationId}/platform-membership-subscriptions/services/available`,
             undefined,
-            undefined,
-            undefined,
-            true
+            { skipCache: true }
         )
     }
 
     async getPlatformServiceOrders(
         organisationId: number
     ): Promise<ApiResponse<MembershipSubscriptionOrder[]>> {
-        return await this.api.get(
+        return await this.call<MembershipSubscriptionOrder[]>(
+            'GET',
             `/organisations/${organisationId}/platform-membership-subscriptions/orders/list`,
             undefined,
-            undefined,
-            undefined,
-            true
+            { skipCache: true }
         )
     }
 
@@ -304,7 +324,8 @@ export class MembershipApiService {
         organisationId: number,
         billingCycleId: number
     ): Promise<ApiResponse<MembershipRefundPreview>> {
-        return await this.api.get(
+        return await this.call<MembershipRefundPreview>(
+            'GET',
             audience === 'CUSTOMER'
                 ? `/organisations/${organisationId}/customer-membership-orders/${billingCycleId}/refund-preview`
                 : `/organisations/${organisationId}/platform-membership-subscriptions/orders/${billingCycleId}/refund-preview`
@@ -323,11 +344,12 @@ export class MembershipApiService {
             audience === 'CUSTOMER'
                 ? `/organisations/${organisationId}/customer-membership-orders/${billingCycleId}/refund`
                 : `/organisations/${organisationId}/platform-membership-subscriptions/orders/${billingCycleId}/refund`
-        return await this.api.post(
+        const data = { refundType, amount, reason, idempotencyKey: crypto.randomUUID() }
+        return await this.call<MembershipSubscriptionOrder, typeof data>(
+            'POST',
             url,
-            { refundType, amount, reason, idempotencyKey: crypto.randomUUID() },
-            undefined,
-            'membership:.*'
+            data,
+            { invalidatePattern: 'membership:.*' }
         )
     }
 
@@ -335,12 +357,11 @@ export class MembershipApiService {
         organisationId: number,
         id: number
     ): Promise<ApiResponse<MembershipSubscription>> {
-        return await this.api.get(
+        return await this.call<MembershipSubscription>(
+            'GET',
             `/organisations/${organisationId}/customer-membership-subscriptions/${id}`,
             undefined,
-            undefined,
-            undefined,
-            true
+            { skipCache: true }
         )
     }
 
@@ -350,15 +371,16 @@ export class MembershipApiService {
         membershipId: number,
         customerCreditCardId?: number
     ): Promise<ApiResponse<MembershipSubscription>> {
-        return await this.api.post(
+        const data = {
+            membershipId,
+            customerCreditCardId,
+            idempotencyKey: crypto.randomUUID(),
+        }
+        return await this.call<MembershipSubscription, typeof data>(
+            'POST',
             `/organisations/${organisationId}/customers/${customerId}/membership-subscriptions/join`,
-            {
-                membershipId,
-                customerCreditCardId,
-                idempotencyKey: crypto.randomUUID(),
-            },
-            undefined,
-            'membership:.*'
+            data,
+            { invalidatePattern: 'membership:.*' }
         )
     }
 
@@ -410,15 +432,16 @@ export class MembershipApiService {
         membershipId: number,
         customerCreditCardId?: number
     ): Promise<ApiResponse<MembershipSubscription>> {
-        return await this.api.post(
+        const data = {
+            membershipId,
+            customerCreditCardId,
+            idempotencyKey: crypto.randomUUID(),
+        }
+        return await this.call<MembershipSubscription, typeof data>(
+            'POST',
             `/organisations/${organisationId}/customers/${customerId}/membership-subscriptions/rejoin`,
-            {
-                membershipId,
-                customerCreditCardId,
-                idempotencyKey: crypto.randomUUID(),
-            },
-            undefined,
-            'membership:.*'
+            data,
+            { invalidatePattern: 'membership:.*' }
         )
     }
 
@@ -427,11 +450,11 @@ export class MembershipApiService {
         subscriptionId: number,
         reason?: string
     ): Promise<ApiResponse<void>> {
-        return await this.api.post(
+        return await this.call<void, { reason?: string }>(
+            'POST',
             `/organisations/${organisationId}/customer-membership-subscriptions/${subscriptionId}/cancel`,
             { reason },
-            undefined,
-            'membership:.*'
+            { invalidatePattern: 'membership:.*' }
         )
     }
 
@@ -441,11 +464,11 @@ export class MembershipApiService {
         decision: MembershipActionDecision,
         reason?: string
     ): Promise<ApiResponse<void>> {
-        return await this.api.post(
+        return await this.call<void, { decision: MembershipActionDecision; reason?: string }>(
+            'POST',
             `/organisations/${organisationId}/customer-membership-actions/${actionId}/resolve`,
             { decision, reason },
-            undefined,
-            'membership:.*'
+            { invalidatePattern: 'membership:.*' }
         )
     }
 
@@ -453,7 +476,8 @@ export class MembershipApiService {
         organisationId: number,
         actionId: number
     ): Promise<ApiResponse<MembershipActionLink>> {
-        return await this.api.post(
+        return await this.call<MembershipActionLink>(
+            'POST',
             `/organisations/${organisationId}/customer-membership-actions/${actionId}/link`
         )
     }
@@ -461,12 +485,11 @@ export class MembershipApiService {
     async getOrganisationSubscriptions(
         organisationId: number
     ): Promise<ApiResponse<MembershipSubscription[]>> {
-        return await this.api.get(
+        return await this.call<MembershipSubscription[]>(
+            'GET',
             `/organisations/${organisationId}/platform-membership-subscriptions`,
             undefined,
-            undefined,
-            undefined,
-            true
+            { skipCache: true }
         )
     }
 
@@ -474,12 +497,11 @@ export class MembershipApiService {
         organisationId: number,
         subscriptionId: number
     ): Promise<ApiResponse<MembershipSubscription>> {
-        return await this.api.get(
+        return await this.call<MembershipSubscription>(
+            'GET',
             `/organisations/${organisationId}/platform-membership-subscriptions/${subscriptionId}`,
             undefined,
-            undefined,
-            undefined,
-            true
+            { skipCache: true }
         )
     }
 
@@ -488,15 +510,16 @@ export class MembershipApiService {
         membershipId: number,
         organisationCreditCardId?: number
     ): Promise<ApiResponse<MembershipSubscription>> {
-        return await this.api.post(
+        const data = {
+            membershipId,
+            organisationCreditCardId,
+            idempotencyKey: crypto.randomUUID(),
+        }
+        return await this.call<MembershipSubscription, typeof data>(
+            'POST',
             `/organisations/${organisationId}/platform-membership-subscriptions/join`,
-            {
-                membershipId,
-                organisationCreditCardId,
-                idempotencyKey: crypto.randomUUID(),
-            },
-            undefined,
-            'membership:.*'
+            data,
+            { invalidatePattern: 'membership:.*' }
         )
     }
 
@@ -543,11 +566,16 @@ export class MembershipApiService {
         membershipId: number,
         organisationCreditCardId?: number
     ): Promise<ApiResponse<MembershipSubscription>> {
-        return await this.api.post(
+        const data = {
+            membershipId,
+            organisationCreditCardId,
+            idempotencyKey: crypto.randomUUID(),
+        }
+        return await this.call<MembershipSubscription, typeof data>(
+            'POST',
             `/organisations/${organisationId}/platform-membership-subscriptions/rejoin`,
-            { membershipId, organisationCreditCardId, idempotencyKey: crypto.randomUUID() },
-            undefined,
-            'membership:.*'
+            data,
+            { invalidatePattern: 'membership:.*' }
         )
     }
 
@@ -556,11 +584,11 @@ export class MembershipApiService {
         subscriptionId: number,
         reason?: string
     ): Promise<ApiResponse<void>> {
-        return await this.api.post(
+        return await this.call<void, { reason?: string }>(
+            'POST',
             `/organisations/${organisationId}/platform-membership-subscriptions/${subscriptionId}/cancel`,
             { reason },
-            undefined,
-            'membership:.*'
+            { invalidatePattern: 'membership:.*' }
         )
     }
 
@@ -570,11 +598,11 @@ export class MembershipApiService {
         decision: MembershipActionDecision,
         reason?: string
     ): Promise<ApiResponse<void>> {
-        return await this.api.post(
+        return await this.call<void, { decision: MembershipActionDecision; reason?: string }>(
+            'POST',
             `/organisations/${organisationId}/platform-membership-subscriptions/actions/${actionId}/resolve`,
             { decision, reason },
-            undefined,
-            'membership:.*'
+            { invalidatePattern: 'membership:.*' }
         )
     }
 
@@ -582,18 +610,18 @@ export class MembershipApiService {
         organisationId: number,
         actionId: number
     ): Promise<ApiResponse<MembershipActionLink>> {
-        return await this.api.post(
+        return await this.call<MembershipActionLink>(
+            'POST',
             `/organisations/${organisationId}/organisation-membership-actions/${actionId}/link`
         )
     }
 
     async previewAction(token: string): Promise<ApiResponse<PublicMembershipAction>> {
-        return await this.api.get(
+        return await this.call<PublicMembershipAction>(
+            'GET',
             `/membership-actions/${encodeURIComponent(token)}`,
             undefined,
-            undefined,
-            undefined,
-            true
+            { skipCache: true }
         )
     }
 
@@ -602,10 +630,11 @@ export class MembershipApiService {
         decision: MembershipActionDecision,
         reason?: string
     ): Promise<ApiResponse<void>> {
-        return await this.api.post(`/membership-actions/${encodeURIComponent(token)}/resolve`, {
-            decision,
-            reason,
-        })
+        return await this.call<void, { decision: MembershipActionDecision; reason?: string }>(
+            'POST',
+            `/membership-actions/${encodeURIComponent(token)}/resolve`,
+            { decision, reason }
+        )
     }
 
     private async changeCustomerMembership(
@@ -619,19 +648,20 @@ export class MembershipApiService {
         effectiveImmediately?: boolean,
         forfeitRemainingCredit?: boolean
     ): Promise<ApiResponse<MembershipSubscription>> {
-        return await this.api.post(
+        const data = {
+            subscriptionId,
+            membershipId,
+            customerCreditCardId,
+            reason,
+            effectiveImmediately,
+            forfeitRemainingCredit,
+            idempotencyKey: crypto.randomUUID(),
+        }
+        return await this.call<MembershipSubscription, typeof data>(
+            'POST',
             `/organisations/${organisationId}/customers/${customerId}/membership-subscriptions/${action}`,
-            {
-                subscriptionId,
-                membershipId,
-                customerCreditCardId,
-                reason,
-                effectiveImmediately,
-                forfeitRemainingCredit,
-                idempotencyKey: crypto.randomUUID(),
-            },
-            undefined,
-            'membership:.*'
+            data,
+            { invalidatePattern: 'membership:.*' }
         )
     }
 
@@ -645,19 +675,22 @@ export class MembershipApiService {
         effectiveImmediately?: boolean,
         forfeitRemainingCredit?: boolean
     ): Promise<ApiResponse<MembershipSubscription>> {
-        return await this.api.post(
+        const data = {
+            subscriptionId,
+            membershipId,
+            organisationCreditCardId,
+            reason,
+            effectiveImmediately,
+            forfeitRemainingCredit,
+            idempotencyKey: crypto.randomUUID(),
+        }
+        return await this.call<MembershipSubscription, typeof data>(
+            'POST',
             `/organisations/${organisationId}/platform-membership-subscriptions/${action}`,
-            {
-                subscriptionId,
-                membershipId,
-                organisationCreditCardId,
-                reason,
-                effectiveImmediately,
-                forfeitRemainingCredit,
-                idempotencyKey: crypto.randomUUID(),
-            },
-            undefined,
-            'membership:.*'
+            data,
+            { invalidatePattern: 'membership:.*' }
         )
     }
 }
+
+export default MembershipApiService

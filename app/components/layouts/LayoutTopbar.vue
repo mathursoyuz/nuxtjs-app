@@ -1,5 +1,5 @@
 <template>
-    <v-app-bar elevation="0" color="white" :height="64 + filterHeight" class="topbar">
+    <v-app-bar elevation="0" color="surface" :height="64 + filterHeight" class="topbar">
         <div class="topbar-main">
             <v-btn icon variant="text" @click="$emit('toggle-drawer')" class="ml-2">
                 <v-icon>{{ drawerOpen ? 'mdi-menu-open' : 'mdi-menu' }}</v-icon>
@@ -115,7 +115,7 @@ const breadcrumbs = computed(() => {
 
 <style scoped>
 .topbar {
-    border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
+    border-bottom: 1px solid rgb(var(--v-theme-on-surface) / 0.08) !important;
 }
 
 .topbar :deep(.v-toolbar__content) {

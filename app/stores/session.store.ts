@@ -8,7 +8,7 @@ export const useSessionStore = defineStore('session', () => {
     const access = useAccessStore()
     let initialization: Promise<void> | null = null
 
-    async function loadAccessOrRollback(accessToken: string): Promise<void> {
+    const loadAccessOrRollback = async (accessToken: string): Promise<void> => {
         access.reset()
         try {
             await access.ensureReady()
@@ -19,19 +19,23 @@ export const useSessionStore = defineStore('session', () => {
         }
     }
 
-    async function login(credentials: LoginCredentials) {
+    const login = async (
+        credentials: LoginCredentials
+    ): Promise<import('@/types/auth.types').AuthResponse> => {
         const response = await auth.login(credentials)
         await loadAccessOrRollback(response.accessToken)
         return response
     }
 
-    async function register(data: RegisterData) {
+    const register = async (
+        data: RegisterData
+    ): Promise<import('@/types/auth.types').AuthResponse> => {
         const response = await auth.register(data)
         await loadAccessOrRollback(response.accessToken)
         return response
     }
 
-    function initialize(): Promise<void> {
+    const initialize = (): Promise<void> => {
         if (initialization) return initialization
         const pending = (async () => {
             await auth.initAuth()
@@ -47,32 +51,34 @@ export const useSessionStore = defineStore('session', () => {
             }
         })()
         initialization = pending
-        void pending.finally(() => {
-            if (initialization === pending) initialization = null
-        }).catch(() => {})
+        void pending
+            .finally(() => {
+                if (initialization === pending) initialization = null
+            })
+            .catch(() => {})
         return pending
     }
 
-    async function logout(options?: { broadcast?: boolean; redirect?: boolean }) {
+    const logout = async (options?: { broadcast?: boolean; redirect?: boolean }): Promise<void> => {
         access.reset()
         await auth.logout(options)
     }
 
-    const logoutAllTabs = () => logout({ broadcast: true })
+    const logoutAllTabs = (): Promise<void> => logout({ broadcast: true })
 
-    async function handleExternalLogout(accountId: number) {
+    const handleExternalLogout = async (accountId: number): Promise<void> => {
         if (accountId !== auth.userId) return
         access.reset()
         await auth.handleExternalLogout(accountId)
     }
 
-    async function handleUnauthorized(requestToken: string) {
+    const handleUnauthorized = async (requestToken: string): Promise<void> => {
         if (requestToken !== auth.token) return
         access.reset()
         await auth.handleUnauthorized(requestToken)
     }
 
-    async function refreshUser() {
+    const refreshUser = async (): Promise<void> => {
         await auth.refreshUser()
         if (auth.isAuthenticated) await access.refresh()
     }

@@ -77,7 +77,7 @@ const getToastColor = (type: Toast['type']): string => {
 
 .toast-message {
     flex: 1;
-    color: white;
+    color: rgb(var(--v-theme-on-primary));
     font-size: 14px;
     line-height: 1.5;
 }

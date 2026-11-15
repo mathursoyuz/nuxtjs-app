@@ -172,13 +172,11 @@ import {
     type OrganisationProductFormData,
     type OrganisationProductVariantFormData,
 } from '~/schemas/organisation-product.schema'
-import type { OrganisationProductApiService } from '~/services/api/wrappers/organisation-product.api'
 import type {
     OrganisationProduct,
     CreateOrganisationProductDTO,
 } from '~/types/organisation-product.types'
 import type { InventoryDraftBalance } from '~/types/inventory.types'
-import type { CategoryApiService } from '~/services/api/wrappers/category.api'
 
 interface Props {
     modelValue: boolean
@@ -188,7 +186,7 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-    availableProducts: () => [],
+    availableProducts: (): never[] => [],
 })
 const hasTarget = computed(
     () => props.organisationId > 0 && props.organisationName.trim().length > 0
@@ -202,9 +200,8 @@ const emit = defineEmits<{
     submit: []
 }>()
 
-const nuxtApp = useNuxtApp()
-const organisationProductApi = nuxtApp.$organisationProductApi as OrganisationProductApiService
-const categoryApi = nuxtApp.$categoryApi as CategoryApiService
+const organisationProductApi = useOrganisationProducts()
+const { fetchCategories } = useCategory()
 const { successFromResponse, errorFromError } = useToast()
 const saving = ref(false)
 const thumbnail = ref<File | null>(null)
@@ -287,8 +284,8 @@ const toNumberArray = (value: unknown): number[] =>
 const loadCategories = async (): Promise<void> => {
     loadingCategories.value = true
     try {
-        const response = await categoryApi.getAllCategories()
-        categoryOptions.value = (response.data ?? [])
+        const categories = await fetchCategories()
+        categoryOptions.value = categories
             .filter((category) => category.isActive)
             .map((category) => ({ title: category.name, value: category.id }))
     } catch {

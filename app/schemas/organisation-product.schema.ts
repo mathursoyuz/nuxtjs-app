@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { SCHEMA_FIELD_LIMITS as LIMIT } from '~/constants/schema-field-limits.constants'
 import { inventoryDraftBalanceSchema } from '~/schemas/inventory.schema'
 
 export const organisationBundleComponentSchema = z.object({
@@ -13,12 +14,12 @@ export const organisationBundleComponentSchema = z.object({
 export const organisationProductVariantFormSchema = z.object({
     id: z.number().int().positive().optional(),
     platformProductVariantId: z.coerce.number().int().positive().optional(),
-    sku: z.string().trim().min(1, 'Organisation SKU is required').max(100),
+    sku: z.string().trim().min(1, 'Organisation SKU is required').max(LIMIT.PRODUCT_SKU),
     price: z.coerce.number().min(0, 'Price cannot be negative'),
     cog: z.coerce.number().min(0, 'COG cannot be negative'),
     stockManaged: z.boolean(),
-    color: z.string().max(50),
-    size: z.string().max(50),
+    color: z.string().max(LIMIT.PRODUCT_OPTION),
+    size: z.string().max(LIMIT.PRODUCT_OPTION),
     attributes: z.record(z.string(), z.string()),
     inventory: z.array(inventoryDraftBalanceSchema).default([]),
     bundleComponents: z.array(organisationBundleComponentSchema).default([]),
@@ -27,8 +28,12 @@ export const organisationProductVariantFormSchema = z.object({
 
 export const organisationProductFormSchema = z
     .object({
-        slug: z.string().trim().min(1, 'Organisation slug is required').max(255),
-        name: z.string().trim().min(1, 'White-label product name is required').max(255),
+        slug: z.string().trim().min(1, 'Organisation slug is required').max(LIMIT.PRODUCT_SLUG),
+        name: z
+            .string()
+            .trim()
+            .min(1, 'White-label product name is required')
+            .max(LIMIT.PRODUCT_NAME),
         description: z.string().nullable(),
         categoryIds: z.array(z.coerce.number().int().positive()).default([]),
         variants: z

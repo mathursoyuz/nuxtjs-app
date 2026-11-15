@@ -1,0 +1,276 @@
+{
+    "sections": [
+        {
+            "key": "main",
+            "title": "MAIN",
+            "items": [
+                {
+                    "key": "dashboard",
+                    "title": "Dashboard",
+                    "icon": "mdi-view-dashboard",
+                    "to": "/dashboard"
+                },
+                {
+                    "key": "users",
+                    "title": "Users",
+                    "icon": "mdi-account-group-outline",
+                    "to": "/users",
+                    "permissions": ["users.read"],
+                    "allowAcrossOrganisations": true
+                },
+                {
+                    "key": "roles",
+                    "title": "Roles & permissions",
+                    "icon": "mdi-account-key",
+                    "to": "/access",
+                    "permissions": ["roles.read"]
+                }
+            ]
+        },
+        {
+            "key": "ecommerce",
+            "title": "ECOMMERCE",
+            "items": [
+                {
+                    "key": "products",
+                    "title": "Products",
+                    "icon": "mdi-shopping",
+                    "children": [
+                        {
+                            "key": "product-list",
+                            "title": "Product List",
+                            "icon": "mdi-circle-small",
+                            "to": "/products",
+                            "permissions": ["products.read"]
+                        },
+                        {
+                            "key": "categories",
+                            "title": "Categories",
+                            "icon": "mdi-circle-small",
+                            "to": "/categories",
+                            "permissions": ["categories.read"]
+                        }
+                    ]
+                },
+                {
+                    "key": "organisations",
+                    "title": "Organisations",
+                    "icon": "mdi-office-building",
+                    "children": [
+                        {
+                            "key": "organisation-list",
+                            "title": "Organisation List",
+                            "icon": "mdi-circle-small",
+                            "to": "/organisations",
+                            "permissions": ["organisations.read"]
+                        },
+                        {
+                            "key": "locations",
+                            "title": "Locations",
+                            "icon": "mdi-map-marker",
+                            "to": "/locations",
+                            "permissions": ["locations.read"],
+                            "allowAcrossOrganisations": true
+                        },
+                        {
+                            "key": "memberships",
+                            "title": "Memberships",
+                            "icon": "mdi-card-account-details-star",
+                            "to": "/memberships",
+                            "permissions": ["organisation-memberships.read"],
+                            "allowAcrossOrganisations": true
+                        },
+                        {
+                            "key": "organisation-products",
+                            "title": "Organisation products",
+                            "icon": "mdi-circle-small",
+                            "to": "/organisations/organisation-products",
+                            "permissions": ["organisation-products.read"],
+                            "allowAcrossOrganisations": true
+                        },
+                        {
+                            "key": "customers",
+                            "title": "Customers",
+                            "icon": "mdi-account-group",
+                            "to": "/customers",
+                            "permissions": ["customers.read"],
+                            "allowAcrossOrganisations": true
+                        },
+                        {
+                            "key": "platform-memberships",
+                            "title": "Platform Services",
+                            "icon": "mdi-shield-star",
+                            "to": "/memberships/platform",
+                            "permissions": ["platform-memberships.read"]
+                        },
+                        {
+                            "key": "my-platform-services",
+                            "title": "My Platform Services",
+                            "icon": "mdi-shield-check",
+                            "to": "/platform-services",
+                            "permissions": ["organisation-membership-subscriptions.read"],
+                            "context": "non-platform"
+                        },
+                        {
+                            "key": "customer-subscriptions",
+                            "title": "Customer Subscriptions",
+                            "icon": "mdi-account-star",
+                            "to": "/subscriptions/customers",
+                            "permissions": ["customer-membership-subscriptions.read"],
+                            "allowAcrossOrganisations": true
+                        },
+                        {
+                            "key": "orders",
+                            "title": "Orders",
+                            "icon": "mdi-cart",
+                            "to": "/orders",
+                            "permissions": ["customer-orders.read", "procurement-orders.read"],
+                            "permissionMode": "any",
+                            "allowAcrossOrganisations": true
+                        },
+                        {
+                            "key": "subscription-orders",
+                            "title": "Subscription Orders",
+                            "icon": "mdi-receipt-text-clock",
+                            "to": "/subscriptions/orders",
+                            "permissions": [
+                                "customer-membership-subscriptions.read",
+                                "organisation-membership-subscriptions.read"
+                            ],
+                            "permissionMode": "any",
+                            "allowAcrossOrganisations": true
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "key": "integrations",
+            "title": "INTEGRATIONS",
+            "items": [
+                {
+                    "key": "quickbooks",
+                    "title": "QuickBooks",
+                    "icon": "mdi-calculator",
+                    "permissions": ["quickbooks.read"],
+                    "children": [
+                        {
+                            "key": "qb-overview",
+                            "title": "Overview",
+                            "icon": "mdi-circle-small",
+                            "to": "/integrations/quickbooks"
+                        },
+                        {
+                            "key": "qb-customers",
+                            "title": "Customers",
+                            "icon": "mdi-circle-small",
+                            "to": "/integrations/quickbooks/customers"
+                        },
+                        {
+                            "key": "qb-products",
+                            "title": "Products",
+                            "icon": "mdi-circle-small",
+                            "to": "/integrations/quickbooks/products"
+                        },
+                        {
+                            "key": "qb-categories",
+                            "title": "Categories",
+                            "icon": "mdi-circle-small",
+                            "to": "/integrations/quickbooks/categories"
+                        },
+                        {
+                            "key": "qb-orders",
+                            "title": "Orders",
+                            "icon": "mdi-circle-small",
+                            "to": "/integrations/quickbooks/orders"
+                        }
+                    ]
+                },
+                {
+                    "key": "square-sync",
+                    "title": "Square Sync",
+                    "icon": "mdi-sync",
+                    "permissions": ["square-sync.read"],
+                    "children": [
+                        {
+                            "key": "square-locations",
+                            "title": "Locations",
+                            "icon": "mdi-circle-small",
+                            "to": "/integrations/square-import/locations"
+                        },
+                        {
+                            "key": "square-categories",
+                            "title": "Categories",
+                            "icon": "mdi-circle-small",
+                            "to": "/integrations/square-import/categories"
+                        },
+                        {
+                            "key": "square-products",
+                            "title": "Products",
+                            "icon": "mdi-circle-small",
+                            "to": "/integrations/square-import/products"
+                        },
+                        {
+                            "key": "square-customers",
+                            "title": "Customers (All)",
+                            "icon": "mdi-circle-small",
+                            "to": "/integrations/square-import/customers"
+                        },
+                        {
+                            "key": "square-customer-search",
+                            "title": "Customers (Search)",
+                            "icon": "mdi-circle-small",
+                            "to": "/integrations/square-import/customers/search"
+                        },
+                        {
+                            "key": "square-inventory",
+                            "title": "Inventory",
+                            "icon": "mdi-circle-small",
+                            "to": "/integrations/square-import/inventory"
+                        },
+                        {
+                            "key": "square-transactions",
+                            "title": "Transactions",
+                            "icon": "mdi-circle-small",
+                            "to": "/integrations/square-import/transactions"
+                        }
+                    ]
+                },
+                {
+                    "key": "shipstation",
+                    "title": "ShipStation",
+                    "icon": "mdi-truck",
+                    "to": "/integrations/shipstation",
+                    "permissions": ["shipstation.read"]
+                },
+                {
+                    "key": "corksy",
+                    "title": "Corksy",
+                    "icon": "mdi-wine",
+                    "permissions": ["corksy.read"],
+                    "children": [
+                        {
+                            "key": "corksy-overview",
+                            "title": "Overview",
+                            "icon": "mdi-circle-small",
+                            "to": "/integrations/corksy"
+                        },
+                        {
+                            "key": "corksy-orders",
+                            "title": "Orders",
+                            "icon": "mdi-circle-small",
+                            "to": "/integrations/corksy/orders"
+                        }
+                    ]
+                },
+                {
+                    "key": "authorize-net",
+                    "title": "Authorize.net",
+                    "icon": "mdi-credit-card",
+                    "to": "/integrations/authorize-net",
+                    "permissions": ["authorize-net.read"]
+                }
+            ]
+        }
+    ]
+}

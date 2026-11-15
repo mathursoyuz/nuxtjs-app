@@ -9,7 +9,7 @@
             </div>
             <div class="d-flex ga-2">
                 <v-btn
-                    v-if="canWrite"
+                    v-if="canCreate"
                     variant="tonal"
                     prepend-icon="mdi-shape-plus"
                     @click="addTypeOpen = true"
@@ -17,7 +17,7 @@
                     Add group
                 </v-btn>
                 <v-btn
-                    v-if="canWrite"
+                    v-if="canCreate"
                     color="primary"
                     prepend-icon="mdi-plus"
                     @click="addMembershipOpen = true"
@@ -33,7 +33,7 @@
                     <v-list :items="store.types" item-title="name">
                         <template #append="{ item }">
                             <v-btn
-                                v-if="canWrite"
+                                v-if="canUpdate"
                                 icon="mdi-pencil"
                                 size="small"
                                 variant="text"
@@ -65,7 +65,7 @@
                                 @click="listSubscribers(item)"
                             />
                             <v-btn
-                                v-if="canWrite"
+                                v-if="canUpdate"
                                 icon="mdi-pencil"
                                 size="small"
                                 variant="text"
@@ -107,6 +107,20 @@
             audience="ORGANISATION"
             :membership="selectedMembership"
         />
+        <ConfirmDialog
+            :model-value="membershipToDelete !== null"
+            title="Delete Platform Service"
+            :message="`Delete ${membershipToDelete?.name ?? 'this Platform Service'}?`"
+            confirm-text="Delete"
+            cancel-text="Cancel"
+            confirm-color="error"
+            :loading="deleting"
+            :organisation-name="platformOrganisationName"
+            entity-label="Platform Service"
+            :entity-name="membershipToDelete?.name"
+            @cancel="membershipToDelete = null"
+            @confirm="confirmRemoveMembership"
+        />
     </v-container>
 </template>
 
@@ -117,6 +131,7 @@ import EditMembershipTypeDialog from '~/components/memberships/EditMembershipTyp
 import AddPlatformMembershipDialog from '~/components/memberships/AddPlatformMembershipDialog.vue'
 import EditPlatformMembershipDialog from '~/components/memberships/EditPlatformMembershipDialog.vue'
 import MembershipSubscribersDialog from '~/components/memberships/MembershipSubscribersDialog.vue'
+import ConfirmDialog from '~/components/dialogs/ConfirmDialog.vue'
 import { PLATFORM_MEMBERSHIP_PERMISSIONS } from '~/components/memberships/membership.permissions'
 import { useAccessStore } from '~/stores/access.store'
 import { useMemberships } from '~/composables/useMemberships'
@@ -131,8 +146,14 @@ definePageMeta({
 const access = useAccessStore()
 const { store, loadPlatform, deletePlatformMembership } = useMemberships()
 const { successFromResponse, errorFromError } = useToast()
-const canWrite = computed(() => access.can(PLATFORM_MEMBERSHIP_PERMISSIONS.WRITE))
+const canCreate = computed(() => access.can(PLATFORM_MEMBERSHIP_PERMISSIONS.CREATE))
+const canUpdate = computed(() => access.can(PLATFORM_MEMBERSHIP_PERMISSIONS.UPDATE))
 const canDelete = computed(() => access.can(PLATFORM_MEMBERSHIP_PERMISSIONS.DELETE))
+const platformOrganisationName = computed(
+    () =>
+        access.organisations.find((item) => item.id === access.platformOrganisationId)?.name ??
+        'Platform'
+)
 const addTypeOpen = ref(false)
 const editTypeOpen = ref(false)
 const addMembershipOpen = ref(false)
@@ -140,6 +161,8 @@ const editMembershipOpen = ref(false)
 const subscribersOpen = ref(false)
 const selectedType = ref<MembershipType | null>(null)
 const selectedMembership = ref<Membership | null>(null)
+const membershipToDelete = ref<Membership | null>(null)
+const deleting = ref(false)
 const headers = [
     { title: 'Name', key: 'name' },
     { title: 'Group', key: 'membershipGroupName' },
@@ -167,14 +190,21 @@ const listSubscribers = (item: Membership): void => {
     selectedMembership.value = item
     subscribersOpen.value = true
 }
-const removeMembership = async (item: Membership): Promise<void> => {
-    if (!confirm(`Delete ${item.name}?`)) return
+const removeMembership = (item: Membership): void => {
+    membershipToDelete.value = item
+}
+const confirmRemoveMembership = async (): Promise<void> => {
+    if (!membershipToDelete.value || deleting.value) return
+    deleting.value = true
     try {
-        const response = await deletePlatformMembership(item.id)
+        const response = await deletePlatformMembership(membershipToDelete.value.id)
         successFromResponse(response, 'Platform Service deleted.')
+        membershipToDelete.value = null
         await refresh()
     } catch (error) {
         errorFromError(error, 'Unable to delete Platform Service.')
+    } finally {
+        deleting.value = false
     }
 }
 onMounted(refresh)

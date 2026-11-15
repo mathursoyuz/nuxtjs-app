@@ -9,6 +9,16 @@ export type MembershipBatchOperation =
     | 'DOWNGRADE'
     | 'CANCEL'
 
+export const membershipBatchOperationLabel = (operation: MembershipBatchOperation): string =>
+    ({
+        KEEP: 'No change',
+        JOIN: 'Join',
+        REJOIN: 'Rejoin',
+        UPGRADE: 'Upgrade',
+        DOWNGRADE: 'Downgrade',
+        CANCEL: 'Cancel',
+    })[operation]
+
 export interface MembershipBatchGroup {
     id: number
     name: string
@@ -27,10 +37,10 @@ export interface MembershipBatchBreakdown {
     effectiveAt: string
 }
 
-export function groupMembershipOptions(
+export const groupMembershipOptions = (
     memberships: Membership[],
     subscriptions: MembershipSubscription[]
-): MembershipBatchGroup[] {
+): MembershipBatchGroup[] => {
     const groups = new Map<number, MembershipBatchGroup>()
     for (const membership of memberships) {
         const group = groups.get(membership.membershipTypeId) ?? {
@@ -62,10 +72,10 @@ export function groupMembershipOptions(
         .sort((left, right) => left.name.localeCompare(right.name))
 }
 
-export function membershipBatchOperation(
+export const membershipBatchOperation = (
     group: MembershipBatchGroup,
     selection: number | 'CANCEL' | undefined
-): MembershipBatchOperation {
+): MembershipBatchOperation => {
     const subscription = group.subscription
     if (selection === 'CANCEL') return subscription?.status === 'ACTIVE' ? 'CANCEL' : 'KEEP'
     if (!selection) return 'KEEP'
@@ -80,12 +90,12 @@ export function membershipBatchOperation(
     return 'KEEP'
 }
 
-export function membershipBatchBreakdown(
+export const membershipBatchBreakdown = (
     group: MembershipBatchGroup,
     selection: number | 'CANCEL' | undefined,
     downgradeImmediately: boolean,
     calculatedAt: Date = new Date()
-): MembershipBatchBreakdown {
+): MembershipBatchBreakdown => {
     const operation = membershipBatchOperation(group, selection)
     const current = group.subscription
     const target =

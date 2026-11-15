@@ -19,7 +19,7 @@
                 @close="close(false)"
             >
                 <template #actions>
-                    <v-chip color="white" variant="outlined">
+                    <v-chip color="on-primary" variant="outlined">
                         {{ formatStatus(currentOrder.status) }}
                     </v-chip>
                 </template>
@@ -180,80 +180,18 @@
                         </v-card>
                     </v-col>
                     <v-col cols="12" md="7">
-                        <v-card variant="outlined">
-                            <v-card-title>Payment attempts</v-card-title>
-                            <v-table density="compact">
-                                <thead>
-                                    <tr>
-                                        <th>#</th>
-                                        <th>Status</th>
-                                        <th>Card</th>
-                                        <th>Transaction</th>
-                                        <th>Started</th>
-                                        <th>Error</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr v-for="attempt in currentOrder.attempts" :key="attempt.id">
-                                        <td>{{ attempt.attemptNumber }}</td>
-                                        <td>{{ formatStatus(attempt.status) }}</td>
-                                        <td>{{ attempt.lastFour || '—' }}</td>
-                                        <td>{{ attempt.providerTransactionId || '—' }}</td>
-                                        <td>{{ formatDate(attempt.startedAt) }}</td>
-                                        <td class="text-error">
-                                            {{ attempt.errorMessage || '—' }}
-                                        </td>
-                                    </tr>
-                                    <tr v-if="currentOrder.attempts.length === 0">
-                                        <td
-                                            colspan="6"
-                                            class="text-center text-medium-emphasis py-4"
-                                        >
-                                            No payment attempts.
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </v-table>
-                        </v-card>
+                        <OrderPaymentAttemptsTable :attempts="currentOrder.attempts" />
                     </v-col>
                 </v-row>
                 <v-alert v-if="orderNotes" type="info" variant="tonal" class="mt-4">
                     <strong>Order notes:</strong>
                     {{ orderNotes }}
                 </v-alert>
-                <v-card
-                    v-if="
-                        currentOrder.orderType === 'CUSTOMER_SALE' && currentOrder.refunds?.length
-                    "
-                    class="mt-4"
-                    variant="outlined"
-                >
-                    <v-card-title>Refund history</v-card-title>
-                    <v-table density="compact">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Method</th>
-                                <th>Reason</th>
-                                <th>Items</th>
-                                <th class="text-right">Shipping</th>
-                                <th>Transaction</th>
-                                <th class="text-right">Amount</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="refund in currentOrder.refunds" :key="refund.id">
-                                <td>{{ formatDate(refund.createdAt) }}</td>
-                                <td>{{ formatStatus(refund.method) }}</td>
-                                <td>{{ refund.reason || '—' }}</td>
-                                <td>{{ refundItemSummary(refund) }}</td>
-                                <td class="text-right">{{ money(refund.shippingAmount) }}</td>
-                                <td>{{ refund.providerTransactionId || 'Manual' }}</td>
-                                <td class="text-right">{{ money(refund.amount) }}</td>
-                            </tr>
-                        </tbody>
-                    </v-table>
-                </v-card>
+                <OrderRefundHistoryTable
+                    v-if="currentOrder.orderType === 'CUSTOMER_SALE'"
+                    :refunds="currentOrder.refunds ?? []"
+                    :currency="currentOrder.currency"
+                />
             </v-card-text>
             <v-divider />
             <v-card-actions class="pa-4">
@@ -346,18 +284,22 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { useNuxtApp } from '#app'
 import { useToast } from '~/composables/useToast'
 import type {
     CommerceOrder,
     CustomerOrderAddress,
     CustomerOrderItem,
-    CustomerOrderRefund,
     CustomerSaleOrder,
     ProcurementOrderItem,
 } from '~/types/order.types'
 import { downloadOrderInvoice } from '~/utils/order-invoice'
 import OrderAddressSummary from '~/components/orders/OrderAddressSummary.vue'
+import OrderPaymentAttemptsTable from '~/components/orders/OrderPaymentAttemptsTable.vue'
+import OrderRefundHistoryTable from '~/components/orders/OrderRefundHistoryTable.vue'
+import {
+    formatOrderDate as formatDate,
+    formatOrderStatus as formatStatus,
+} from '~/utils/order-display.util'
 import EditPendingCustomerOrderDialog from '~/components/orders/EditPendingCustomerOrderDialog.vue'
 import SaleOrderRefundDialog from '~/components/orders/SaleOrderRefundDialog.vue'
 import ConfirmDialog from '~/components/dialogs/ConfirmDialog.vue'
@@ -367,8 +309,7 @@ const emit = defineEmits<{
     'update:modelValue': [value: boolean]
     updated: [order: CommerceOrder]
 }>()
-const nuxtApp = useNuxtApp()
-const orderApi = nuxtApp.$orderApi as import('~/services/api/wrappers/order.api').OrderApiService
+const orderApi = useOrders()
 const { successFromResponse, errorFromError } = useToast()
 const currentOrder = ref<CommerceOrder>({ ...props.order })
 const loading = ref(false)
@@ -416,59 +357,43 @@ const orderNotes = computed(() =>
     currentOrder.value.orderType === 'CUSTOMER_SALE' ? currentOrder.value.notes : null
 )
 
-function close(value: boolean): void {
+const close = (value: boolean): void => {
     emit('update:modelValue', value)
 }
-function formatStatus(value: string): string {
-    return value
-        .replaceAll('_', ' ')
-        .toLowerCase()
-        .replace(/^./, (letter) => letter.toUpperCase())
-}
-function formatDate(value: string): string {
-    return new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' }).format(
-        new Date(value)
-    )
-}
-function statusColor(status: string): string {
+const statusColor = (status: string): string => {
     if (status === 'PAID' || status === 'COMPLETED') return 'success'
     if (status === 'PAYMENT_FAILED') return 'error'
     if (status === 'CANCELLED') return 'error'
-    if (status === 'PARTIALLY_REFUNDED') return 'orange'
-    if (status === 'REFUNDED') return 'grey'
+    if (status === 'PARTIALLY_REFUNDED') return 'warning'
+    if (status === 'REFUNDED') return 'surface-variant'
     return 'warning'
 }
-function money(value: number): string {
+const money = (value: number): string => {
     return new Intl.NumberFormat('en-US', {
         style: 'currency',
         currency: currentOrder.value.currency,
     }).format(value)
 }
-function itemName(item: CustomerOrderItem | ProcurementOrderItem): string {
+const itemName = (item: CustomerOrderItem | ProcurementOrderItem): string => {
     return currentOrder.value.orderType === 'CUSTOMER_SALE'
         ? (item as CustomerOrderItem).sellerProductName
         : (item as ProcurementOrderItem).buyerProductName
 }
-function itemSku(item: CustomerOrderItem | ProcurementOrderItem): string {
+const itemSku = (item: CustomerOrderItem | ProcurementOrderItem): string => {
     return currentOrder.value.orderType === 'CUSTOMER_SALE'
         ? (item as CustomerOrderItem).sellerSku
         : (item as ProcurementOrderItem).buyerSku
 }
-function itemLocation(item: CustomerOrderItem | ProcurementOrderItem): number {
+const itemLocation = (item: CustomerOrderItem | ProcurementOrderItem): number => {
     return currentOrder.value.orderType === 'CUSTOMER_SALE'
         ? (item as CustomerOrderItem).inventoryLocationId
         : (item as ProcurementOrderItem).destinationLocationId
 }
-function refundItemSummary(refund: CustomerOrderRefund): string {
-    if (refund.items.length === 0) return 'Shipping only'
-    const quantity = refund.items.reduce((sum, item) => sum + item.quantity, 0)
-    return `${quantity} item${quantity === 1 ? '' : 's'}`
-}
-function replaceOrder(order: CustomerSaleOrder): void {
+const replaceOrder = (order: CustomerSaleOrder): void => {
     currentOrder.value = { ...order, orderType: 'CUSTOMER_SALE' }
     emit('updated', currentOrder.value)
 }
-async function loadFresh(): Promise<void> {
+const loadFresh = async (): Promise<void> => {
     loading.value = true
     try {
         const response =
@@ -487,7 +412,7 @@ async function loadFresh(): Promise<void> {
         loading.value = false
     }
 }
-async function charge(): Promise<void> {
+const charge = async (): Promise<void> => {
     charging.value = true
     try {
         const key = `admin-${currentOrder.value.orderType.toLowerCase()}-charge-${currentOrder.value.id}-${crypto.randomUUID()}`
@@ -510,7 +435,7 @@ async function charge(): Promise<void> {
         charging.value = false
     }
 }
-async function completeDelivery(): Promise<void> {
+const completeDelivery = async (): Promise<void> => {
     if (currentOrder.value.orderType !== 'CUSTOMER_SALE') return
     completing.value = true
     try {
@@ -524,7 +449,7 @@ async function completeDelivery(): Promise<void> {
         completing.value = false
     }
 }
-async function cancelOrder(): Promise<void> {
+const cancelOrder = async (): Promise<void> => {
     if (currentOrder.value.orderType !== 'CUSTOMER_SALE') return
     cancelling.value = true
     try {

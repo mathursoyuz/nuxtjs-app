@@ -20,9 +20,10 @@
                 <template #actions>
                     <v-btn
                         v-if="
-                            organisationId && access.can(CUSTOMER_PERMISSIONS.WRITE, organisationId)
+                            organisationId &&
+                            access.can(CUSTOMER_PERMISSIONS.UPDATE, organisationId)
                         "
-                        color="white"
+                        color="on-primary"
                         variant="outlined"
                         prepend-icon="mdi-pencil"
                         @click="handleEdit"
@@ -302,7 +303,7 @@ const { currentCustomer, loading, fetchCustomerById } = useCustomer()
 const { cards: creditCards, fetchCards } = useCustomerCreditCards(() => props.customerId)
 const tab = ref('basic')
 
-const handleEdit = () => {
+const handleEdit = (): void => {
     if (props.customerId && props.organisationId) {
         emit('edit', props.customerId, props.organisationId)
     }

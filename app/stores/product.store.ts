@@ -20,44 +20,44 @@ export const useProductStore = defineStore('product', () => {
         () => (id: number) => products.value.find((product) => product.id === id)
     )
 
-    function setProducts(value: Product[]): void {
+    const setProducts = (value: Product[]): void => {
         products.value = value
     }
 
-    function setCurrentProduct(value: Product | null): void {
+    const setCurrentProduct = (value: Product | null): void => {
         currentProduct.value = value
     }
 
-    function addProduct(product: Product): void {
+    const addProduct = (product: Product): void => {
         products.value.push(product)
     }
 
-    function updateProduct(product: Product): void {
+    const updateProduct = (product: Product): void => {
         const index = products.value.findIndex((item) => item.id === product.id)
         if (index >= 0) products.value[index] = product
         if (currentProduct.value?.id === product.id) currentProduct.value = product
     }
 
-    function removeProduct(id: number): void {
+    const removeProduct = (id: number): void => {
         products.value = products.value.filter((product) => product.id !== id)
         if (currentProduct.value?.id === id) currentProduct.value = null
     }
 
-    function setProductActive(id: number, isActive: boolean): void {
+    const setProductActive = (id: number, isActive: boolean): void => {
         const product = products.value.find((item) => item.id === id)
         if (product) product.isActive = isActive
         if (currentProduct.value?.id === id) currentProduct.value.isActive = isActive
     }
 
-    function setLoading(value: boolean): void {
+    const setLoading = (value: boolean): void => {
         loading.value = value
     }
 
-    function setError(value: string | null): void {
+    const setError = (value: string | null): void => {
         error.value = value
     }
 
-    function clearError(): void {
+    const clearError = (): void => {
         error.value = null
     }
 

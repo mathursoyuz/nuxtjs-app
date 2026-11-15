@@ -21,7 +21,7 @@
                     title="QuickBooks Transactions"
                     searchable
                     search-label="Search transactions..."
-                    :selectable="true"
+                    :selectable="canWrite"
                     :show-actions="false"
                     item-value-key="Id"
                     @search="handleSearch"
@@ -30,11 +30,10 @@
                     <template #item.TxnDate="{ item }">
                         {{ formatDateOnly(item.TxnDate) }}
                     </template>
-                    <template #item.TotalAmt="{ item }">
-                        ${{ item.TotalAmt.toFixed(2) }}
-                    </template>
+                    <template #item.TotalAmt="{ item }">${{ item.TotalAmt.toFixed(2) }}</template>
                     <template #bulk-actions>
                         <v-btn
+                            v-if="canWrite"
                             color="primary"
                             size="small"
                             prepend-icon="mdi-download"
@@ -47,6 +46,7 @@
 
                     <template #item.importActions="{ item }">
                         <v-btn
+                            v-if="canWrite"
                             color="primary"
                             size="small"
                             variant="text"
@@ -64,27 +64,32 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
-import { useNuxtApp } from '#app';
-import { useLoadingTask } from '~/composables/useLoadingTask';
-import { useToast } from '~/composables/useToast';
-import { INTEGRATION_MESSAGES, GENERAL_MESSAGES } from '~/constants/messages.constants';
-import DataTable from '~/components/data-table/DataTable.vue';
-import type { QuickBooksTransaction } from '~/services/api/wrappers/quickbooks.api';
-import { formatDateOnly } from '~/utils/date.util';
+import { computed, ref, onMounted } from 'vue'
+import { useQuickbooks } from '~/composables/useQuickbooks'
+import { useLoadingTask } from '~/composables/useLoadingTask'
+import { useToast } from '~/composables/useToast'
+import { INTEGRATION_MESSAGES, GENERAL_MESSAGES } from '~/constants/messages.constants'
+import DataTable from '~/components/data-table/DataTable.vue'
+import type { QuickBooksTransaction } from '~/services/api/wrappers/quickbooks.api'
+import { formatDateOnly } from '~/utils/date.util'
+import { QUICKBOOKS_PERMISSIONS } from '~/constants/integration-permissions.constants'
+import { useAccessStore } from '~/stores/access.store'
 
 definePageMeta({
-    middleware: ['auth'],
-});
+    middleware: ['auth', 'permission'],
+    access: { permission: QUICKBOOKS_PERMISSIONS.READ },
+})
 
-const nuxtApp = useNuxtApp();
-const { errorFromError, error, info } = useToast();
-const quickbooksApi = nuxtApp.$quickbooksApi as import('~/services/api/wrappers/quickbooks.api').QuickBooksApiService;
+const access = useAccessStore()
+const canWrite = computed(() => access.can(QUICKBOOKS_PERMISSIONS.WRITE))
 
-const transactions = ref<QuickBooksTransaction[]>([]);
-const loading = ref(false);
-const importing = ref(false);
-const selectedTransactions = ref<QuickBooksTransaction[]>([]);
+const { errorFromError, error, info } = useToast()
+const { operations: quickbooks } = useQuickbooks()
+
+const transactions = ref<QuickBooksTransaction[]>([])
+const loading = ref(false)
+const importing = ref(false)
+const selectedTransactions = ref<QuickBooksTransaction[]>([])
 
 const headers = [
     { title: 'ID', key: 'Id', sortable: true },
@@ -92,81 +97,80 @@ const headers = [
     { title: 'Type', key: 'TxnType', sortable: true },
     { title: 'Total Amount', key: 'TotalAmt', sortable: true },
     { title: 'Import', key: 'importActions', sortable: false },
-];
-
+]
 
 const handleSearch = (query: string) => {
     // Optional: organisation-side filter can be implemented here if needed
-};
+}
 
 const handleSelectionChange = (selected: unknown[]) => {
-    selectedTransactions.value = selected as QuickBooksTransaction[];
-};
+    selectedTransactions.value = selected as QuickBooksTransaction[]
+}
 
 const fetchTransactions = async () => {
-    loading.value = true;
+    loading.value = true
     try {
-        const task = useLoadingTask('load-qb-transactions');
+        const task = useLoadingTask('load-qb-transactions')
         await task.execute(async () => {
-            const response = await quickbooksApi.getTransactions();
+            const response = await quickbooks.getTransactions()
             if (response.success && response.data) {
-                transactions.value = response.data;
+                transactions.value = response.data
             } else {
-                errorFromError(response, INTEGRATION_MESSAGES.QB_FETCH_ERROR);
+                errorFromError(response, INTEGRATION_MESSAGES.QB_FETCH_ERROR)
             }
-        });
+        })
     } catch (err) {
-        console.error('Error fetching QuickBooks transactions:', err);
-        errorFromError(err, INTEGRATION_MESSAGES.QB_FETCH_ERROR);
+        console.error('Error fetching QuickBooks transactions:', err)
+        errorFromError(err, INTEGRATION_MESSAGES.QB_FETCH_ERROR)
     } finally {
-        loading.value = false;
+        loading.value = false
     }
-};
+}
 
 const refreshData = async () => {
-    await fetchTransactions();
-};
+    await fetchTransactions()
+}
 
 const importSelectedTransactions = async () => {
     if (selectedTransactions.value.length === 0) {
-        error('Please select at least one transaction to import');
-        return;
+        error('Please select at least one transaction to import')
+        return
     }
 
-    importing.value = true;
+    importing.value = true
     try {
-        const task = useLoadingTask('import-qb-transactions');
+        const task = useLoadingTask('import-qb-transactions')
         await task.execute(async () => {
-            const response = await quickbooksApi.importTransactions();
-            info('Transactions import triggered from QuickBooks');
-        });
+            const response = await quickbooks.importTransactions()
+            info('Transactions import triggered from QuickBooks')
+        })
     } catch (err) {
-        console.error('Error importing QuickBooks transactions:', err);
-        errorFromError(err, INTEGRATION_MESSAGES.QB_FETCH_ERROR);
+        console.error('Error importing QuickBooks transactions:', err)
+        errorFromError(err, INTEGRATION_MESSAGES.QB_FETCH_ERROR)
     } finally {
-        importing.value = false;
+        importing.value = false
     }
-};
+}
 
 const importSingleTransaction = async (transaction: QuickBooksTransaction) => {
-    importing.value = true;
+    importing.value = true
     try {
-        const task = useLoadingTask('import-qb-transaction');
+        const task = useLoadingTask('import-qb-transaction')
         await task.execute(async () => {
-            const response = await quickbooksApi.importTransactions();
+            const response = await quickbooks.importTransactions()
             info(
                 `Transaction ${transaction.Id} import triggered from QuickBooks (full import executed)`
-            );
-        });
+            )
+        })
     } catch (err) {
-        console.error('Error importing QuickBooks transaction:', err);
-        errorFromError(err, INTEGRATION_MESSAGES.QB_FETCH_ERROR);
+        console.error('Error importing QuickBooks transaction:', err)
+        errorFromError(err, INTEGRATION_MESSAGES.QB_FETCH_ERROR)
     } finally {
-        importing.value = false;
+        importing.value = false
     }
-};
+}
 
 onMounted(() => {
-    fetchTransactions();
-});
+    fetchTransactions()
+})
 </script>

@@ -10,43 +10,43 @@ export const useInventoryStore = defineStore('inventory', () => {
     const saving = ref<Record<string, boolean>>({})
     const errors = ref<Record<string, string | null>>({})
 
-    function snapshotFor(key: string): InventorySnapshot {
+    const snapshotFor = (key: string): InventorySnapshot => {
         return snapshots.value[key] ?? { balances: [], movements: [], nextCursor: null }
     }
 
-    function locationsFor(key: string): InventoryLocation[] {
+    const locationsFor = (key: string): InventoryLocation[] => {
         return locationsByOwner.value[key] ?? []
     }
 
-    function isLoading(key: string): boolean {
+    const isLoading = (key: string): boolean => {
         return loading.value[key] ?? false
     }
 
-    function isSaving(key: string): boolean {
+    const isSaving = (key: string): boolean => {
         return saving.value[key] ?? false
     }
 
-    function setSnapshot(key: string, snapshot: InventorySnapshot): void {
+    const setSnapshot = (key: string, snapshot: InventorySnapshot): void => {
         snapshots.value = { ...snapshots.value, [key]: snapshot }
     }
 
-    function setLocations(key: string, locations: InventoryLocation[]): void {
+    const setLocations = (key: string, locations: InventoryLocation[]): void => {
         locationsByOwner.value = { ...locationsByOwner.value, [key]: locations }
     }
 
-    function setLoading(key: string, value: boolean): void {
+    const setLoading = (key: string, value: boolean): void => {
         loading.value = { ...loading.value, [key]: value }
     }
 
-    function setSaving(key: string, value: boolean): void {
+    const setSaving = (key: string, value: boolean): void => {
         saving.value = { ...saving.value, [key]: value }
     }
 
-    function setError(key: string, value: string | null): void {
+    const setError = (key: string, value: string | null): void => {
         errors.value = { ...errors.value, [key]: value }
     }
 
-    function resetForOrganisationContext(): void {
+    const resetForOrganisationContext = (): void => {
         snapshots.value = {}
         locationsByOwner.value = {}
         loading.value = {}

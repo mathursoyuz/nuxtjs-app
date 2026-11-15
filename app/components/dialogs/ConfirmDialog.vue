@@ -17,7 +17,7 @@
 
             <v-card-text>
                 <p class="text-body-1">{{ message }}</p>
-                <p v-if="details" class="text-body-2 text-grey mt-2">{{ details }}</p>
+                <p v-if="details" class="text-body-2 text-medium-emphasis mt-2">{{ details }}</p>
             </v-card-text>
 
             <v-card-actions>

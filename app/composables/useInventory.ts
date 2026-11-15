@@ -4,6 +4,7 @@ import { useToast } from '~/composables/useToast'
 import { INVENTORY_MESSAGES } from '~/constants/inventory.constants'
 import type {
     CreateInventoryMovementDTO,
+    InventoryLocation,
     InventorySnapshot,
     UpdateInventoryThresholdDTO,
 } from '~/types/inventory.types'
@@ -20,7 +21,25 @@ export interface InventoryContext {
     productId?: number
 }
 
-export function useInventory() {
+export const useInventory = (): {
+    snapshotFor: (key: string) => InventorySnapshot
+    locationsFor: (key: string) => InventoryLocation[]
+    isLoading: (key: string) => boolean
+    isSaving: (key: string) => boolean
+    inventoryKey: (context: InventoryContext) => string
+    ownerKey: (context: InventoryContext) => string
+    fetchInventory: (context: InventoryContext) => Promise<InventorySnapshot>
+    fetchOwnerLocations: (context: InventoryContext) => Promise<InventoryLocation[]>
+    fetchInventoryLocations: (organisationId: number) => Promise<InventoryLocation[]>
+    recordMovement: (
+        context: InventoryContext,
+        form: InventoryMovementFormData
+    ) => Promise<InventorySnapshot>
+    updateThreshold: (
+        context: InventoryContext,
+        data: Omit<UpdateInventoryThresholdDTO, 'idempotencyKey'>
+    ) => Promise<InventorySnapshot>
+} => {
     const nuxtApp = useNuxtApp()
     const inventoryStore = useInventoryStore()
     const inventoryApi =
@@ -31,17 +50,17 @@ export function useInventory() {
         throw new Error('Inventory services are not available')
     }
 
-    function inventoryKey(context: InventoryContext): string {
+    const inventoryKey = (context: InventoryContext): string => {
         if (context.scope === 'platform')
             return `platform:${context.productId ?? 0}:${context.entityId}`
         return `organisation:${context.organisationId}:${context.entityId}`
     }
 
-    function ownerKey(context: InventoryContext): string {
+    const ownerKey = (context: InventoryContext): string => {
         return `organisation:${context.organisationId}`
     }
 
-    async function fetchInventory(context: InventoryContext): Promise<InventorySnapshot> {
+    const fetchInventory = async (context: InventoryContext): Promise<InventorySnapshot> => {
         const contextRevision = organisationContextRevision()
         const key = inventoryKey(context)
         inventoryStore.setLoading(key, true)
@@ -53,7 +72,10 @@ export function useInventory() {
                           requireProductId(context),
                           context.entityId
                       )
-                    : inventoryApi.getOrganisationInventory(context.organisationId, context.entityId),
+                    : inventoryApi.getOrganisationInventory(
+                          context.organisationId,
+                          context.entityId
+                      ),
                 inventoryApi.getInventoryLocations(context.organisationId),
             ])
             const snapshot = inventoryResponse.data ?? {
@@ -78,7 +100,7 @@ export function useInventory() {
         }
     }
 
-    async function fetchOwnerLocations(context: InventoryContext) {
+    const fetchOwnerLocations = async (context: InventoryContext): Promise<InventoryLocation[]> => {
         const contextRevision = organisationContextRevision()
         const response = await inventoryApi.getInventoryLocations(context.organisationId)
         const locations = response.data ?? []
@@ -87,10 +109,13 @@ export function useInventory() {
         return locations
     }
 
-    async function recordMovement(
+    const fetchInventoryLocations = async (organisationId: number): Promise<InventoryLocation[]> =>
+        await fetchOwnerLocations({ organisationId, entityId: 0 })
+
+    const recordMovement = async (
         context: InventoryContext,
         form: InventoryMovementFormData
-    ): Promise<InventorySnapshot> {
+    ): Promise<InventorySnapshot> => {
         const key = inventoryKey(context)
         inventoryStore.setSaving(key, true)
         try {
@@ -123,10 +148,10 @@ export function useInventory() {
         }
     }
 
-    async function updateThreshold(
+    const updateThreshold = async (
         context: InventoryContext,
         data: Omit<UpdateInventoryThresholdDTO, 'idempotencyKey'>
-    ): Promise<InventorySnapshot> {
+    ): Promise<InventorySnapshot> => {
         const key = inventoryKey(context)
         inventoryStore.setSaving(key, true)
         try {
@@ -159,16 +184,16 @@ export function useInventory() {
         }
     }
 
-    function requireSnapshot(snapshot?: InventorySnapshot): InventorySnapshot {
+    const requireSnapshot = (snapshot?: InventorySnapshot | null): InventorySnapshot => {
         if (!snapshot) throw new Error('Inventory response did not include a snapshot')
         return snapshot
     }
 
-    function createIdempotencyKey(prefix: string): string {
+    const createIdempotencyKey = (prefix: string): string => {
         return `${prefix}-${crypto.randomUUID()}`
     }
 
-    function requireProductId(context: InventoryContext): number {
+    const requireProductId = (context: InventoryContext): number => {
         if (!context.productId) throw new Error('Platform product is required')
         return context.productId
     }
@@ -182,6 +207,7 @@ export function useInventory() {
         ownerKey,
         fetchInventory,
         fetchOwnerLocations,
+        fetchInventoryLocations,
         recordMovement,
         updateThreshold,
     }

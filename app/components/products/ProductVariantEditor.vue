@@ -29,7 +29,7 @@
                 </v-col>
                 <v-col cols="12" md="8">
                     <GalleryUpload
-                        :can-remove-existing="access.can(PRODUCT_PERMISSIONS.DELETE)"
+                        :can-remove-existing="access.can(PRODUCT_PERMISSIONS.UPDATE)"
                         :model-value="images.gallery"
                         :existing-gallery="existingGallery"
                         @update:model-value="updateImages({ gallery: $event })"
@@ -289,9 +289,9 @@ const props = withDefaults(defineProps<Props>(), {
     canManageInventory: false,
     inventoryIsDraft: false,
     inventoryCount: 0,
-    existingGallery: () => [],
+    existingGallery: (): never[] => [],
     existingThumbnail: null,
-    errors: () => ({}),
+    errors: (): {} => ({}),
 })
 
 const variant = defineModel<ProductVariantFormData>({ required: true })

@@ -100,11 +100,11 @@ import type { CreateCategoryFormData } from '~/schemas/category.schema'
 
 definePageMeta({
     middleware: ['auth', 'permission'],
-    access: { permission: CATEGORY_PERMISSIONS.WRITE },
+    access: { permission: CATEGORY_PERMISSIONS.CREATE },
 })
 
 const { createCategory, loading, fetchCategories, uploadImage, categories } = useCategory()
-const { successFromResponse, errorFromError } = useToast()
+const { errorFromError } = useToast()
 const loadingStore = useLoadingStore()
 
 const formRef = ref()
@@ -112,7 +112,7 @@ const valid = ref(false)
 const imageFile = ref<File | null>(null)
 
 const formData = ref<CreateCategoryFormData>({
-    parentId: 0,
+    parentId: null,
     name: '',
     slug: '',
     description: null,
@@ -122,7 +122,7 @@ const formData = ref<CreateCategoryFormData>({
 
 const parentCategoryOptions = computed(() => {
     return [
-        { title: 'Root (No Parent)', value: 0 },
+        { title: 'Root (No Parent)', value: null },
         ...categories.value.map((c) => ({
             title: c.name,
             value: c.id,
@@ -131,11 +131,12 @@ const parentCategoryOptions = computed(() => {
 })
 
 const rules = {
-    required: (v: unknown) => !!v || 'This field is required',
+    required: (v: unknown): true | 'This field is required' => !!v || 'This field is required',
 }
 
-const handleSubmit = async () => {
-    if (!formRef.value?.validate()) return
+const handleSubmit = async (): Promise<void> => {
+    const validation = await formRef.value?.validate()
+    if (!validation?.valid) return
 
     const taskId = 'create-category'
     loadingStore.startTask(taskId, 'Creating category...')
@@ -148,10 +149,6 @@ const handleSubmit = async () => {
             await uploadImage(category.id, imageFile.value)
         }
 
-        successFromResponse(
-            { success: true, message: '', data: category },
-            CATEGORY_MESSAGES.CREATE_SUCCESS
-        )
         navigateTo('/categories')
     } catch (err) {
         console.error('Validation or creation error:', err)

@@ -178,7 +178,7 @@ import { useAccessStore } from '~/stores/access.store'
 import { useMemberships } from '~/composables/useMemberships'
 import { useOrganisation } from '~/composables/useOrganisation'
 import { useToast } from '~/composables/useToast'
-import type { Customer, CustomerApiService } from '~/services/api/wrappers/customer.api'
+import type { Customer } from '~/services/api/wrappers/customer.api'
 import type { MembershipSubscription } from '~/types/membership.types'
 
 definePageMeta({
@@ -190,7 +190,7 @@ definePageMeta({
 })
 const access = useAccessStore()
 const manager = useMemberships()
-const customerApi = useNuxtApp().$customerApi as CustomerApiService
+const { queryCustomers } = useCustomer()
 const { errorFromError } = useToast()
 const { organisations: allOrganisations, fetchOrganisations } = useOrganisation()
 const organisationId = ref<number | null>(null)
@@ -218,7 +218,7 @@ const organisations = computed(() =>
 const canWrite = computed(
     () =>
         organisationId.value !== null &&
-        access.can(CUSTOMER_MEMBERSHIP_SUBSCRIPTION_PERMISSIONS.WRITE, organisationId.value)
+        access.can(CUSTOMER_MEMBERSHIP_SUBSCRIPTION_PERMISSIONS.UPDATE, organisationId.value)
 )
 const headers = [
     { title: 'Customer', key: 'customer' },
@@ -231,7 +231,7 @@ const refresh = async (): Promise<void> => {
     loading.value = true
     try {
         const [customerResult, subscriptionResult] = await Promise.all([
-            customerApi.getAllCustomers(
+            queryCustomers(
                 organisationId.value,
                 page.value,
                 limit.value,
@@ -239,8 +239,8 @@ const refresh = async (): Promise<void> => {
             ),
             manager.getCustomerSubscriptions(organisationId.value),
         ])
-        rows.value = customerResult.data?.customers ?? []
-        total.value = customerResult.data?.total ?? 0
+        rows.value = customerResult.customers
+        total.value = customerResult.total
         subscriptions.value = subscriptionResult.data ?? []
     } catch (error) {
         errorFromError(error, 'Unable to load customer subscriptions.')

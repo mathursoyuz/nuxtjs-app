@@ -26,19 +26,19 @@ export const useAuthStore = defineStore('auth', () => {
         () => status.value === 'authenticated' && user.value !== null && token.value !== null
     )
     const userId = computed(() => user.value?.id ?? null)
-    function setAuth(nextUser: User, accessToken: string) {
+    const setAuth = (nextUser: User, accessToken: string): void => {
         sessionUser.value = nextUser
         token.value = accessToken
         status.value = 'authenticated'
     }
-    function clearAuth() {
+    const clearAuth = (): void => {
         revision++
         initializationPromise = null
         sessionUser.value = null
         token.value = null
         status.value = 'unauthenticated'
     }
-    async function authenticate(operation: () => Promise<AuthResponse>): Promise<AuthResponse> {
+    const authenticate = async (operation: () => Promise<AuthResponse>): Promise<AuthResponse> => {
         const current = ++revision
         let response: AuthResponse | undefined
         try {
@@ -53,10 +53,11 @@ export const useAuthStore = defineStore('auth', () => {
             throw error
         }
     }
-    const login = (credentials: LoginCredentials) =>
+    const login = (credentials: LoginCredentials): Promise<AuthResponse> =>
         authenticate(() => authService.login(credentials))
-    const register = (data: RegisterData) => authenticate(() => authService.register(data))
-    async function initAuth(): Promise<void> {
+    const register = (data: RegisterData): Promise<AuthResponse> =>
+        authenticate(() => authService.register(data))
+    const initAuth = async (): Promise<void> => {
         if (initializationPromise) return initializationPromise
         if (isInitialized.value) return
         const current = ++revision
@@ -84,10 +85,10 @@ export const useAuthStore = defineStore('auth', () => {
             if (initializationPromise === pending) initializationPromise = null
         }
     }
-    async function redirectToLogin() {
+    const redirectToLogin = async (): Promise<void> => {
         if (router.currentRoute.value.path !== '/login') await router.push('/login')
     }
-    function logout(options: LogoutOptions = {}): Promise<void> {
+    const logout = (options: LogoutOptions = {}): Promise<void> => {
         if (logoutPromise) return logoutPromise
         const { broadcast = false, redirect = true } = options
         const current = ++revision
@@ -110,25 +111,25 @@ export const useAuthStore = defineStore('auth', () => {
         logoutPromise = pending
         return pending
     }
-    const logoutAllTabs = () => logout({ broadcast: true })
-    async function handleExternalLogout(accountId: number) {
+    const logoutAllTabs = (): Promise<void> => logout({ broadcast: true })
+    const handleExternalLogout = async (accountId: number): Promise<void> => {
         if (accountId !== userId.value) return
         authService.clearSession()
         clearAuth()
         await redirectToLogin()
     }
-    async function handleUnauthorized(requestToken: string) {
+    const handleUnauthorized = async (requestToken: string): Promise<void> => {
         if (!authService.clearSession(requestToken)) return
         clearAuth()
         await redirectToLogin()
     }
-    async function refreshUser() {
+    const refreshUser = async (): Promise<void> => {
         const current = revision
         const refreshed = await authService.refreshUser()
         if (current !== revision || !refreshed) return
         sessionUser.value = refreshed
     }
-    function discardSession(accessToken?: string) {
+    const discardSession = (accessToken?: string): void => {
         authService.clearSession(accessToken)
         clearAuth()
     }

@@ -5,7 +5,7 @@
                 <div class="d-flex align-center justify-space-between mb-4">
                     <h1 class="text-h4">Categories</h1>
                     <v-btn
-                        v-if="access.can(CATEGORY_PERMISSIONS.WRITE)"
+                        v-if="access.can(CATEGORY_PERMISSIONS.CREATE)"
                         color="primary"
                         prepend-icon="mdi-plus"
                         @click="openAddDialog"
@@ -37,13 +37,13 @@
                             :headers="headers"
                             :items="filteredCategories"
                             :loading="loading"
-                            :selectable="access.can(CATEGORY_PERMISSIONS.WRITE)"
-                            :show-select="access.can(CATEGORY_PERMISSIONS.WRITE)"
+                            :selectable="access.can(CATEGORY_PERMISSIONS.UPDATE)"
+                            :show-select="access.can(CATEGORY_PERMISSIONS.UPDATE)"
                             item-value="id"
                             class="elevation-1"
                         >
                             <template #item.parentId="{ item }">
-                                <span v-if="item.parentId === 0">Root</span>
+                                <span v-if="item.parentId === null">Root</span>
                                 <span v-else>{{ getCategoryName(item.parentId) }}</span>
                             </template>
 
@@ -58,6 +58,7 @@
 
                             <template #item.isActive="{ item }">
                                 <v-switch
+                                    :disabled="!access.can(CATEGORY_PERMISSIONS.UPDATE)"
                                     :model-value="item.isActive"
                                     density="compact"
                                     hide-details
@@ -95,7 +96,7 @@
                             <template #item.syncActions="{ item }">
                                 <div class="d-flex gap-2 justify-space-between">
                                     <v-btn
-                                        v-if="access.can(CATEGORY_PERMISSIONS.WRITE)"
+                                        v-if="access.can(CATEGORY_PERMISSIONS.UPDATE)"
                                         size="small"
                                         color="primary"
                                         variant="tonal"
@@ -108,6 +109,7 @@
                                         }}
                                     </v-btn>
                                     <v-btn
+                                        v-if="access.can(CATEGORY_PERMISSIONS.UPDATE)"
                                         size="small"
                                         color="primary"
                                         variant="tonal"
@@ -177,8 +179,8 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { useNuxtApp, useRoute } from '#app'
 import { useCategory } from '~/composables/useCategory'
+import { useSquareImport } from '~/composables/useSquareImport'
 import { useAccessStore } from '~/stores/access.store'
 import { CATEGORY_PERMISSIONS } from '~/components/categories/category.permissions'
 import { useQuickbooks } from '~/composables/useQuickbooks'
@@ -197,6 +199,7 @@ const DeleteCategoryDialog = defineAsyncComponent(
     () => import('~/components/categories/DeleteCategoryDialog.vue')
 )
 import type { Category } from '~/types/category.types'
+import type { SquareCategory } from '~/types/square-import.types'
 import { getFullImageUrl } from '~/utils/image.util'
 
 definePageMeta({
@@ -204,13 +207,15 @@ definePageMeta({
     access: { permission: CATEGORY_PERMISSIONS.READ },
 })
 
-const nuxtApp = useNuxtApp()
-const squareImportApi =
-    nuxtApp.$squareImportApi as import('~/services/api/wrappers/square-import.api').SquareImportApiService
-const categoryApi =
-    nuxtApp.$categoryApi as import('~/services/api/wrappers/category.api').CategoryApiService
-
-const { categories, loading, fetchCategories, deleteCategory } = useCategory()
+const { operations: squareImport } = useSquareImport<SquareCategory>()
+const {
+    categories,
+    loading,
+    fetchCategories,
+    refreshCategories,
+    deleteCategory,
+    updateCategoryStatus,
+} = useCategory()
 const access = useAccessStore()
 const { successFromResponse, errorFromError, success, error, warning, info } = useToast()
 const { syncCategoryToQB } = useQuickbooks()
@@ -240,7 +245,7 @@ const headers = [
 const searchQuery = ref('')
 const selectedItems = ref<Category[]>([])
 
-const getCategoryName = (id: number) => {
+const getCategoryName = (id: number): string => {
     const category = categories.value.find((c) => c.id === id)
     return category?.name || 'Unknown'
 }
@@ -258,54 +263,60 @@ const filteredCategories = computed(() => {
     })
 })
 
-const handleSearch = (query: string | null) => {
+const handleSearch = (query: string | null): void => {
     searchQuery.value = query || ''
 }
 
-const openAddDialog = () => {
+const openAddDialog = (): void => {
     showAddDialog.value = true
 }
 
-const handleEdit = (item: unknown) => {
+const handleEdit = (item: unknown): void => {
     const category = item as Category
     selectedCategory.value = category
     showEditDialog.value = true
 }
 
-const handleDelete = (item: unknown) => {
+const handleDelete = (item: unknown): void => {
     const category = item as Category
     selectedCategory.value = category
     showDeleteDialog.value = true
 }
 
-const handleCategoryCreated = async () => {
+const handleCategoryCreated = async (): Promise<void> => {
     await fetchCategories()
     showAddDialog.value = false
 }
 
-const handleCategoryUpdated = async () => {
+const handleCategoryUpdated = async (): Promise<void> => {
     await fetchCategories()
     showEditDialog.value = false
     selectedCategory.value = null
 }
 
-const handleCategoryDeleted = async () => {
+const handleCategoryDeleted = async (): Promise<void> => {
     await fetchCategories()
     showDeleteDialog.value = false
     selectedCategory.value = null
 }
 
-const toggleActive = async (id: number, isActive: boolean) => {
-    // Implement toggle active logic
-    console.log('Toggle active:', id, isActive)
+const toggleActive = async (id: number, isActive: boolean): Promise<void> => {
+    try {
+        await updateCategoryStatus(id, isActive)
+        success(`Category ${isActive ? 'activated' : 'deactivated'}.`)
+        await fetchCategories()
+    } catch (error) {
+        errorFromError(error, 'Unable to update category status.')
+        await fetchCategories()
+    }
 }
 
-const importFromSquare = async (item: Category) => {
+const importFromSquare = async (item: Category): Promise<void> => {
     syncingSquare.value[item.id] = true
 
     try {
         // Search all Square categories
-        const searchResponse = await squareImportApi.searchCategories()
+        const searchResponse = await squareImport.searchCategories()
         if (!searchResponse.success || !searchResponse.data) {
             errorFromError(searchResponse, CATEGORY_MESSAGES.IMPORT_SQUARE_FETCH_ERROR)
             return
@@ -334,7 +345,7 @@ const importFromSquare = async (item: Category) => {
         }
 
         // Import the matching Square category
-        const importResponse = await squareImportApi.importCategories([matchingSquareCategory])
+        const importResponse = await squareImport.importCategories([matchingSquareCategory])
         if (importResponse.success && importResponse.data) {
             const result = importResponse.data.result
             const successCount = result.created + result.updated
@@ -352,22 +363,7 @@ const importFromSquare = async (item: Category) => {
                 }
             }
 
-            // Refresh categories to show updated sync status (skip cache)
-            const refreshResponse = await categoryApi.refreshCategories()
-            if (refreshResponse.success && refreshResponse.data) {
-                // Update the store with fresh data
-                const { useCategoryStore } = await import('~/stores/category.store')
-                const categoryStore = useCategoryStore()
-                categoryStore.setCategories(refreshResponse.data)
-            } else {
-                // Fallback: invalidate cache and fetch
-                const cachedApi = (categoryApi as any)
-                    .cachedApi as import('~/services/api/CachedApiClient').CachedApiClient
-                if (cachedApi) {
-                    cachedApi.invalidate('categories:all')
-                }
-                await fetchCategories()
-            }
+            await refreshCategories()
         } else {
             errorFromError(importResponse, CATEGORY_MESSAGES.IMPORT_SQUARE_ERROR)
         }
@@ -379,31 +375,13 @@ const importFromSquare = async (item: Category) => {
     }
 }
 
-const importToQB = async (item: Category) => {
+const importToQB = async (item: Category): Promise<void> => {
     syncingQb.value[item.id] = true
 
     try {
-        const response = await syncCategoryToQB(item.id)
-        successFromResponse(
-            { success: true, message: '', data: response },
-            CATEGORY_MESSAGES.SYNC_QB_SUCCESS
-        )
-        // Refresh categories to show updated sync status (skip cache)
-        const refreshResponse = await categoryApi.refreshCategories()
-        if (refreshResponse.success && refreshResponse.data) {
-            // Update the store with fresh data
-            const { useCategoryStore } = await import('~/stores/category.store')
-            const categoryStore = useCategoryStore()
-            categoryStore.setCategories(refreshResponse.data)
-        } else {
-            // Fallback: invalidate cache and fetch
-            const cachedApi = (categoryApi as any)
-                .cachedApi as import('~/services/api/CachedApiClient').CachedApiClient
-            if (cachedApi) {
-                cachedApi.invalidate('categories:all')
-            }
-            await fetchCategories()
-        }
+        await syncCategoryToQB(item.id)
+        success(CATEGORY_MESSAGES.SYNC_QB_SUCCESS)
+        await refreshCategories()
     } catch (err) {
         errorFromError(err, CATEGORY_MESSAGES.SYNC_QB_ERROR)
         console.error('Error syncing category to QuickBooks:', err)

@@ -1,6 +1,6 @@
 import type { JwtPayload } from '~/types/auth.types'
 
-export function decodeJwt(token: string): JwtPayload | null {
+export const decodeJwt = (token: string): JwtPayload | null => {
     try {
         const payload = token.split('.')[1]
         if (!payload) {
@@ -16,7 +16,7 @@ export function decodeJwt(token: string): JwtPayload | null {
     }
 }
 
-export function isTokenExpired(token: string): boolean {
+export const isTokenExpired = (token: string): boolean => {
     const payload = decodeJwt(token)
     if (!payload || !payload.exp) {
         return true
@@ -26,7 +26,7 @@ export function isTokenExpired(token: string): boolean {
     return Date.now() >= exp
 }
 
-export function getTokenExpirationTime(token: string): number | null {
+export const getTokenExpirationTime = (token: string): number | null => {
     const payload = decodeJwt(token)
     if (!payload || !payload.exp) {
         return null

@@ -1,21 +1,25 @@
 export const PLATFORM_MEMBERSHIP_PERMISSIONS = {
     READ: 'platform-memberships.read',
-    WRITE: 'platform-memberships.write',
+    CREATE: 'platform-memberships.create',
+    UPDATE: 'platform-memberships.update',
     DELETE: 'platform-memberships.delete',
 } as const
 
 export const ORGANISATION_MEMBERSHIP_PERMISSIONS = {
     READ: 'organisation-memberships.read',
-    WRITE: 'organisation-memberships.write',
+    CREATE: 'organisation-memberships.create',
+    UPDATE: 'organisation-memberships.update',
     DELETE: 'organisation-memberships.delete',
 } as const
 
 export const CUSTOMER_MEMBERSHIP_SUBSCRIPTION_PERMISSIONS = {
     READ: 'customer-membership-subscriptions.read',
-    WRITE: 'customer-membership-subscriptions.write',
+    CREATE: 'customer-membership-subscriptions.create',
+    UPDATE: 'customer-membership-subscriptions.update',
 } as const
 
 export const ORGANISATION_MEMBERSHIP_SUBSCRIPTION_PERMISSIONS = {
     READ: 'organisation-membership-subscriptions.read',
-    WRITE: 'organisation-membership-subscriptions.write',
+    CREATE: 'organisation-membership-subscriptions.create',
+    UPDATE: 'organisation-membership-subscriptions.update',
 } as const

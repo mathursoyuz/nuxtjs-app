@@ -29,17 +29,17 @@
 
 <style scoped>
 .upload-zone {
-    border: 2px dashed rgba(155, 35, 53, 0.4);
+    border: 2px dashed rgb(var(--v-theme-primary) / 0.4);
     border-radius: 8px;
-    background-color: rgba(155, 35, 53, 0.02);
+    background-color: rgb(var(--v-theme-primary) / 0.02);
     cursor: pointer;
     transition: all 0.2s ease;
     min-height: 150px;
 }
 
 .upload-zone:hover {
-    border-color: rgba(155, 35, 53, 0.8);
-    background-color: rgba(155, 35, 53, 0.05);
+    border-color: rgb(var(--v-theme-primary) / 0.8);
+    background-color: rgb(var(--v-theme-primary) / 0.05);
 }
 
 .upload-zone-small {
@@ -54,6 +54,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import { FILE_UPLOAD, FILE_UPLOAD_MESSAGES } from '~/constants/product.constants'
+import { useToast } from '~/composables/useToast'
 
 interface Props {
     modelValue: File | null | undefined
@@ -70,6 +71,7 @@ const emit = defineEmits<{
 const fileInput = ref<HTMLInputElement | null>(null)
 const internalValue = ref<File | null>(props.modelValue instanceof File ? props.modelValue : null)
 const acceptedMimeTypes = FILE_UPLOAD.ACCEPTED_TYPES.join(',')
+const { error: showError } = useToast()
 
 const previewUrl = computed(() => {
     if (internalValue.value instanceof File) {
@@ -89,22 +91,22 @@ watch(
     }
 )
 
-const triggerFileInput = () => {
+const triggerFileInput = (): void => {
     fileInput.value?.click()
 }
 
-const handleFileChange = (event: Event) => {
+const handleFileChange = (event: Event): void => {
     const target = event.target as HTMLInputElement
     const file = target.files?.[0]
     if (!file) return
 
     if (file.size > FILE_UPLOAD.MAX_SIZE_BYTES) {
-        alert(FILE_UPLOAD_MESSAGES.MAX_SIZE(file.name))
+        showError(FILE_UPLOAD_MESSAGES.MAX_SIZE(file.name))
         return
     }
 
     if (!(FILE_UPLOAD.ACCEPTED_TYPES as readonly string[]).includes(file.type)) {
-        alert(FILE_UPLOAD_MESSAGES.INVALID_TYPE(file.name))
+        showError(FILE_UPLOAD_MESSAGES.INVALID_TYPE(file.name))
         return
     }
 
@@ -113,7 +115,7 @@ const handleFileChange = (event: Event) => {
     target.value = ''
 }
 
-const handleDrop = (event: DragEvent) => {
+const handleDrop = (event: DragEvent): void => {
     const file = event.dataTransfer?.files[0]
     if (!file) return
 
@@ -125,7 +127,7 @@ const handleDrop = (event: DragEvent) => {
     handleFileChange(fakeEvent)
 }
 
-const removeThumbnail = () => {
+const removeThumbnail = (): void => {
     internalValue.value = null
     emit('update:modelValue', null)
     if (fileInput.value) {

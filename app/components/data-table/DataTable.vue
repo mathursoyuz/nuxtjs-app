@@ -66,8 +66,8 @@
                 </template>
                 <template v-else #no-data>
                     <div class="text-center py-8">
-                        <v-icon size="64" color="grey-lighten-1">mdi-database-off</v-icon>
-                        <p class="text-h6 mt-4 text-grey">No data available</p>
+                        <v-icon size="64" color="on-surface-variant">mdi-database-off</v-icon>
+                        <p class="text-h6 mt-4 text-medium-emphasis">No data available</p>
                     </div>
                 </template>
 
@@ -103,7 +103,7 @@
             </v-data-table>
 
             <!-- Pagination Info -->
-            <div v-if="showPaginationInfo" class="mt-4 text-caption text-grey">
+            <div v-if="showPaginationInfo" class="mt-4 text-caption text-medium-emphasis">
                 Showing {{ startIndex }} to {{ endIndex }} of {{ totalItems }} entries
             </div>
         </v-card-text>
@@ -124,7 +124,7 @@ interface DataTableHeader {
 
 interface Props {
     headers: DataTableHeader[]
-    items: any[]
+    items: unknown[]
     loading?: boolean
     title?: string
     searchable?: boolean
@@ -145,8 +145,8 @@ interface Props {
 
 interface Emits {
     (e: 'search', value: string): void
-    (e: 'edit', item: any): void
-    (e: 'delete', item: any): void
+    (e: 'edit', item: unknown): void
+    (e: 'delete', item: unknown): void
     (e: 'page-change', page: number): void
     (e: 'items-per-page-change', itemsPerPage: number): void
     (e: 'sort-change', sortBy: { key: string; order: 'asc' | 'desc' }[]): void
@@ -161,9 +161,9 @@ const props = withDefaults(defineProps<Props>(), {
     showActions: true,
     itemsPerPage: 10,
     hideDefaultFooter: false,
-    itemsPerPageOptions: () => [10, 25, 50, 100],
+    itemsPerPageOptions: (): number[] => [10, 25, 50, 100],
     showPaginationInfo: true,
-    initialSortBy: () => [],
+    initialSortBy: (): never[] => [],
     serverItemsLength: undefined,
     currentPage: 1,
     itemValueKey: 'id',
@@ -192,7 +192,7 @@ const endIndex = computed(() => {
     return totalItems.value
 })
 
-const handleSearch = (value: string | null) => {
+const handleSearch = (value: string | null): void => {
     emit('search', value || '')
 }
 
@@ -200,7 +200,7 @@ const handleOptionsUpdate = (options: {
     page?: number
     itemsPerPage?: number
     sortBy?: { key: string; order: 'asc' | 'desc' }[]
-}) => {
+}): void => {
     if (options.sortBy) {
         sortBy.value = options.sortBy
         emit('sort-change', options.sortBy)
@@ -210,7 +210,7 @@ const handleOptionsUpdate = (options: {
     }
 }
 
-const handlePageUpdate = (page: number) => {
+const handlePageUpdate = (page: number): void => {
     emit('page-change', page)
 }
 

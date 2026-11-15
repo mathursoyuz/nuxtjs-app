@@ -26,11 +26,11 @@ export const useQuickBooksStore = defineStore('quickbooks', () => {
     const isCustomerSyncing = computed(() => syncStatus.value.customers.status === 'syncing')
     const isTransactionSyncing = computed(() => syncStatus.value.transactions.status === 'syncing')
 
-    function setConnected(value: boolean): void {
+    const setConnected = (value: boolean): void => {
         isConnected.value = value
     }
 
-    function setSyncStatus(entity: SyncEntity, status: SyncState, syncError?: string): void {
+    const setSyncStatus = (entity: SyncEntity, status: SyncState, syncError?: string): void => {
         const previous = syncStatus.value[entity]
         syncStatus.value[entity] = {
             status,
@@ -39,15 +39,15 @@ export const useQuickBooksStore = defineStore('quickbooks', () => {
         }
     }
 
-    function setLoading(value: boolean): void {
+    const setLoading = (value: boolean): void => {
         loading.value = value
     }
 
-    function setError(value: string | null): void {
+    const setError = (value: string | null): void => {
         error.value = value
     }
 
-    function clearError(): void {
+    const clearError = (): void => {
         error.value = null
     }
 

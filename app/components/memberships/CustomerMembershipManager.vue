@@ -199,7 +199,15 @@
         :memberships="availableMemberships"
         :subscriptions="subscriptions"
         :cards="cards"
+        :can-add-payment-method="canAddPaymentMethod"
         @saved="refresh"
+        @add-payment-method="openPaymentCardDialog"
+    />
+    <AddCreditCardDialog
+        v-model="addPaymentCardOpen"
+        :customer="paymentCustomer"
+        :organisation-id="organisationId"
+        @submit="paymentCardAdded"
     />
     <ReviewMembershipPricingDialog
         v-model="reviewOpen"
@@ -228,6 +236,11 @@ import { useToast } from '~/composables/useToast'
 import { formatMembershipMoney } from '~/utils/membership.util'
 import type { Membership, MembershipAction, MembershipSubscription } from '~/types/membership.types'
 import type { CustomerCreditCard } from '~/services/api/wrappers/customer-credit-card.api'
+import type { Customer } from '~/services/api/wrappers/customer.api'
+import AddCreditCardDialog from '~/components/customers/AddCreditCardDialog.vue'
+import { CUSTOMER_CREDIT_CARD_PERMISSIONS } from '~/components/customers/customer-credit-card.permissions'
+import { useAccessStore } from '~/stores/access.store'
+import { useCustomer } from '~/composables/useCustomer'
 
 const props = withDefaults(
     defineProps<{
@@ -241,6 +254,8 @@ const props = withDefaults(
 )
 const emit = defineEmits<{ updated: [] }>()
 const manager = useMemberships()
+const access = useAccessStore()
+const { fetchCustomerById } = useCustomer()
 const { success, errorFromError } = useToast()
 const loading = ref(false)
 const subscriptions = ref<MembershipSubscription[]>([])
@@ -253,6 +268,11 @@ const batchOpen = ref(false)
 const reviewOpen = ref(false)
 const viewOpen = ref(false)
 const detailsOpen = ref(false)
+const addPaymentCardOpen = ref(false)
+const paymentCustomer = ref<Customer | null>(null)
+const canAddPaymentMethod = computed(() =>
+    access.can(CUSTOMER_CREDIT_CARD_PERMISSIONS.CREATE, props.organisationId)
+)
 const headers = [
     { title: 'Membership', key: 'membershipName' },
     { title: 'Membership group', key: 'membershipGroupName' },
@@ -316,6 +336,19 @@ const showDetails = (membership: Membership): void => {
 }
 const openBatch = (): void => {
     batchOpen.value = true
+}
+const openPaymentCardDialog = async (): Promise<void> => {
+    if (!canAddPaymentMethod.value) return
+    try {
+        paymentCustomer.value = await fetchCustomerById(props.customerId)
+        addPaymentCardOpen.value = true
+    } catch (error) {
+        errorFromError(error, 'Unable to load customer payment details.')
+    }
+}
+const paymentCardAdded = async (): Promise<void> => {
+    addPaymentCardOpen.value = false
+    await refresh()
 }
 const view = (item: MembershipSubscription): void => {
     selected.value = item

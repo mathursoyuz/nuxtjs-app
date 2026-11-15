@@ -6,7 +6,9 @@ export interface RequestInterceptorConfig {
     authToken: string | null
 }
 
-export function createRequestInterceptor(config: RequestInterceptorConfig) {
+export const createRequestInterceptor = (
+    config: RequestInterceptorConfig
+): ((axiosConfig: InternalAxiosRequestConfig) => InternalAxiosRequestConfig) => {
     return (axiosConfig: InternalAxiosRequestConfig): InternalAxiosRequestConfig => {
         // Add Bearer token (app-level authentication)
         if (config.bearerToken) {
@@ -25,7 +27,7 @@ export function createRequestInterceptor(config: RequestInterceptorConfig) {
     }
 }
 
-export function createRequestErrorInterceptor() {
+export const createRequestErrorInterceptor = (): ((error: unknown) => Promise<never>) => {
     return (error: unknown): Promise<never> => {
         return Promise.reject(error)
     }

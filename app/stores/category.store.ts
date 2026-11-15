@@ -15,45 +15,45 @@ export const useCategoryStore = defineStore('category', () => {
         () => (id: number) => categories.value.find((category) => category.id === id)
     )
     const rootCategories = computed(() =>
-        categories.value.filter((category) => category.parentId === 0)
+        categories.value.filter((category) => category.parentId === null)
     )
     const subCategories = computed(
         () => (parentId: number) =>
             categories.value.filter((category) => category.parentId === parentId)
     )
 
-    function setCategories(value: Category[]): void {
+    const setCategories = (value: Category[]): void => {
         categories.value = value
     }
 
-    function setCurrentCategory(value: Category | null): void {
+    const setCurrentCategory = (value: Category | null): void => {
         currentCategory.value = value
     }
 
-    function addCategory(category: Category): void {
+    const addCategory = (category: Category): void => {
         categories.value.push(category)
     }
 
-    function updateCategory(category: Category): void {
+    const updateCategory = (category: Category): void => {
         const index = categories.value.findIndex((item) => item.id === category.id)
         if (index >= 0) categories.value[index] = category
         if (currentCategory.value?.id === category.id) currentCategory.value = category
     }
 
-    function removeCategory(id: number): void {
+    const removeCategory = (id: number): void => {
         categories.value = categories.value.filter((category) => category.id !== id)
         if (currentCategory.value?.id === id) currentCategory.value = null
     }
 
-    function setLoading(value: boolean): void {
+    const setLoading = (value: boolean): void => {
         loading.value = value
     }
 
-    function setError(value: string | null): void {
+    const setError = (value: string | null): void => {
         error.value = value
     }
 
-    function clearError(): void {
+    const clearError = (): void => {
         error.value = null
     }
 

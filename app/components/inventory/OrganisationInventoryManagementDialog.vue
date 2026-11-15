@@ -24,68 +24,12 @@
                 </v-alert>
 
                 <div class="text-h6 mb-2">Inventory by location</div>
-                <v-table density="comfortable" class="mb-5">
-                    <thead>
-                        <tr>
-                            <th>Location</th>
-                            <th>Previous on hand</th>
-                            <th>On hand</th>
-                            <th>Reserved</th>
-                            <th>Available</th>
-                            <th>Threshold</th>
-                            <th>Status</th>
-                            <th v-if="!draft">Actions</th>
-                            <th v-else />
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="balance in displayedBalances" :key="balance.key">
-                            <td>{{ balance.locationName }}</td>
-                            <td>{{ balance.previousOnHand }}</td>
-                            <td>{{ balance.onHand }}</td>
-                            <td>{{ balance.reserved }}</td>
-                            <td>{{ balance.available }}</td>
-                            <td>{{ balance.lowStockThreshold }}</td>
-                            <td>
-                                <v-chip
-                                    :color="stockStatusColor(balance.stockStatus)"
-                                    size="small"
-                                    variant="tonal"
-                                >
-                                    {{ formatLabel(balance.stockStatus) }}
-                                </v-chip>
-                            </td>
-                            <td>
-                                <v-btn
-                                    v-if="!draft"
-                                    icon="mdi-tune"
-                                    size="small"
-                                    variant="text"
-                                    title="Update low-stock threshold"
-                                    @click="
-                                        beginThresholdUpdate(
-                                            balance.locationId,
-                                            balance.lowStockThreshold
-                                        )
-                                    "
-                                />
-                                <v-btn
-                                    v-else
-                                    icon="mdi-delete"
-                                    size="small"
-                                    color="error"
-                                    variant="text"
-                                    @click="removeDraftBalance(balance.locationId)"
-                                />
-                            </td>
-                        </tr>
-                        <tr v-if="displayedBalances.length === 0">
-                            <td colspan="8" class="text-center text-medium-emphasis py-6">
-                                No inventory balances have been recorded.
-                            </td>
-                        </tr>
-                    </tbody>
-                </v-table>
+                <InventoryBalancesTable
+                    :balances="displayedBalances"
+                    :draft="draft"
+                    @threshold-update="beginThresholdUpdate"
+                    @remove-draft-balance="removeDraftBalance"
+                />
 
                 <v-alert
                     v-if="thresholdLocationId"
@@ -254,44 +198,7 @@
                     </v-card-text>
                 </v-card>
 
-                <template v-if="!draft">
-                    <div class="text-h6 mb-2">Movement history</div>
-                    <v-table density="compact">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Location</th>
-                                <th>Type</th>
-                                <th>On-hand change</th>
-                                <th>Reserved change</th>
-                                <th>Previous</th>
-                                <th>New</th>
-                                <th>Previous reserved</th>
-                                <th>New reserved</th>
-                                <th>Reason</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="movement in snapshot.movements" :key="movement.id">
-                                <td>{{ formatDate(movement.createdAt) }}</td>
-                                <td>{{ movement.locationName }}</td>
-                                <td>{{ formatLabel(movement.movementType) }}</td>
-                                <td>{{ signedQuantity(movement.quantity) }}</td>
-                                <td>{{ signedQuantity(movement.reservedDelta) }}</td>
-                                <td>{{ movement.previousOnHand }}</td>
-                                <td>{{ movement.newOnHand }}</td>
-                                <td>{{ movement.previousReserved }}</td>
-                                <td>{{ movement.newReserved }}</td>
-                                <td>{{ movement.reason }}</td>
-                            </tr>
-                            <tr v-if="snapshot.movements.length === 0">
-                                <td colspan="10" class="text-center text-medium-emphasis py-6">
-                                    No inventory movements found.
-                                </td>
-                            </tr>
-                        </tbody>
-                    </v-table>
-                </template>
+                <InventoryMovementHistory v-if="!draft" :movements="snapshot.movements" />
             </v-card-text>
 
             <v-divider />
@@ -321,6 +228,7 @@ import {
     type InventoryMovementFormData,
 } from '~/schemas/inventory.schema'
 import type { InventoryDraftBalance, InventorySnapshot } from '~/types/inventory.types'
+import type { InventoryDisplayBalance } from './inventory-display.types'
 
 interface Props {
     modelValue: boolean
@@ -332,22 +240,10 @@ interface Props {
     defaultLowStockThreshold?: number
 }
 
-interface DisplayBalance {
-    key: string
-    locationId: number
-    locationName: string
-    previousOnHand: number
-    onHand: number
-    reserved: number
-    available: number
-    lowStockThreshold: number
-    stockStatus: string
-}
-
 const props = withDefaults(defineProps<Props>(), {
     entityId: 0,
     draft: false,
-    draftBalances: () => [],
+    draftBalances: (): never[] => [],
     defaultLowStockThreshold: 0,
 })
 const emit = defineEmits<{
@@ -382,7 +278,7 @@ const locations = computed(() => locationsFor(locationKey.value))
 const locationOptions = computed(() =>
     locations.value.map((location) => ({ title: location.name, value: location.id }))
 )
-const displayedBalances = computed<DisplayBalance[]>(() => {
+const displayedBalances = computed<InventoryDisplayBalance[]>(() => {
     if (props.draft) {
         return props.draftBalances.map((balance) => ({
             key: `draft-${balance.locationId}`,
@@ -469,7 +365,7 @@ const submitMovement = handleSubmit(async (form) => {
     emit('saved')
 })
 
-function addDraftBalance(): void {
+const addDraftBalance = (): void => {
     clearDraftErrors()
     const result = inventoryDraftBalanceSchema.safeParse(draftForm)
     if (!result.success) {
@@ -492,21 +388,21 @@ function addDraftBalance(): void {
     })
 }
 
-function removeDraftBalance(locationIdToRemove: number): void {
+const removeDraftBalance = (locationIdToRemove: number): void => {
     emit(
         'update:draftBalances',
         props.draftBalances.filter((balance) => balance.locationId !== locationIdToRemove)
     )
 }
 
-function beginThresholdUpdate(locationIdToUpdate: number, currentThreshold: number): void {
+const beginThresholdUpdate = (locationIdToUpdate: number, currentThreshold: number): void => {
     thresholdLocationId.value = locationIdToUpdate
     thresholdValue.value = currentThreshold
     thresholdReason.value = ''
     thresholdError.value = ''
 }
 
-async function saveThreshold(): Promise<void> {
+const saveThreshold = async (): Promise<void> => {
     if (!thresholdLocationId.value) return
     const result = inventoryThresholdSchema.safeParse({
         locationId: thresholdLocationId.value,
@@ -522,19 +418,19 @@ async function saveThreshold(): Promise<void> {
     emit('saved')
 }
 
-function cancelThresholdUpdate(): void {
+const cancelThresholdUpdate = (): void => {
     thresholdLocationId.value = null
     thresholdReason.value = ''
     thresholdError.value = ''
 }
 
-function clearDraftErrors(): void {
+const clearDraftErrors = (): void => {
     Object.keys(draftErrors).forEach((field) => {
         draftErrors[field as keyof InventoryDraftBalance] = ''
     })
 }
 
-function resetMovementForm(): void {
+const resetMovementForm = (): void => {
     resetForm({
         values: {
             movementType: INVENTORY_MOVEMENT_TYPE.RESTOCK_RECEIVED,
@@ -547,34 +443,13 @@ function resetMovementForm(): void {
     })
 }
 
-function stockStatus(available: number, threshold: number): string {
+const stockStatus = (available: number, threshold: number): string => {
     if (available <= 0) return INVENTORY_STOCK_STATUS.OUT_OF_STOCK
     if (available <= threshold) return INVENTORY_STOCK_STATUS.LOW_STOCK
     return INVENTORY_STOCK_STATUS.IN_STOCK
 }
 
-function stockStatusColor(status: string): string {
-    if (status === INVENTORY_STOCK_STATUS.IN_STOCK) return 'success'
-    if (status === INVENTORY_STOCK_STATUS.LOW_STOCK) return 'warning'
-    return 'error'
-}
-
-function formatLabel(value: string): string {
-    return value.replaceAll('_', ' ').toLowerCase()
-}
-
-function formatDate(value: string): string {
-    return new Intl.DateTimeFormat('en-US', {
-        dateStyle: 'medium',
-        timeStyle: 'short',
-    }).format(new Date(value))
-}
-
-function signedQuantity(value: number): string {
-    return value > 0 ? `+${value}` : String(value)
-}
-
-function close(): void {
+const close = (): void => {
     emit('update:modelValue', false)
 }
 

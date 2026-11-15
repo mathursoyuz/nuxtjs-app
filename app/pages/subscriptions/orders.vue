@@ -95,7 +95,16 @@ import { useToast } from '~/composables/useToast'
 import { formatMembershipMoney } from '~/utils/membership.util'
 import type { MembershipSubscriptionOrder } from '~/types/membership.types'
 
-definePageMeta({ middleware: ['auth'] })
+definePageMeta({
+    middleware: ['auth', 'permission'],
+    access: {
+        anyPermissions: [
+            CUSTOMER_MEMBERSHIP_SUBSCRIPTION_PERMISSIONS.READ,
+            ORGANISATION_MEMBERSHIP_SUBSCRIPTION_PERMISSIONS.READ,
+        ],
+        allowAnyOrganisation: true,
+    },
+})
 const access = useAccessStore()
 const route = useRoute()
 const manager = useMemberships()
@@ -170,8 +179,8 @@ const canRefund = (order: MembershipSubscriptionOrder): boolean =>
     ['PAID', 'PARTIALLY_REFUNDED'].includes(order.status) &&
     access.can(
         order.audience === 'CUSTOMER'
-            ? CUSTOMER_MEMBERSHIP_SUBSCRIPTION_PERMISSIONS.WRITE
-            : ORGANISATION_MEMBERSHIP_SUBSCRIPTION_PERMISSIONS.WRITE,
+            ? CUSTOMER_MEMBERSHIP_SUBSCRIPTION_PERMISSIONS.UPDATE
+            : ORGANISATION_MEMBERSHIP_SUBSCRIPTION_PERMISSIONS.UPDATE,
         order.organisationId
     )
 const openTransactions = (order: MembershipSubscriptionOrder): void => {

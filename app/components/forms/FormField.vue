@@ -111,7 +111,7 @@
 
         <v-file-input
             v-else-if="type === 'file'"
-            :model-value="modelValue"
+            :model-value="fileModelValue"
             :label="label"
             :required="required"
             :rules="rules"
@@ -134,58 +134,74 @@
 
 <script setup lang="ts">
 interface SelectItem {
-    title: string;
-    value: string | number;
-    [key: string]: unknown;
+    title: string
+    value: string | number
+    [key: string]: unknown
 }
 
 interface Props {
-    modelValue: string | number | boolean | File | File[] | null | undefined;
-    label: string;
-    name?: string; // Field name for validation
-    type?: 'text' | 'email' | 'password' | 'number' | 'textarea' | 'select' | 'checkbox' | 'switch' | 'file';
-    required?: boolean;
-    rules?: Array<(value: unknown) => boolean | string>;
-    disabled?: boolean;
-    readonly?: boolean;
-    placeholder?: string;
-    hint?: string;
-    persistentHint?: boolean;
-    errorMessages?: string | string[];
-    variant?: 'filled' | 'outlined' | 'plain' | 'underlined' | 'solo' | 'solo-inverted' | 'solo-filled';
-    density?: 'default' | 'comfortable' | 'compact';
-    clearable?: boolean;
-    cols?: number | string;
-    md?: number | string;
-    lg?: number | string;
+    modelValue: string | number | boolean | File | File[] | null | undefined
+    label: string
+    name?: string // Field name for validation
+    type?:
+        | 'text'
+        | 'email'
+        | 'password'
+        | 'number'
+        | 'textarea'
+        | 'select'
+        | 'checkbox'
+        | 'switch'
+        | 'file'
+    required?: boolean
+    rules?: Array<(value: unknown) => boolean | string>
+    disabled?: boolean
+    readonly?: boolean
+    placeholder?: string
+    hint?: string
+    persistentHint?: boolean
+    errorMessages?: string | string[]
+    variant?:
+        | 'filled'
+        | 'outlined'
+        | 'plain'
+        | 'underlined'
+        | 'solo'
+        | 'solo-inverted'
+        | 'solo-filled'
+    density?: 'default' | 'comfortable' | 'compact'
+    clearable?: boolean
+    cols?: number | string
+    md?: number | string
+    lg?: number | string
     // Text/Number specific
-    min?: number;
-    max?: number;
-    step?: number;
+    min?: number
+    max?: number
+    step?: number
     // Textarea specific
-    rows?: number;
-    autoGrow?: boolean;
+    rows?: number
+    autoGrow?: boolean
     // Select specific
-    selectItems?: SelectItem[] | string[] | number[];
-    multiple?: boolean;
-    itemTitle?: string;
-    itemValue?: string;
+    selectItems?: SelectItem[] | string[] | number[]
+    multiple?: boolean
+    itemTitle?: string
+    itemValue?: string
     // Switch specific
-    switchColor?: string;
+    switchColor?: string
     // File specific
-    accept?: string;
-    showSize?: boolean;
+    accept?: string
+    showSize?: boolean
     // Icons
-    prependIcon?: string;
-    appendIcon?: string;
+    prependIcon?: string
+    appendIcon?: string
 }
 
 interface Emits {
-    (e: 'update:modelValue', value: unknown): void;
-    (e: 'input', value: unknown): void;
-    (e: 'change', value: unknown): void;
-    (e: 'blur', event: FocusEvent): void;
-    (e: 'focus', event: FocusEvent): void;
+    (e: 'update:modelValue', value: unknown): void
+    (e: 'input', value: unknown): void
+    (e: 'change', value: unknown): void
+    (e: 'blur', event: FocusEvent): void
+    (e: 'focus', event: FocusEvent): void
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -207,30 +223,36 @@ const props = withDefaults(defineProps<Props>(), {
     itemValue: 'value',
     switchColor: 'primary',
     showSize: true,
-    selectItems: () => [],
-});
+    selectItems: (): never[] => [],
+})
 
-const emit = defineEmits<Emits>();
+const emit = defineEmits<Emits>()
+
+const fileModelValue = computed<File | File[] | null>(() => {
+    if (Array.isArray(props.modelValue)) return props.modelValue
+    if (typeof props.modelValue === 'object' && props.modelValue !== null) return props.modelValue
+    return null
+})
 
 const handleUpdate = (value: unknown): void => {
-    emit('update:modelValue', value);
-};
+    emit('update:modelValue', value)
+}
 
 const handleInput = (event: Event): void => {
-    const target = event.target as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
-    const value = target.value;
-    emit('input', value);
-    emit('update:modelValue', value);
-};
+    const target = event.target as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    const value = target.value
+    emit('input', value)
+    emit('update:modelValue', value)
+}
 
 const handleChange = (event: Event): void => {
-    const target = event.target as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
-    const value = target.value;
-    emit('change', value);
-    emit('update:modelValue', value);
-};
+    const target = event.target as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    const value = target.value
+    emit('change', value)
+    emit('update:modelValue', value)
+}
 
 const handleBlur = (event: FocusEvent): void => {
-    emit('blur', event);
-};
+    emit('blur', event)
+}
 </script>

@@ -5,7 +5,7 @@
                 <div class="d-flex align-center justify-space-between mb-4">
                     <h1 class="text-h4">Organisations</h1>
                     <v-btn
-                        v-if="access.can(ORGANISATION_PERMISSIONS.WRITE)"
+                        v-if="access.can(ORGANISATION_PERMISSIONS.CREATE)"
                         color="primary"
                         prepend-icon="mdi-plus"
                         @click="openCreateDialog"
@@ -37,8 +37,8 @@
                             :headers="headers"
                             :items="filteredOrganisations"
                             :loading="loading"
-                            :selectable="access.can(ORGANISATION_PERMISSIONS.WRITE)"
-                            :show-select="access.can(ORGANISATION_PERMISSIONS.WRITE)"
+                            :selectable="access.can(ORGANISATION_PERMISSIONS.UPDATE)"
+                            :show-select="access.can(ORGANISATION_PERMISSIONS.UPDATE)"
                             item-value="id"
                             class="elevation-1"
                         >
@@ -78,31 +78,49 @@
                                         @click="handlePlatformServices(item as Organisation)"
                                         title="Subscribe to Platform Services"
                                     />
-                                    <template v-if="access.can(ORGANISATION_PERMISSIONS.WRITE)">
-                                        <v-btn
-                                            icon="mdi-cart-plus"
-                                            size="small"
-                                            color="success"
-                                            variant="text"
-                                            @click="handlePurchaseProducts(item as Organisation)"
-                                            title="Purchase Products"
-                                        ></v-btn>
-                                        <v-btn
-                                            icon="mdi-plus-circle"
-                                            size="small"
-                                            color="info"
-                                            variant="text"
-                                            @click="handleAddProduct(item as Organisation)"
-                                            title="Add Product"
-                                        ></v-btn>
-                                        <v-btn
-                                            icon="mdi-credit-card-plus"
-                                            size="small"
-                                            color="primary"
-                                            variant="text"
-                                            @click="handleAddCreditCard(item as Organisation)"
-                                            title="Add Credit Card"
-                                        ></v-btn>
+                                    <v-btn
+                                        v-if="
+                                            access.can(
+                                                PROCUREMENT_ORDER_PERMISSIONS.CREATE,
+                                                item.id
+                                            )
+                                        "
+                                        icon="mdi-cart-plus"
+                                        size="small"
+                                        color="success"
+                                        variant="text"
+                                        @click="handlePurchaseProducts(item as Organisation)"
+                                        title="Purchase Products"
+                                    ></v-btn>
+                                    <v-btn
+                                        v-if="
+                                            access.can(
+                                                ORGANISATION_PRODUCT_PERMISSIONS.CREATE,
+                                                item.id
+                                            )
+                                        "
+                                        icon="mdi-plus-circle"
+                                        size="small"
+                                        color="info"
+                                        variant="text"
+                                        @click="handleAddProduct(item as Organisation)"
+                                        title="Add Product"
+                                    ></v-btn>
+                                    <v-btn
+                                        v-if="
+                                            access.can(
+                                                ORGANISATION_CREDIT_CARD_PERMISSIONS.CREATE,
+                                                item.id
+                                            )
+                                        "
+                                        icon="mdi-credit-card-plus"
+                                        size="small"
+                                        color="primary"
+                                        variant="text"
+                                        @click="handleAddCreditCard(item as Organisation)"
+                                        title="Add Credit Card"
+                                    ></v-btn>
+                                    <template v-if="access.can(ORGANISATION_PERMISSIONS.UPDATE)">
                                         <v-btn
                                             icon="mdi-pencil"
                                             size="small"
@@ -234,6 +252,9 @@ import { ref, defineAsyncComponent } from 'vue'
 import { useOrganisation } from '~/composables/useOrganisation'
 import { useAccessStore } from '~/stores/access.store'
 import { ORGANISATION_PERMISSIONS } from '~/components/organisations/organisation.permissions'
+import { ORGANISATION_CREDIT_CARD_PERMISSIONS } from '~/components/organisations/organisation-credit-card.permissions'
+import { ORGANISATION_PRODUCT_PERMISSIONS } from '~/components/organisation-products/organisation-products.permissions'
+import { PROCUREMENT_ORDER_PERMISSIONS } from '~/components/orders/order.permissions'
 import {
     ORGANISATION_MEMBERSHIP_PERMISSIONS,
     ORGANISATION_MEMBERSHIP_SUBSCRIPTION_PERMISSIONS,
@@ -312,7 +333,11 @@ const selectedOrganisationForMemberships = ref<Organisation | null>(null)
 const canWritePlatformServices = computed(() =>
     selectedOrganisationForPlatformServices.value
         ? access.can(
-              ORGANISATION_MEMBERSHIP_SUBSCRIPTION_PERMISSIONS.WRITE,
+              ORGANISATION_MEMBERSHIP_SUBSCRIPTION_PERMISSIONS.CREATE,
+              selectedOrganisationForPlatformServices.value.id
+          ) ||
+          access.can(
+              ORGANISATION_MEMBERSHIP_SUBSCRIPTION_PERMISSIONS.UPDATE,
               selectedOrganisationForPlatformServices.value.id
           )
         : false
@@ -338,46 +363,46 @@ const filteredOrganisations = computed(() => {
     })
 })
 
-const handleSearch = (query: string | null) => {
+const handleSearch = (query: string | null): void => {
     searchQuery.value = query || ''
 }
 
-const openCreateDialog = () => {
+const openCreateDialog = (): void => {
     selectedOrganisation.value = null
     addDialogOpen.value = true
 }
 
-const handleEdit = (item: unknown) => {
+const handleEdit = (item: unknown): void => {
     selectedOrganisation.value = item as Organisation
     editDialogOpen.value = true
 }
 
-const handleDelete = (item: unknown) => {
+const handleDelete = (item: unknown): void => {
     selectedOrganisation.value = item as Organisation
     deleteDialogOpen.value = true
 }
 
-const handleAddCreditCard = (item: Organisation) => {
+const handleAddCreditCard = (item: Organisation): void => {
     selectedOrganisationForCreditCard.value = item
     addCreditCardDialogOpen.value = true
 }
 
-const handleAddProduct = (item: Organisation) => {
+const handleAddProduct = (item: Organisation): void => {
     selectedOrganisationForProduct.value = item
     addProductDialogOpen.value = true
 }
 
-const handlePurchaseProducts = (item: Organisation) => {
+const handlePurchaseProducts = (item: Organisation): void => {
     selectedOrganisationForPurchase.value = item
     purchaseDialogOpen.value = true
 }
 
-const handleViewProducts = (item: Organisation) => {
+const handleViewProducts = (item: Organisation): void => {
     selectedOrganisationForViewProducts.value = item
     viewProductsDialogOpen.value = true
 }
 
-const handleViewTransactions = (item: Organisation) => {
+const handleViewTransactions = (item: Organisation): void => {
     selectedOrganisationForTransactions.value = item
     viewTransactionsDialogOpen.value = true
 }
@@ -392,7 +417,7 @@ const handlePlatformServices = (item: Organisation): void => {
     platformServicesDialogOpen.value = true
 }
 
-const handleDialogSubmit = async () => {
+const handleDialogSubmit = async (): Promise<void> => {
     await fetchOrganisations()
 }
 

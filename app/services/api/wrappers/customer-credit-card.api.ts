@@ -1,5 +1,6 @@
-import type { CachedApiClient } from '../CachedApiClient'
+import HttpFactory from '@/repository/factory'
 import type { ApiResponse } from '~/types/api.types'
+import type { AddressDetails, PaymentCardDetails } from '~/types/payment-details.types'
 
 export interface CustomerCreditCard {
     id: number
@@ -12,37 +13,25 @@ export interface CustomerCreditCard {
     updatedAt: string
 }
 
-export interface CreateCustomerCreditCardDTO {
-    firstName: string
-    lastName: string
-    company?: string
-    address: string
-    city: string
-    stateCode: string
-    postalCode: string
-    countryCode: string
-    phoneNumber?: string
-    cardNumber: string
-    expMonth: string
-    expYear: string
-    cvc: string
+export interface CreateCustomerCreditCardDTO extends AddressDetails, PaymentCardDetails {
     isActive?: boolean
 }
 
 /**
  * Customer Credit Card API wrapper service
  */
-export class CustomerCreditCardApiService {
-    constructor(private readonly cachedApi: CachedApiClient) {}
-
+export class CustomerCreditCardApiService extends HttpFactory {
     async getAllCustomerCreditCards(
         customerId: number
     ): Promise<ApiResponse<CustomerCreditCard[]>> {
-        return this.cachedApi.get<CustomerCreditCard[]>(
+        return await this.call<CustomerCreditCard[]>(
+            'GET',
             `/customers/${customerId}/credit-card`,
             undefined,
-            `customer-cc:customer:${customerId}`,
-            5 * 60 * 1000
+            {
+                cacheKey: `customer-cc:customer:${customerId}`,
+                ttl: 5 * 60 * 1000,
+            }
         )
     }
 
@@ -50,16 +39,16 @@ export class CustomerCreditCardApiService {
         customerId: number,
         data: CreateCustomerCreditCardDTO
     ): Promise<ApiResponse<CustomerCreditCard>> {
-        const response = await this.cachedApi.post<CustomerCreditCard>(
+        const response = await this.call<CustomerCreditCard, CreateCustomerCreditCardDTO>(
+            'POST',
             `/customers/${customerId}/credit-card`,
             data,
-            undefined,
-            `customer-cc:customer:${customerId}.*`
+            { invalidatePattern: `customer-cc:customer:${customerId}.*` }
         )
-        this.cachedApi.invalidatePattern(`customer-cc:customer:${customerId}.*`)
-        this.cachedApi.invalidate(`customer-cc:customer:${customerId}`)
-        this.cachedApi.invalidate(`customers:${customerId}`)
-        this.cachedApi.invalidatePattern('customers:.*')
+        this.invalidateCachePattern(`customer-cc:customer:${customerId}.*`)
+        this.invalidateCacheKey(`customer-cc:customer:${customerId}`)
+        this.invalidateCacheKey(`customers:${customerId}`)
+        this.invalidateCachePattern('customers:.*')
         return response
     }
 
@@ -68,27 +57,31 @@ export class CustomerCreditCardApiService {
         cardId: number,
         isActive: boolean
     ): Promise<ApiResponse<CustomerCreditCard>> {
-        const response = await this.cachedApi.patch<CustomerCreditCard>(
+        const response = await this.call<CustomerCreditCard, { isActive: boolean }>(
+            'PATCH',
             `/customers/${customerId}/credit-card/${cardId}`,
             { isActive },
-            undefined,
-            `customer-cc:customer:${customerId}.*`
+            { invalidatePattern: `customer-cc:customer:${customerId}.*` }
         )
-        this.cachedApi.invalidate(`customer-cc:${cardId}`)
-        this.cachedApi.invalidatePattern(`customer-cc:customer:${customerId}.*`)
-        this.cachedApi.invalidate(`customer-cc:customer:${customerId}`)
+        this.invalidateCacheKey(`customer-cc:${cardId}`)
+        this.invalidateCachePattern(`customer-cc:customer:${customerId}.*`)
+        this.invalidateCacheKey(`customer-cc:customer:${customerId}`)
         return response
     }
 
     async refreshCustomerCreditCards(
         customerId: number
     ): Promise<ApiResponse<CustomerCreditCard[]>> {
-        return this.cachedApi.get<CustomerCreditCard[]>(
+        return await this.call<CustomerCreditCard[]>(
+            'GET',
             `/customers/${customerId}/credit-card`,
             undefined,
-            `customer-cc:customer:${customerId}`,
-            undefined,
-            true
+            {
+                cacheKey: `customer-cc:customer:${customerId}`,
+                skipCache: true,
+            }
         )
     }
 }
+
+export default CustomerCreditCardApiService

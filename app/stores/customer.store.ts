@@ -22,30 +22,30 @@ export const useCustomerStore = defineStore('customer', () => {
         () => (id: number) => customers.value.find((customer) => customer.id === id)
     )
 
-    function setCustomers(value: Customer[]): void {
+    const setCustomers = (value: Customer[]): void => {
         customers.value = value
     }
 
-    function setCurrentCustomer(value: Customer | null): void {
+    const setCurrentCustomer = (value: Customer | null): void => {
         currentCustomer.value = value
     }
 
-    function addCustomer(customer: Customer): void {
+    const addCustomer = (customer: Customer): void => {
         customers.value.push(customer)
     }
 
-    function updateCustomer(customer: Customer): void {
+    const updateCustomer = (customer: Customer): void => {
         const index = customers.value.findIndex((item) => item.id === customer.id)
         if (index >= 0) customers.value[index] = customer
         if (currentCustomer.value?.id === customer.id) currentCustomer.value = customer
     }
 
-    function removeCustomer(id: number): void {
+    const removeCustomer = (id: number): void => {
         customers.value = customers.value.filter((customer) => customer.id !== id)
         if (currentCustomer.value?.id === id) currentCustomer.value = null
     }
 
-    function addShippingAddress(customerId: number, address: CustomerShippingAddress): void {
+    const addShippingAddress = (customerId: number, address: CustomerShippingAddress): void => {
         const listedCustomer = customers.value.find((customer) => customer.id === customerId)
         if (listedCustomer) {
             listedCustomer.shippingAddresses ??= []
@@ -58,11 +58,11 @@ export const useCustomerStore = defineStore('customer', () => {
         }
     }
 
-    function updateShippingAddress(
+    const updateShippingAddress = (
         customerId: number,
         addressId: number,
         address: CustomerShippingAddress
-    ): void {
+    ): void => {
         const listedCustomer = customers.value.find((customer) => customer.id === customerId)
         replaceShippingAddress(listedCustomer, addressId, address)
         if (currentCustomer.value !== listedCustomer) {
@@ -70,7 +70,7 @@ export const useCustomerStore = defineStore('customer', () => {
         }
     }
 
-    function removeShippingAddress(customerId: number, addressId: number): void {
+    const removeShippingAddress = (customerId: number, addressId: number): void => {
         const listedCustomer = customers.value.find((customer) => customer.id === customerId)
         deleteShippingAddressFromCustomer(listedCustomer, addressId)
         if (currentCustomer.value !== listedCustomer) {
@@ -78,47 +78,47 @@ export const useCustomerStore = defineStore('customer', () => {
         }
     }
 
-    function replaceShippingAddress(
+    const replaceShippingAddress = (
         customer: Customer | null | undefined,
         addressId: number,
         address: CustomerShippingAddress
-    ): void {
+    ): void => {
         if (!customer?.shippingAddresses) return
         const index = customer.shippingAddresses.findIndex((item) => item.id === addressId)
         if (index >= 0) customer.shippingAddresses[index] = address
     }
 
-    function deleteShippingAddressFromCustomer(
+    const deleteShippingAddressFromCustomer = (
         customer: Customer | null | undefined,
         addressId: number
-    ): void {
+    ): void => {
         if (!customer?.shippingAddresses) return
         customer.shippingAddresses = customer.shippingAddresses.filter(
             (address) => address.id !== addressId
         )
     }
 
-    function setLoading(value: boolean): void {
+    const setLoading = (value: boolean): void => {
         loading.value = value
     }
 
-    function setError(value: string | null): void {
+    const setError = (value: string | null): void => {
         error.value = value
     }
 
-    function clearError(): void {
+    const clearError = (): void => {
         error.value = null
     }
 
-    function setPagination(value: PaginationState): void {
+    const setPagination = (value: PaginationState): void => {
         pagination.value = value
     }
 
-    function clearPagination(): void {
+    const clearPagination = (): void => {
         pagination.value = null
     }
 
-    function resetForOrganisationContext(): void {
+    const resetForOrganisationContext = (): void => {
         customers.value = []
         currentCustomer.value = null
         pagination.value = null

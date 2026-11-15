@@ -1,4 +1,5 @@
 export const USER_PERMISSIONS = {
     READ: 'users.read',
-    WRITE: 'users.write',
+    CREATE: 'users.create',
+    UPDATE: 'users.update',
 } as const

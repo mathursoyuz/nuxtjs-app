@@ -6,7 +6,7 @@
                     <h1 class="text-h4">Customers</h1>
                     <div class="d-flex align-center gap-2">
                         <v-btn
-                            v-if="canWriteSelectedOrganisation"
+                            v-if="canCreateSelectedOrganisation"
                             color="primary"
                             prepend-icon="mdi-plus"
                             @click="openAddDialog()"
@@ -46,8 +46,8 @@
                             :headers="headers"
                             :items="customers"
                             :loading="loading"
-                            :selectable="canWriteSelectedOrganisation"
-                            :show-select="canWriteSelectedOrganisation"
+                            :selectable="false"
+                            :show-select="false"
                             :items-length="pagination?.total ?? 0"
                             :page="currentPage"
                             :items-per-page="itemsPerPage"
@@ -204,7 +204,7 @@
 
                             <template #item.isActive="{ item }">
                                 <v-switch
-                                    :disabled="!canWriteCustomer(item)"
+                                    :disabled="!canUpdateCustomer(item)"
                                     :model-value="item.isActive"
                                     density="compact"
                                     hide-details
@@ -259,7 +259,7 @@
                                         title="View Details"
                                     ></v-btn>
                                     <v-btn
-                                        v-if="canWriteCustomer(item)"
+                                        v-if="canCreateCustomerCard(item)"
                                         icon="mdi-credit-card"
                                         size="small"
                                         color="primary"
@@ -268,7 +268,7 @@
                                         title="Add Credit Card"
                                     ></v-btn>
                                     <v-btn
-                                        v-if="canWriteCustomer(item)"
+                                        v-if="canUpdateCustomer(item)"
                                         icon="mdi-truck-delivery"
                                         size="small"
                                         color="primary"
@@ -277,7 +277,7 @@
                                         title="Manage Shipping Addresses"
                                     ></v-btn>
                                     <v-btn
-                                        v-if="canWriteCustomer(item)"
+                                        v-if="canUpdateCustomer(item)"
                                         icon="mdi-pencil"
                                         size="small"
                                         color="primary"
@@ -391,6 +391,7 @@ import { useCustomer } from '~/composables/useCustomer'
 import { useOrganisation } from '~/composables/useOrganisation'
 import { useAccessStore } from '~/stores/access.store'
 import { CUSTOMER_PERMISSIONS } from '~/components/customers/customer.permissions'
+import { CUSTOMER_CREDIT_CARD_PERMISSIONS } from '~/components/customers/customer-credit-card.permissions'
 import { CUSTOMER_ORDER_PERMISSIONS } from '~/components/orders/order.permissions'
 import { CUSTOMER_MEMBERSHIP_SUBSCRIPTION_PERMISSIONS } from '~/components/memberships/membership.permissions'
 import { MEMBERSHIP_ACTION_STATUS } from '~/constants/membership.constants'
@@ -447,23 +448,26 @@ const {
     syncCustomerToSquare,
 } = useCustomer()
 const access = useAccessStore()
-const canWriteSelectedOrganisation = computed(
+const canCreateSelectedOrganisation = computed(
     () =>
         selectedOrganisationId.value !== null &&
-        access.can(CUSTOMER_PERMISSIONS.WRITE, selectedOrganisationId.value)
+        access.can(CUSTOMER_PERMISSIONS.CREATE, selectedOrganisationId.value)
 )
-const canWriteCustomer = (customer: Customer) =>
-    access.can(CUSTOMER_PERMISSIONS.WRITE, customer.organisationId)
-const canDeleteCustomer = (customer: Customer) =>
+const canUpdateCustomer = (customer: Customer): boolean =>
+    access.can(CUSTOMER_PERMISSIONS.UPDATE, customer.organisationId)
+const canCreateCustomerCard = (customer: Customer): boolean =>
+    access.can(CUSTOMER_CREDIT_CARD_PERMISSIONS.CREATE, customer.organisationId)
+const canDeleteCustomer = (customer: Customer): boolean =>
     access.can(CUSTOMER_PERMISSIONS.DELETE, customer.organisationId)
-const canReadCustomerOrders = (customer: Customer) =>
+const canReadCustomerOrders = (customer: Customer): boolean =>
     access.can(CUSTOMER_ORDER_PERMISSIONS.READ, customer.organisationId)
-const canCreateCustomerOrder = (customer: Customer) =>
-    access.can(CUSTOMER_ORDER_PERMISSIONS.WRITE, customer.organisationId)
-const canReadCustomerMemberships = (customer: Customer) =>
+const canCreateCustomerOrder = (customer: Customer): boolean =>
+    access.can(CUSTOMER_ORDER_PERMISSIONS.CREATE, customer.organisationId)
+const canReadCustomerMemberships = (customer: Customer): boolean =>
     access.can(CUSTOMER_MEMBERSHIP_SUBSCRIPTION_PERMISSIONS.READ, customer.organisationId)
-const canWriteCustomerMemberships = (customer: Customer) =>
-    access.can(CUSTOMER_MEMBERSHIP_SUBSCRIPTION_PERMISSIONS.WRITE, customer.organisationId)
+const canWriteCustomerMemberships = (customer: Customer): boolean =>
+    access.can(CUSTOMER_MEMBERSHIP_SUBSCRIPTION_PERMISSIONS.CREATE, customer.organisationId) ||
+    access.can(CUSTOMER_MEMBERSHIP_SUBSCRIPTION_PERMISSIONS.UPDATE, customer.organisationId)
 const membershipManager = useMemberships()
 const { successFromResponse, errorFromError, success } = useToast()
 const { getImportResultMessage } = useApiMessage()
@@ -516,7 +520,7 @@ const syncingCustomerId = ref<number | null>(null)
 const syncingTo = ref<'qb' | 'square' | null>(null)
 const importingFrom = ref<'qb' | 'square' | null>(null)
 
-const handleImportFromQB = async () => {
+const handleImportFromQB = async (): Promise<void> => {
     importingFrom.value = 'qb'
 
     try {
@@ -534,7 +538,7 @@ const handleImportFromQB = async () => {
     }
 }
 
-const handleImportFromSquare = async () => {
+const handleImportFromSquare = async (): Promise<void> => {
     importingFrom.value = 'square'
 
     try {
@@ -552,18 +556,18 @@ const handleImportFromSquare = async () => {
     }
 }
 
-const handleSyncToQB = async (customer: Customer) => {
+const handleSyncToQB = async (customer: Customer): Promise<void> => {
     syncingCustomerId.value = customer.id
     syncingTo.value = 'qb'
 
     try {
         const loadingTask = useLoadingTask('sync-customer-qb')
         await loadingTask.execute(async () => {
-            const response = await syncCustomerToQB(customer.id)
+            await syncCustomerToQB(customer.id)
             const fallbackMessage = customer.qbSyncErrorReason
                 ? CUSTOMER_MESSAGES.SYNC_QB_RESYNC_SUCCESS
                 : CUSTOMER_MESSAGES.SYNC_QB_SUCCESS
-            successFromResponse({ success: true, message: '', data: response }, fallbackMessage)
+            success(fallbackMessage)
             await refreshCustomers()
         })
     } catch (error) {
@@ -574,18 +578,15 @@ const handleSyncToQB = async (customer: Customer) => {
     }
 }
 
-const handleSyncToSquare = async (customer: Customer) => {
+const handleSyncToSquare = async (customer: Customer): Promise<void> => {
     syncingCustomerId.value = customer.id
     syncingTo.value = 'square'
 
     try {
         const loadingTask = useLoadingTask('sync-customer-square')
         await loadingTask.execute(async () => {
-            const response = await syncCustomerToSquare(customer.id)
-            successFromResponse(
-                { success: true, message: '', data: response },
-                CUSTOMER_MESSAGES.SYNC_SQUARE_SUCCESS
-            )
+            await syncCustomerToSquare(customer.id)
+            success(CUSTOMER_MESSAGES.SYNC_SQUARE_SUCCESS)
             await refreshCustomers()
         })
     } catch (error) {
@@ -598,7 +599,7 @@ const handleSyncToSquare = async (customer: Customer) => {
 
 let searchTimer: ReturnType<typeof setTimeout> | null = null
 
-const handleSearch = (query: string | null) => {
+const handleSearch = (query: string | null): void => {
     searchQuery.value = query || ''
     currentPage.value = 1
     if (searchTimer) clearTimeout(searchTimer)
@@ -607,22 +608,22 @@ const handleSearch = (query: string | null) => {
     }, 300)
 }
 
-const openAddDialog = () => {
+const openAddDialog = (): void => {
     showAddDialog.value = true
 }
 
-const handleView = (item: Customer) => {
+const handleView = (item: Customer): void => {
     selectedCustomerId.value = item.id
     selectedCustomer.value = item
     showViewDialog.value = true
 }
 
-const handleOrders = (item: Customer) => {
+const handleOrders = (item: Customer): void => {
     selectedCustomerForOrders.value = item
     showOrdersDialog.value = true
 }
 
-const handlePurchase = async (item: Customer) => {
+const handlePurchase = async (item: Customer): Promise<void> => {
     await navigateTo({ path: '/orders/create', query: { customerId: String(item.id) } })
 }
 
@@ -678,7 +679,7 @@ const handleMembershipDialogClosed = async (open: boolean): Promise<void> => {
     await loadCustomerMembershipActions()
 }
 
-const handleEdit = async (item: Customer) => {
+const handleEdit = async (item: Customer): Promise<void> => {
     const loadingTask = useLoadingTask('load-customer-for-edit')
     await loadingTask.execute(async () => {
         const fullCustomer = await fetchCustomerById(item.id)
@@ -687,7 +688,7 @@ const handleEdit = async (item: Customer) => {
     })
 }
 
-const handleEditFromView = (customerId: number, _organisationId: number) => {
+const handleEditFromView = (customerId: number, _organisationId: number): void => {
     showViewDialog.value = false
     const customer = customers.value.find((c) => c.id === customerId)
     if (customer) {
@@ -698,12 +699,12 @@ const handleEditFromView = (customerId: number, _organisationId: number) => {
 const showDeleteDialog = ref(false)
 const customerToDelete = ref<Customer | null>(null)
 
-const handleDelete = (item: Customer) => {
+const handleDelete = (item: Customer): void => {
     customerToDelete.value = item
     showDeleteDialog.value = true
 }
 
-const confirmDelete = async () => {
+const confirmDelete = async (): Promise<void> => {
     if (!customerToDelete.value) return
 
     try {
@@ -720,7 +721,7 @@ const confirmDelete = async () => {
     }
 }
 
-const handleToggleActive = async (customerId: number, isActive: boolean) => {
+const handleToggleActive = async (customerId: number, isActive: boolean): Promise<void> => {
     try {
         const loadingTask = useLoadingTask('toggle-customer-active')
         await loadingTask.execute(async () => {
@@ -732,7 +733,7 @@ const handleToggleActive = async (customerId: number, isActive: boolean) => {
     }
 }
 
-const handleOrganisationChange = async () => {
+const handleOrganisationChange = async (): Promise<void> => {
     currentPage.value = 1 // Reset to first page on organisation change
     const loadingTask = useLoadingTask('fetch-customers')
     await loadingTask.execute(async () => {
@@ -746,7 +747,7 @@ const handleOrganisationChange = async () => {
     })
 }
 
-const handlePageChange = async (page: number) => {
+const handlePageChange = async (page: number): Promise<void> => {
     currentPage.value = page
     const loadingTask = useLoadingTask('fetch-customers-page')
     await loadingTask.execute(async () => {
@@ -760,7 +761,7 @@ const handlePageChange = async (page: number) => {
     })
 }
 
-const handleItemsPerPageChange = async (limit: number) => {
+const handleItemsPerPageChange = async (limit: number): Promise<void> => {
     itemsPerPage.value = limit
     currentPage.value = 1 // Reset to first page when changing items per page
     const loadingTask = useLoadingTask('fetch-customers-limit')
@@ -776,7 +777,7 @@ const handleItemsPerPageChange = async (limit: number) => {
 }
 
 // Optimized: Single refresh function to avoid redundant calls
-const refreshCustomers = async () => {
+const refreshCustomers = async (): Promise<void> => {
     const loadingTask = useLoadingTask('refresh-customers')
     await loadingTask.execute(async () => {
         await fetchCustomers(
@@ -789,16 +790,16 @@ const refreshCustomers = async () => {
     })
 }
 
-const handleCustomerCreated = async () => {
+const handleCustomerCreated = async (): Promise<void> => {
     currentPage.value = 1 // Reset to first page after creating
     await refreshCustomers()
 }
 
-const handleCustomerUpdated = async () => {
+const handleCustomerUpdated = async (): Promise<void> => {
     await refreshCustomers()
 }
 
-const handleAddCreditCard = async (item: Customer) => {
+const handleAddCreditCard = async (item: Customer): Promise<void> => {
     const loadingTask = useLoadingTask('load-customer-for-credit-card')
     await loadingTask.execute(async () => {
         const fullCustomer = await fetchCustomerById(item.id)
@@ -807,7 +808,7 @@ const handleAddCreditCard = async (item: Customer) => {
     })
 }
 
-const handleManageShipping = async (item: Customer) => {
+const handleManageShipping = async (item: Customer): Promise<void> => {
     const loadingTask = useLoadingTask('load-customer-for-shipping')
     await loadingTask.execute(async () => {
         const fullCustomer = await fetchCustomerById(item.id)
@@ -816,11 +817,11 @@ const handleManageShipping = async (item: Customer) => {
     })
 }
 
-const handleCreditCardAdded = async () => {
+const handleCreditCardAdded = async (): Promise<void> => {
     await refreshCustomers()
 }
 
-const handleShippingAddressesUpdated = async () => {
+const handleShippingAddressesUpdated = async (): Promise<void> => {
     await refreshCustomers()
 }
 

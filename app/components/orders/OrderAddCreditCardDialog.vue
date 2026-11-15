@@ -53,7 +53,7 @@
                             v-model="form.cardNumber"
                             label="Card number *"
                             inputmode="numeric"
-                            maxlength="18"
+                            maxlength="19"
                             variant="outlined"
                         />
                     </v-col>
@@ -99,17 +99,18 @@
 
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
-import { useCustomerCreditCards } from '~/composables/useCustomerCreditCards'
+import { useOrders } from '~/composables/useOrders'
 import { useCountry } from '~/composables/useCountry'
 import { useToast } from '~/composables/useToast'
 import type { Customer } from '~/services/api/wrappers/customer.api'
+import { paymentCardDetailsSchema } from '~/schemas/payment-card.schema'
 
-const props = defineProps<{ modelValue: boolean; customer: Customer }>()
+const props = defineProps<{ modelValue: boolean; customer: Customer; orderId?: number }>()
 const emit = defineEmits<{
     'update:modelValue': [value: boolean]
     added: []
 }>()
-const { addCard } = useCustomerCreditCards(() => props.customer.id)
+const { createCustomerOrderCard, createPendingCustomerOrderCard } = useOrders()
 const { countryOptions, fetchCountries, fetchStates } = useCountry()
 const { success, errorFromError } = useToast()
 const stateOptions = ref<Array<{ title: string; value: string }>>([])
@@ -136,17 +137,19 @@ const isValid = computed(
         form.stateCode.length > 0 &&
         form.postalCode.length >= 3 &&
         form.countryCode.length > 0 &&
-        /^\d{13,18}$/.test(form.cardNumber) &&
-        /^(0[1-9]|1[0-2])$/.test(form.expMonth) &&
-        /^\d{4}$/.test(form.expYear) &&
-        /^\d{3,4}$/.test(form.cvc)
+        paymentCardDetailsSchema.safeParse({
+            cardNumber: form.cardNumber,
+            expMonth: form.expMonth,
+            expYear: form.expYear,
+            cvc: form.cvc,
+        }).success
 )
 
-function close(value: boolean): void {
+const close = (value: boolean): void => {
     emit('update:modelValue', value)
 }
 
-async function loadStates(countryCode: string): Promise<void> {
+const loadStates = async (countryCode: string): Promise<void> => {
     if (!countryCode) {
         stateOptions.value = []
         return
@@ -155,16 +158,16 @@ async function loadStates(countryCode: string): Promise<void> {
     stateOptions.value = states.map((state) => ({ title: state.name, value: state.id }))
 }
 
-async function changeCountry(countryCode: string): Promise<void> {
+const changeCountry = async (countryCode: string): Promise<void> => {
     form.stateCode = ''
     await loadStates(countryCode)
 }
 
-async function save(): Promise<void> {
+const save = async (): Promise<void> => {
     if (!isValid.value) return
     saving.value = true
     try {
-        await addCard({
+        const payload = {
             firstName: props.customer.firstName,
             lastName: props.customer.lastName,
             company: form.company.trim() || undefined,
@@ -178,7 +181,12 @@ async function save(): Promise<void> {
             expMonth: form.expMonth,
             expYear: form.expYear,
             cvc: form.cvc,
-        })
+        }
+        if (props.orderId) {
+            await createPendingCustomerOrderCard(props.orderId, payload)
+        } else {
+            await createCustomerOrderCard(props.customer.id, payload)
+        }
         success('Payment card added successfully')
         emit('added')
         close(false)

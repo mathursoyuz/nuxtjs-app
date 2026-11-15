@@ -3,15 +3,15 @@
  * Application-wide utilities for managing transaction status display and logic
  */
 
-import { TransactionStatus, TRANSACTION_STATUS_LABELS } from '~/constants/transaction.constants';
+import { TransactionStatus, TRANSACTION_STATUS_LABELS } from '~/constants/transaction.constants'
 
 /**
  * Get the text label for a transaction status
  * @param status - Transaction status number (0 = Pending, 1 = Approved, 2 = Declined)
  * @returns Status label string
  */
-export function getTransactionStatusText(status: number): string {
-    return TRANSACTION_STATUS_LABELS[status as TransactionStatus] || 'Unknown';
+export const getTransactionStatusText = (status: number): string => {
+    return TRANSACTION_STATUS_LABELS[status as TransactionStatus] || 'Unknown'
 }
 
 /**
@@ -19,13 +19,13 @@ export function getTransactionStatusText(status: number): string {
  * @param status - Transaction status number (0 = Pending, 1 = Approved, 2 = Declined)
  * @returns Vuetify color name
  */
-export function getTransactionStatusColor(status: number): string {
+export const getTransactionStatusColor = (status: number): string => {
     const statusColors: Record<TransactionStatus, string> = {
         [TransactionStatus.Pending]: 'warning',
         [TransactionStatus.Approved]: 'success',
         [TransactionStatus.Declined]: 'error',
-    };
-    return statusColors[status as TransactionStatus] || 'default';
+    }
+    return statusColors[status as TransactionStatus] || 'default'
 }
 
 /**
@@ -33,8 +33,8 @@ export function getTransactionStatusColor(status: number): string {
  * @param status - Transaction status number
  * @returns true if status is Approved (1)
  */
-export function isTransactionApproved(status: number): boolean {
-    return status === TransactionStatus.Approved;
+export const isTransactionApproved = (status: number): boolean => {
+    return status === TransactionStatus.Approved
 }
 
 /**
@@ -42,8 +42,8 @@ export function isTransactionApproved(status: number): boolean {
  * @param status - Transaction status number
  * @returns true if status is Declined (2)
  */
-export function isTransactionDeclined(status: number): boolean {
-    return status === TransactionStatus.Declined;
+export const isTransactionDeclined = (status: number): boolean => {
+    return status === TransactionStatus.Declined
 }
 
 /**
@@ -51,8 +51,8 @@ export function isTransactionDeclined(status: number): boolean {
  * @param status - Transaction status number
  * @returns true if status is Pending (0)
  */
-export function isTransactionPending(status: number): boolean {
-    return status === TransactionStatus.Pending;
+export const isTransactionPending = (status: number): boolean => {
+    return status === TransactionStatus.Pending
 }
 
 /**
@@ -61,9 +61,9 @@ export function isTransactionPending(status: number): boolean {
  * @param status - Transaction status to filter by
  * @returns Filtered array of transactions
  */
-export function filterTransactionsByStatus<T extends { paymentStatus: number }>(
+export const filterTransactionsByStatus = <T extends { paymentStatus: number }>(
     transactions: T[],
     status: TransactionStatus
-): T[] {
-    return transactions.filter((transaction) => transaction.paymentStatus === status);
+): T[] => {
+    return transactions.filter((transaction) => transaction.paymentStatus === status)
 }

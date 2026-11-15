@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { INVENTORY_MOVEMENT_TYPE } from '~/constants/inventory.constants'
+import { SCHEMA_FIELD_LIMITS as LIMIT } from '~/constants/schema-field-limits.constants'
 
 const movementTypes = [
     INVENTORY_MOVEMENT_TYPE.OPENING_BALANCE,
@@ -20,14 +21,15 @@ export const inventoryMovementSchema = z
         locationId: z.coerce.number().int().positive('Select a location'),
         destinationLocationId: z.coerce.number().int().positive().optional(),
         quantity: z.coerce.number().int().min(0, 'Quantity cannot be negative'),
-        reason: z.string().trim().min(3, 'Reason must contain at least 3 characters').max(255),
-        notes: z.string().trim().max(500).optional(),
+        reason: z
+            .string()
+            .trim()
+            .min(3, 'Reason must contain at least 3 characters')
+            .max(LIMIT.INVENTORY_REASON),
+        notes: z.string().trim().max(LIMIT.INVENTORY_NOTES).optional(),
     })
     .superRefine((data, context) => {
-        if (
-            data.movementType !== INVENTORY_MOVEMENT_TYPE.STOCK_RECOUNT &&
-            data.quantity <= 0
-        ) {
+        if (data.movementType !== INVENTORY_MOVEMENT_TYPE.STOCK_RECOUNT && data.quantity <= 0) {
             context.addIssue({
                 code: z.ZodIssueCode.custom,
                 path: ['quantity'],
@@ -56,15 +58,15 @@ export const inventoryMovementSchema = z
 export const inventoryThresholdSchema = z.object({
     locationId: z.coerce.number().int().positive(),
     lowStockThreshold: z.coerce.number().int().min(0),
-    reason: z.string().trim().min(3).max(255),
-    notes: z.string().trim().max(500).optional(),
+    reason: z.string().trim().min(3).max(LIMIT.INVENTORY_REASON),
+    notes: z.string().trim().max(LIMIT.INVENTORY_NOTES).optional(),
 })
 
 export const inventoryDraftBalanceSchema = z.object({
     locationId: z.coerce.number().int().positive('Select a location'),
     onHand: z.coerce.number().int().min(0),
     lowStockThreshold: z.coerce.number().int().min(0),
-    reason: z.string().trim().min(3).max(255),
+    reason: z.string().trim().min(3).max(LIMIT.INVENTORY_REASON),
 })
 
 export type InventoryMovementFormData = z.infer<typeof inventoryMovementSchema>

@@ -219,7 +219,11 @@
                                 :key="component.componentOrganisationProductVariantId"
                             >
                                 <td>
-                                    {{ componentTitle(component.componentOrganisationProductVariantId) }}
+                                    {{
+                                        componentTitle(
+                                            component.componentOrganisationProductVariantId
+                                        )
+                                    }}
                                 </td>
                                 <td>{{ component.quantity }}</td>
                             </tr>
@@ -296,7 +300,7 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
     inventoryCount: 0,
     inventoryIsDraft: false,
-    errors: () => ({}),
+    errors: (): {} => ({}),
 })
 const variant = defineModel<OrganisationProductVariantFormData>({ required: true })
 const isPlatformProduct = computed(() => props.isPlatformProduct)

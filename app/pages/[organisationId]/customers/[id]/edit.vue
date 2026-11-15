@@ -119,30 +119,54 @@
                                 <v-window-item value="shipping">
                                     <v-row>
                                         <v-col cols="12">
-                                            <div class="d-flex justify-space-between align-center mb-4">
+                                            <div
+                                                class="d-flex justify-space-between align-center mb-4"
+                                            >
                                                 <h3 class="text-h6">Shipping Addresses</h3>
-                                                <v-btn color="primary" prepend-icon="mdi-plus" @click="showAddAddressDialog = true">
+                                                <v-btn
+                                                    color="primary"
+                                                    prepend-icon="mdi-plus"
+                                                    @click="showAddAddressDialog = true"
+                                                >
                                                     Add Address
                                                 </v-btn>
                                             </div>
 
-                                            <v-list v-if="currentCustomer.shipping && currentCustomer.shipping.length > 0">
+                                            <v-list
+                                                v-if="currentCustomer.shippingAddresses?.length"
+                                            >
                                                 <v-list-item
-                                                    v-for="address in currentCustomer.shipping"
+                                                    v-for="address in currentCustomer.shippingAddresses"
                                                     :key="address.id"
                                                     class="mb-2"
                                                 >
-                                                    <v-list-item-title>{{ address.firstName }} {{ address.lastName }}</v-list-item-title>
+                                                    <v-list-item-title>
+                                                        {{ address.firstName }}
+                                                        {{ address.lastName }}
+                                                    </v-list-item-title>
                                                     <v-list-item-subtitle>
-                                                        {{ address.address }}, {{ address.city }}, {{ address.stateCode }} {{ address.postalCode }}
+                                                        {{ address.address }}, {{ address.city }},
+                                                        {{ address.stateCode }}
+                                                        {{ address.postalCode }}
                                                     </v-list-item-subtitle>
                                                     <template #append>
-                                                        <v-btn icon="mdi-pencil" size="small" @click="editAddress(address)" />
-                                                        <v-btn icon="mdi-delete" size="small" color="error" @click="deleteAddress(address.id)" />
+                                                        <v-btn
+                                                            icon="mdi-pencil"
+                                                            size="small"
+                                                            @click="editAddress(address)"
+                                                        />
+                                                        <v-btn
+                                                            icon="mdi-delete"
+                                                            size="small"
+                                                            color="error"
+                                                            @click="deleteAddress(address.id)"
+                                                        />
                                                     </template>
                                                 </v-list-item>
                                             </v-list>
-                                            <v-alert v-else type="info">No shipping addresses</v-alert>
+                                            <v-alert v-else type="info">
+                                                No shipping addresses
+                                            </v-alert>
                                         </v-col>
                                     </v-row>
                                 </v-window-item>
@@ -150,10 +174,18 @@
 
                             <v-row class="mt-4">
                                 <v-col cols="12" class="d-flex justify-end gap-2">
-                                    <v-btn variant="outlined" @click="navigateTo(`/${organisationId}/customers`)">
+                                    <v-btn
+                                        variant="outlined"
+                                        @click="navigateTo(`/${organisationId}/customers`)"
+                                    >
                                         Cancel
                                     </v-btn>
-                                    <v-btn color="primary" type="submit" :loading="loading" :disabled="!valid">
+                                    <v-btn
+                                        color="primary"
+                                        type="submit"
+                                        :loading="loading"
+                                        :disabled="!valid"
+                                    >
                                         Update Customer
                                     </v-btn>
                                 </v-col>
@@ -234,11 +266,7 @@
                             :rules="[rules.required]"
                         />
 
-                        <FormField
-                            v-model="addressForm.isActive"
-                            label="Active"
-                            type="switch"
-                        />
+                        <FormField v-model="addressForm.isActive" label="Active" type="switch" />
                     </v-row>
                 </FormDialog>
             </v-col>
@@ -249,36 +277,45 @@
 <script setup lang="ts">
 import { CUSTOMER_PERMISSIONS } from '~/components/customers/customer.permissions'
 
-import { ref, computed } from 'vue';
-import { useRoute } from 'vue-router';
-import { useCustomer } from '~/composables/useCustomer';
-import { useCountry } from '~/composables/useCountry';
-import FormField from '~/components/forms/FormField.vue';
-import FormDialog from '~/components/dialogs/FormDialog.vue';
-import { updateCustomerSchema } from '~/schemas/customer.schema';
-import type { UpdateCustomerFormData } from '~/schemas/customer.schema';
-import type { CustomerShippingAddressFormData } from '~/schemas/customer.schema';
+import { ref, computed } from 'vue'
+import { useRoute } from 'vue-router'
+import { useCustomer } from '~/composables/useCustomer'
+import { useCountry } from '~/composables/useCountry'
+import FormField from '~/components/forms/FormField.vue'
+import FormDialog from '~/components/dialogs/FormDialog.vue'
+import { updateCustomerSchema } from '~/schemas/customer.schema'
+import type { UpdateCustomerFormData } from '~/schemas/customer.schema'
+import type { CustomerShippingAddressFormData } from '~/schemas/customer.schema'
+import type { CustomerShippingAddress } from '~/services/api/wrappers/customer.api'
 
 definePageMeta({
     middleware: ['auth', 'permission'],
-    access: { permission: CUSTOMER_PERMISSIONS.WRITE },
-});
+    access: { permission: CUSTOMER_PERMISSIONS.UPDATE },
+})
 
-const route = useRoute();
-const organisationId = computed(() => Number(route.params.organisationId));
-const customerId = computed(() => Number(route.params.id));
+const route = useRoute()
+const organisationId = computed(() => Number(route.params.organisationId))
+const customerId = computed(() => Number(route.params.id))
 
-const { currentCustomer, loading, fetchCustomerById, updateCustomer, addShippingAddress, updateShippingAddress } = useCustomer();
-const { countries, fetchCountries, fetchStates, getStateOptions } = useCountry();
+const {
+    currentCustomer,
+    loading,
+    fetchCustomerById,
+    updateCustomer,
+    addShippingAddress,
+    updateShippingAddress,
+} = useCustomer()
+const { countries, fetchCountries, fetchStates, getStateOptions } = useCountry()
 
-const formRef = ref();
-const valid = ref(false);
-const tab = ref('basic');
-const billingStateOptions = ref<Array<{ title: string; value: string }>>([]);
-const showAddAddressDialog = ref(false);
-const editingAddress = ref<CustomerShippingAddressFormData | null>(null);
+const formRef = ref()
+const valid = ref(false)
+const tab = ref('basic')
+const billingStateOptions = ref<Array<{ title: string; value: string }>>([])
+const showAddAddressDialog = ref(false)
+const editingAddress = ref<CustomerShippingAddress | null>(null)
 
 const formData = ref<UpdateCustomerFormData>({
+    organisationId: organisationId.value,
     firstName: '',
     lastName: '',
     email: '',
@@ -290,7 +327,7 @@ const formData = ref<UpdateCustomerFormData>({
     billingStateCode: '',
     billingPostalCode: '',
     billingCountryCode: '',
-});
+})
 
 const addressForm = ref<CustomerShippingAddressFormData>({
     type: 1,
@@ -303,35 +340,39 @@ const addressForm = ref<CustomerShippingAddressFormData>({
     postalCode: '',
     countryCode: '',
     isActive: true,
-});
+})
 
 const countryOptions = computed(() => {
     return countries.value.map((c) => ({
         title: c.name,
-        value: c.code,
-    }));
-});
+        value: c.id,
+    }))
+})
 
 const rules = {
-    required: (v: unknown) => !!v || 'This field is required',
-    minLength: (min: number) => (v: string) => (v?.length || 0) >= min || `Must be at least ${min} characters`,
-    email: (v: string) => /.+@.+\..+/.test(v) || 'Must be a valid email',
-};
+    required: (v: unknown): true | 'This field is required' => !!v || 'This field is required',
+    minLength:
+        (min: number): ((v: unknown) => string | true) =>
+        (v: unknown) =>
+            String(v ?? '').length >= min || `Must be at least ${min} characters`,
+    email: (v: unknown): true | 'Must be a valid email' =>
+        /.+@.+\..+/.test(String(v ?? '')) || 'Must be a valid email',
+}
 
-const loadStates = async (type: 'billing') => {
-    const countryCode = formData.value.billingCountryCode;
-    if (!countryCode) return;
+const loadStates = async (type: 'billing'): Promise<void> => {
+    const countryCode = formData.value.billingCountryCode
+    if (!countryCode) return
 
-    const country = countries.value.find((c) => c.code === countryCode);
+    const country = countries.value.find((c) => c.id === countryCode)
     if (country) {
-        await fetchStates(country.id);
-        const stateOptions = getStateOptions(country.id);
-        billingStateOptions.value = stateOptions.value;
+        await fetchStates(country.id)
+        const stateOptions = getStateOptions(country.id)
+        billingStateOptions.value = stateOptions.value
     }
-};
+}
 
-const editAddress = (address: import('~/services/api/wrappers/customer.api').CustomerShippingAddress) => {
-    editingAddress.value = address;
+const editAddress = (address: CustomerShippingAddress): void => {
+    editingAddress.value = address
     addressForm.value = {
         type: address.type,
         firstName: address.firstName,
@@ -343,24 +384,28 @@ const editAddress = (address: import('~/services/api/wrappers/customer.api').Cus
         postalCode: address.postalCode,
         countryCode: address.countryCode,
         isActive: address.isActive,
-    };
-    showAddAddressDialog.value = true;
-};
+    }
+    showAddAddressDialog.value = true
+}
 
-const deleteAddress = async (addressId: number) => {
+const deleteAddress = async (addressId: number): Promise<void> => {
     // Implement delete if backend supports it
-    console.log('Delete address:', addressId);
-};
+    console.log('Delete address:', addressId)
+}
 
-const saveAddress = async () => {
+const saveAddress = async (): Promise<void> => {
     try {
-        if (editingAddress.value && editingAddress.value.id) {
-            await updateShippingAddress(customerId.value, editingAddress.value.id, addressForm.value);
+        if (editingAddress.value) {
+            await updateShippingAddress(
+                customerId.value,
+                editingAddress.value.id,
+                addressForm.value
+            )
         } else {
-            await addShippingAddress(customerId.value, addressForm.value);
+            await addShippingAddress(customerId.value, addressForm.value)
         }
-        showAddAddressDialog.value = false;
-        editingAddress.value = null;
+        showAddAddressDialog.value = false
+        editingAddress.value = null
         addressForm.value = {
             type: 1,
             firstName: '',
@@ -372,55 +417,55 @@ const saveAddress = async () => {
             postalCode: '',
             countryCode: '',
             isActive: true,
-        };
-        await fetchCustomerById(customerId.value);
+        }
+        await fetchCustomerById(customerId.value)
     } catch (error) {
-        console.error('Error saving address:', error);
+        console.error('Error saving address:', error)
     }
-};
+}
 
-const handleSubmit = async () => {
-    if (!formRef.value?.validate()) return;
+const handleSubmit = async (): Promise<void> => {
+    const validation = await formRef.value?.validate()
+    if (!validation?.valid) return
 
     try {
-        const data = { ...formData.value };
+        const data = { ...formData.value }
         if (!data.password) {
-            delete data.password;
+            delete data.password
         }
-        updateCustomerSchema.parse(data);
-        await updateCustomer(customerId.value, { ...data, organisationId: organisationId.value });
-        navigateTo(`/${organisationId.value}/customers`);
+        updateCustomerSchema.parse(data)
+        await updateCustomer(customerId.value, { ...data, organisationId: organisationId.value })
+        navigateTo(`/${organisationId.value}/customers`)
     } catch (error) {
-        console.error('Validation or update error:', error);
+        console.error('Validation or update error:', error)
     }
-};
+}
 
 // Use useLazyAsyncData for initial data fetching
 const { pending: customerEditPending } = await useLazyAsyncData(
     'customer-edit-initial',
     async () => {
-        await Promise.all([
-            fetchCountries(),
-            fetchCustomerById(organisationId.value, customerId.value),
-        ]);
-        
+        await Promise.all([fetchCountries(), fetchCustomerById(customerId.value)])
+
         if (currentCustomer.value) {
             formData.value = {
+                organisationId: organisationId.value,
                 firstName: currentCustomer.value.firstName,
                 lastName: currentCustomer.value.lastName,
                 email: currentCustomer.value.email,
                 phoneNumber: currentCustomer.value.phoneNumber,
                 isActive: currentCustomer.value.isActive,
-                billingCompany: currentCustomer.value.billingCompany,
-            billingAddress: currentCustomer.value.billingAddress,
-            billingCity: currentCustomer.value.billingCity,
-            billingStateCode: currentCustomer.value.billingStateCode,
-            billingPostalCode: currentCustomer.value.billing.postalCode,
-            billingCountryCode: currentCustomer.value.billingCountryCode,
-        };
+                billingCompany: currentCustomer.value.billing.company,
+                billingAddress: currentCustomer.value.billing.address,
+                billingCity: currentCustomer.value.billing.city,
+                billingStateCode: currentCustomer.value.billing.stateCode,
+                billingPostalCode: currentCustomer.value.billing.postalCode,
+                billingCountryCode: currentCustomer.value.billing.countryCode,
+            }
+            await loadStates('billing')
+        }
     }
-    }
-);
+)
 </script>
 
 <style scoped>

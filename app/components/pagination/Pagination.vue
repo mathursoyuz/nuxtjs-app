@@ -1,6 +1,6 @@
 <template>
     <div class="d-flex align-center justify-space-between flex-wrap">
-        <div class="text-caption text-grey">
+        <div class="text-caption text-medium-emphasis">
             Showing {{ startIndex }} to {{ endIndex }} of {{ totalItems }} entries
         </div>
         <v-pagination
@@ -26,58 +26,64 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch } from 'vue'
 
 interface Props {
-    modelValue: number;
-    totalItems: number;
-    itemsPerPage?: number;
-    itemsPerPageOptions?: number[];
-    totalVisible?: number;
-    disabled?: boolean;
-    showItemsPerPage?: boolean;
+    modelValue: number
+    totalItems: number
+    itemsPerPage?: number
+    itemsPerPageOptions?: number[]
+    totalVisible?: number
+    disabled?: boolean
+    showItemsPerPage?: boolean
 }
 
 interface Emits {
-    (e: 'update:modelValue', page: number): void;
-    (e: 'items-per-page-change', itemsPerPage: number): void;
+    (e: 'update:modelValue', page: number): void
+    (e: 'items-per-page-change', itemsPerPage: number): void
 }
 
 const props = withDefaults(defineProps<Props>(), {
     itemsPerPage: 10,
-    itemsPerPageOptions: () => [10, 25, 50, 100],
+    itemsPerPageOptions: (): number[] => [10, 25, 50, 100],
     totalVisible: 7,
     disabled: false,
     showItemsPerPage: true,
-});
+})
 
-const emit = defineEmits<Emits>();
+const emit = defineEmits<Emits>()
 
-const currentPage = ref(props.modelValue);
-const itemsPerPage = ref(props.itemsPerPage);
+const currentPage = ref(props.modelValue)
+const itemsPerPage = ref(props.itemsPerPage)
 
-const totalPages = computed(() => Math.ceil(props.totalItems / itemsPerPage.value));
-const startIndex = computed(() => (currentPage.value - 1) * itemsPerPage.value + 1);
-const endIndex = computed(() => Math.min(currentPage.value * itemsPerPage.value, props.totalItems));
+const totalPages = computed(() => Math.ceil(props.totalItems / itemsPerPage.value))
+const startIndex = computed(() => (currentPage.value - 1) * itemsPerPage.value + 1)
+const endIndex = computed(() => Math.min(currentPage.value * itemsPerPage.value, props.totalItems))
 
-const handlePageChange = (page: number) => {
-    emit('update:modelValue', page);
-};
+const handlePageChange = (page: number): void => {
+    emit('update:modelValue', page)
+}
 
-const handleItemsPerPageChange = (value: number) => {
-    itemsPerPage.value = value;
-    currentPage.value = 1; // Reset to first page
-    emit('update:modelValue', 1);
-    emit('items-per-page-change', value);
-};
+const handleItemsPerPageChange = (value: number): void => {
+    itemsPerPage.value = value
+    currentPage.value = 1 // Reset to first page
+    emit('update:modelValue', 1)
+    emit('items-per-page-change', value)
+}
 
-watch(() => props.modelValue, (newValue) => {
-    currentPage.value = newValue;
-});
+watch(
+    () => props.modelValue,
+    (newValue) => {
+        currentPage.value = newValue
+    }
+)
 
-watch(() => props.itemsPerPage, (newValue) => {
-    itemsPerPage.value = newValue;
-});
+watch(
+    () => props.itemsPerPage,
+    (newValue) => {
+        itemsPerPage.value = newValue
+    }
+)
 </script>
 
 <style scoped>

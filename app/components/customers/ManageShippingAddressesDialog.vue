@@ -245,6 +245,8 @@ interface Props {
     modelValue: boolean
     customer: Customer | null
     organisationId: number
+    orderContext?: boolean
+    orderId?: number
 }
 
 const props = defineProps<Props>()
@@ -255,6 +257,16 @@ const emit = defineEmits<{
 
 const { fetchCustomerById, addShippingAddress, updateShippingAddress, deleteShippingAddress } =
     useCustomer()
+const {
+    getCustomerOrderCustomer,
+    addCustomerOrderShippingAddress,
+    updateCustomerOrderShippingAddress,
+    deleteCustomerOrderShippingAddress,
+    getPendingCustomerOrderCustomer,
+    addPendingCustomerOrderShippingAddress,
+    updatePendingCustomerOrderShippingAddress,
+    deletePendingCustomerOrderShippingAddress,
+} = useOrders()
 const { countryOptions, fetchCountries, fetchStates } = useCountry()
 const { success, errorFromError } = useToast()
 
@@ -269,15 +281,15 @@ const stateOptionsCache = ref<Record<string, Array<{ title: string; value: strin
 
 const hasReachedLimit = computed(() => addresses.value.length >= MAX_SHIPPING_ADDRESSES)
 
-function fieldError(field: string): string {
+const fieldError = (field: string): string => {
     return validationErrors.value[field] ?? ''
 }
 
-function stateOptions(countryCode: string): Array<{ title: string; value: string }> {
+const stateOptions = (countryCode: string): Array<{ title: string; value: string }> => {
     return stateOptionsCache.value[countryCode] ?? []
 }
 
-async function ensureStates(countryCode: string): Promise<void> {
+const ensureStates = async (countryCode: string): Promise<void> => {
     if (!countryCode || stateOptionsCache.value[countryCode]) return
     const states = await fetchStates(countryCode)
     stateOptionsCache.value[countryCode] = states.map((state) => ({
@@ -286,7 +298,7 @@ async function ensureStates(countryCode: string): Promise<void> {
     }))
 }
 
-async function changeCountry(index: number, countryCode: string): Promise<void> {
+const changeCountry = async (index: number, countryCode: string): Promise<void> => {
     const address = addresses.value[index]
     if (!address) return
     address.countryCode = countryCode
@@ -294,7 +306,7 @@ async function changeCountry(index: number, countryCode: string): Promise<void> 
     await ensureStates(countryCode)
 }
 
-function nextAddressType(): number {
+const nextAddressType = (): number => {
     const usedTypes = new Set(addresses.value.map((address) => address.type))
     for (let type = 1; type <= MAX_SHIPPING_ADDRESSES; type += 1) {
         if (!usedTypes.has(type)) return type
@@ -302,7 +314,7 @@ function nextAddressType(): number {
     return addresses.value.length + 1
 }
 
-function addAddress(): void {
+const addAddress = (): void => {
     if (hasReachedLimit.value || !props.customer) return
     addresses.value.push({
         id: 0,
@@ -325,7 +337,7 @@ function addAddress(): void {
     validationErrors.value = {}
 }
 
-function startEdit(index: number): void {
+const startEdit = (index: number): void => {
     const address = addresses.value[index]
     if (!address) return
     originalAddress.value = structuredClone(address)
@@ -333,7 +345,7 @@ function startEdit(index: number): void {
     validationErrors.value = {}
 }
 
-function cancelEdit(index: number): void {
+const cancelEdit = (index: number): void => {
     const address = addresses.value[index]
     if (!address) return
     if (address.isNew) {
@@ -346,7 +358,7 @@ function cancelEdit(index: number): void {
     validationErrors.value = {}
 }
 
-function validateAddress(address: EditableShippingAddress): boolean {
+const validateAddress = (address: EditableShippingAddress): boolean => {
     const result = customerShippingAddressSchema.safeParse(address)
     if (result.success) {
         validationErrors.value = {}
@@ -361,7 +373,20 @@ function validateAddress(address: EditableShippingAddress): boolean {
     return false
 }
 
-function addressPayload(address: EditableShippingAddress) {
+const addressPayload = (
+    address: EditableShippingAddress
+): {
+    type: number
+    firstName: string
+    lastName: string
+    company: string | null
+    address: string
+    city: string
+    stateCode: string
+    postalCode: string
+    countryCode: string
+    isActive: boolean
+} => {
     return {
         type: address.type,
         firstName: address.firstName,
@@ -376,17 +401,37 @@ function addressPayload(address: EditableShippingAddress) {
     }
 }
 
-async function saveAddress(index: number): Promise<void> {
+const saveAddress = async (index: number): Promise<void> => {
     const address = addresses.value[index]
     if (!address || !props.customer || !validateAddress(address)) return
 
     savingIndex.value = index
     try {
         if (address.isNew) {
-            await addShippingAddress(props.customer.id, addressPayload(address))
+            if (props.orderId) {
+                await addPendingCustomerOrderShippingAddress(props.orderId, addressPayload(address))
+            } else if (props.orderContext) {
+                await addCustomerOrderShippingAddress(props.customer.id, addressPayload(address))
+            } else {
+                await addShippingAddress(props.customer.id, addressPayload(address))
+            }
             success(CUSTOMER_MESSAGES.SHIPPING_ADD_SUCCESS)
         } else {
-            await updateShippingAddress(props.customer.id, address.id, addressPayload(address))
+            if (props.orderId) {
+                await updatePendingCustomerOrderShippingAddress(
+                    props.orderId,
+                    address.id,
+                    addressPayload(address)
+                )
+            } else if (props.orderContext) {
+                await updateCustomerOrderShippingAddress(
+                    props.customer.id,
+                    address.id,
+                    addressPayload(address)
+                )
+            } else {
+                await updateShippingAddress(props.customer.id, address.id, addressPayload(address))
+            }
             success(CUSTOMER_MESSAGES.SHIPPING_UPDATE_SUCCESS)
         }
         editingIndex.value = null
@@ -400,12 +445,12 @@ async function saveAddress(index: number): Promise<void> {
     }
 }
 
-function requestDelete(index: number): void {
+const requestDelete = (index: number): void => {
     deleteIndex.value = index
     showDeleteDialog.value = true
 }
 
-async function deleteSelectedAddress(): Promise<void> {
+const deleteSelectedAddress = async (): Promise<void> => {
     const index = deleteIndex.value
     const address = index === null ? null : addresses.value[index]
     showDeleteDialog.value = false
@@ -413,7 +458,13 @@ async function deleteSelectedAddress(): Promise<void> {
     if (!address || !props.customer) return
 
     try {
-        await deleteShippingAddress(props.customer.id, address.id)
+        if (props.orderId) {
+            await deletePendingCustomerOrderShippingAddress(props.orderId, address.id)
+        } else if (props.orderContext) {
+            await deleteCustomerOrderShippingAddress(props.customer.id, address.id)
+        } else {
+            await deleteShippingAddress(props.customer.id, address.id)
+        }
         success(CUSTOMER_MESSAGES.SHIPPING_REMOVE_SUCCESS)
         emit('submit')
         await loadAddresses()
@@ -422,9 +473,14 @@ async function deleteSelectedAddress(): Promise<void> {
     }
 }
 
-async function loadAddresses(): Promise<void> {
+const loadAddresses = async (): Promise<void> => {
     if (!props.customer) return
-    const fullCustomer = await fetchCustomerById(props.customer.id)
+    const fullCustomer = props.orderId
+        ? (await getPendingCustomerOrderCustomer(props.orderId)).data
+        : props.orderContext
+          ? (await getCustomerOrderCustomer(props.customer.id)).data
+          : await fetchCustomerById(props.customer.id)
+    if (!fullCustomer) throw new Error('Customer details were not returned')
     addresses.value = (fullCustomer.shippingAddresses ?? []).map((address) => ({ ...address }))
     await Promise.all(
         [...new Set(addresses.value.map((address) => address.countryCode).filter(Boolean))].map(
@@ -433,7 +489,7 @@ async function loadAddresses(): Promise<void> {
     )
 }
 
-function closeDialog(): void {
+const closeDialog = (): void => {
     emit('update:modelValue', false)
 }
 

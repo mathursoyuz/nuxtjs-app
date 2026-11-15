@@ -1,4 +1,4 @@
-import type { CachedApiClient } from '../CachedApiClient'
+import HttpFactory from '@/repository/factory'
 import type { ApiResponse } from '~/types/api.types'
 import type {
     OrganisationProduct,
@@ -13,43 +13,54 @@ import type {
     ProcurementOrderPage,
 } from '~/types/order.types'
 
-export class OrganisationProductApiService {
-    constructor(private readonly cachedApi: CachedApiClient) {}
+export interface OrganisationProductOverview {
+    items: Array<OrganisationProduct & { organisationName: string }>
+    total: number
+    page: number
+    limit: number
+}
 
-    async getOverview(page = 1, organisationId?: number) {
-        return this.cachedApi.get<{
-            items: (OrganisationProduct & { organisationName: string })[]
-            total: number
-            page: number
-            limit: number
-        }>(
+export class OrganisationProductApiService extends HttpFactory {
+    async getOverview(
+        page: number = 1,
+        organisationId?: number
+    ): Promise<ApiResponse<OrganisationProductOverview>> {
+        return await this.call<OrganisationProductOverview>(
+            'GET',
             '/organisation-products',
-            { params: { page, ...(organisationId ? { organisationId } : {}) } },
             undefined,
-            undefined,
-            true
+            {
+                config: { params: { page, ...(organisationId ? { organisationId } : {}) } },
+                skipCache: true,
+            }
         )
     }
 
     async getAllOrganisationProducts(
         organisationId: number,
-        forceRefresh = false
+        forceRefresh: boolean = false
     ): Promise<ApiResponse<OrganisationProduct[]>> {
-        return this.cachedApi.get<OrganisationProduct[]>(
+        return await this.call<OrganisationProduct[]>(
+            'GET',
             `/organisations/${organisationId}/organisation-products`,
             undefined,
-            `organisation-products:organisation:${organisationId}`,
-            5 * 60 * 1000,
-            forceRefresh
+            {
+                cacheKey: `organisation-products:organisation:${organisationId}`,
+                ttl: 5 * 60 * 1000,
+                skipCache: forceRefresh,
+            }
         )
     }
 
     async getOrganisationProductById(organisationId: number, id: number): Promise<ApiResponse<OrganisationProduct>> {
-        return this.cachedApi.get<OrganisationProduct>(
+        return await this.call<OrganisationProduct>(
+            'GET',
             `/organisations/${organisationId}/organisation-products/${id}`,
             undefined,
-            `organisation-products:${organisationId}:${id}`,
-            5 * 60 * 1000
+            {
+                cacheKey: `organisation-products:${organisationId}:${id}`,
+                ttl: 5 * 60 * 1000,
+            }
         )
     }
 
@@ -57,11 +68,11 @@ export class OrganisationProductApiService {
         organisationId: number,
         data: CreateOrganisationProductDTO
     ): Promise<ApiResponse<OrganisationProduct>> {
-        return this.cachedApi.post<OrganisationProduct>(
+        return await this.call<OrganisationProduct, CreateOrganisationProductDTO>(
+            'POST',
             `/organisations/${organisationId}/organisation-products`,
             data,
-            undefined,
-            'organisation-products:.*'
+            { invalidatePattern: 'organisation-products:.*' }
         )
     }
 
@@ -70,19 +81,20 @@ export class OrganisationProductApiService {
         id: number,
         data: UpdateOrganisationProductDTO
     ): Promise<ApiResponse<OrganisationProduct>> {
-        return this.cachedApi.put<OrganisationProduct>(
+        return await this.call<OrganisationProduct, UpdateOrganisationProductDTO>(
+            'PUT',
             `/organisations/${organisationId}/organisation-products/${id}`,
             data,
-            undefined,
-            'organisation-products:.*'
+            { invalidatePattern: 'organisation-products:.*' }
         )
     }
 
     async deleteOrganisationProduct(organisationId: number, id: number): Promise<ApiResponse<void>> {
-        return this.cachedApi.delete<void>(
+        return await this.call<void>(
+            'DELETE',
             `/organisations/${organisationId}/organisation-products/${id}`,
             undefined,
-            'organisation-products:.*'
+            { invalidatePattern: 'organisation-products:.*' }
         )
     }
 
@@ -91,11 +103,14 @@ export class OrganisationProductApiService {
         id: number,
         isActive: boolean
     ): Promise<ApiResponse<{ id: number; isActive: boolean }>> {
-        return this.cachedApi.patch<{ id: number; isActive: boolean }>(
+        return await this.call<
+            { id: number; isActive: boolean },
+            { isActive: boolean }
+        >(
+            'PATCH',
             `/organisations/${organisationId}/organisation-products/${id}`,
             { isActive },
-            undefined,
-            'organisation-products:.*'
+            { invalidatePattern: 'organisation-products:.*' }
         )
     }
 
@@ -103,35 +118,41 @@ export class OrganisationProductApiService {
         organisationId: number,
         data: CreateProcurementOrderDTO
     ): Promise<ApiResponse<ProcurementOrder>> {
-        return this.cachedApi.post<ProcurementOrder>(
+        return await this.call<ProcurementOrder, CreateProcurementOrderDTO>(
+            'POST',
             `/organisations/${organisationId}/procurement-orders`,
             data,
-            undefined,
-            '(organisation-products|procurement-orders|orders):.*'
+            { invalidatePattern: '(organisation-products|procurement-orders|orders):.*' }
         )
     }
 
     async getProcurementCatalog(organisationId: number): Promise<ApiResponse<ProcurementCatalog>> {
-        return this.cachedApi.get<ProcurementCatalog>(
+        return await this.call<ProcurementCatalog>(
+            'GET',
             `/organisations/${organisationId}/procurement-orders/catalog`,
             undefined,
-            `procurement-catalog:organisation:${organisationId}`,
-            undefined,
-            true
+            {
+                cacheKey: `procurement-catalog:organisation:${organisationId}`,
+                skipCache: true,
+            }
         )
     }
 
     async getProcurementOrders(
         organisationId: number,
         status?: string,
-        forceRefresh = false
+        forceRefresh: boolean = false
     ): Promise<ApiResponse<ProcurementOrderPage>> {
-        return this.cachedApi.get<ProcurementOrderPage>(
+        return await this.call<ProcurementOrderPage>(
+            'GET',
             `/organisations/${organisationId}/procurement-orders`,
-            { params: status ? { status } : undefined },
-            `procurement-orders:organisation:${organisationId}:${status ?? 'all'}`,
-            60 * 1000,
-            forceRefresh
+            undefined,
+            {
+                config: { params: status ? { status } : undefined },
+                cacheKey: `procurement-orders:organisation:${organisationId}:${status ?? 'all'}`,
+                ttl: 60 * 1000,
+                skipCache: forceRefresh,
+            }
         )
     }
 
@@ -140,11 +161,11 @@ export class OrganisationProductApiService {
         orderId: number,
         data: ChargeOrderDTO
     ): Promise<ApiResponse<ProcurementOrder>> {
-        return this.cachedApi.post<ProcurementOrder>(
+        return await this.call<ProcurementOrder, ChargeOrderDTO>(
+            'POST',
             `/organisations/${organisationId}/procurement-orders/${orderId}/charge`,
             data,
-            undefined,
-            '(organisation-products|procurement-orders|orders):.*'
+            { invalidatePattern: '(organisation-products|procurement-orders|orders):.*' }
         )
     }
 
@@ -153,20 +174,26 @@ export class OrganisationProductApiService {
         id: number,
         formData: FormData
     ): Promise<ApiResponse<{ message: string }>> {
-        return this.cachedApi.patch<{ message: string }>(
+        return await this.call<{ message: string }, FormData>(
+            'PATCH',
             `/organisations/${organisationId}/organisation-products/${id}/uploadImages`,
             formData,
-            { headers: { 'Content-Type': 'multipart/form-data' } },
-            'organisation-products:.*'
+            {
+                config: { headers: { 'Content-Type': 'multipart/form-data' } },
+                invalidatePattern: 'organisation-products:.*',
+            }
         )
     }
 
     async getOrganisationProductGallery(organisationId: number, id: number): Promise<ApiResponse<string[]>> {
-        return this.cachedApi.get<string[]>(
+        return await this.call<string[]>(
+            'GET',
             `/organisations/${organisationId}/organisation-products/${id}/gallery`,
             undefined,
-            `organisation-products:${organisationId}:${id}:gallery`,
-            5 * 60 * 1000
+            {
+                cacheKey: `organisation-products:${organisationId}:${id}:gallery`,
+                ttl: 5 * 60 * 1000,
+            }
         )
     }
 
@@ -175,10 +202,13 @@ export class OrganisationProductApiService {
         id: number,
         filename: string
     ): Promise<ApiResponse<{ message: string }>> {
-        return this.cachedApi.delete<{ message: string }>(
+        return await this.call<{ message: string }>(
+            'DELETE',
             `/organisations/${organisationId}/organisation-products/${id}/gallery/${encodeURIComponent(filename)}`,
             undefined,
-            'organisation-products:.*'
+            { invalidatePattern: 'organisation-products:.*' }
         )
     }
 }
+
+export default OrganisationProductApiService

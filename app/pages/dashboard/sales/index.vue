@@ -16,7 +16,7 @@
                             </v-alert>
                         </div>
 
-                        <div v-if="access.can(CUSTOMER_PERMISSIONS.WRITE)">
+                        <div v-if="access.can(CUSTOMER_PERMISSIONS.CREATE)">
                             <v-alert type="warning" class="mt-4">
                                 This content is only visible to admins.
                             </v-alert>

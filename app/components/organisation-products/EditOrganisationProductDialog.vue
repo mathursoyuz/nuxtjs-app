@@ -91,7 +91,7 @@
                                     <GalleryUpload
                                         :can-remove-existing="
                                             access.can(
-                                                ORGANISATION_PRODUCT_PERMISSIONS.DELETE,
+                                                ORGANISATION_PRODUCT_PERMISSIONS.UPDATE,
                                                 organisationId
                                             )
                                         "
@@ -192,14 +192,12 @@ import {
     type OrganisationProductFormData,
     type OrganisationProductVariantFormData,
 } from '~/schemas/organisation-product.schema'
-import type { OrganisationProductApiService } from '~/services/api/wrappers/organisation-product.api'
 import type {
     OrganisationProduct,
     UpdateOrganisationProductDTO,
 } from '~/types/organisation-product.types'
 import type { InventoryDraftBalance } from '~/types/inventory.types'
 import { getFullImageUrl } from '~/utils/image.util'
-import type { CategoryApiService } from '~/services/api/wrappers/category.api'
 
 interface Props {
     modelValue: boolean
@@ -211,7 +209,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
     organisationProduct: null,
-    availableProducts: () => [],
+    availableProducts: (): never[] => [],
 })
 const emit = defineEmits<{
     'update:modelValue': [value: boolean]
@@ -221,9 +219,8 @@ const canManageInventory = computed(() =>
     access.can(INVENTORY_PERMISSIONS.WRITE, props.organisationId)
 )
 
-const nuxtApp = useNuxtApp()
-const organisationProductApi = nuxtApp.$organisationProductApi as OrganisationProductApiService
-const categoryApi = nuxtApp.$categoryApi as CategoryApiService
+const organisationProductApi = useOrganisationProducts()
+const { fetchCategories } = useCategory()
 const { successFromResponse, errorFromError } = useToast()
 const saving = ref(false)
 const thumbnail = ref<File | null>(null)
@@ -312,8 +309,8 @@ const toNumberArray = (value: unknown): number[] =>
 const loadCategories = async (): Promise<void> => {
     loadingCategories.value = true
     try {
-        const response = await categoryApi.getAllCategories()
-        categoryOptions.value = (response.data ?? [])
+        const categories = await fetchCategories()
+        categoryOptions.value = categories
             .filter(
                 (category) =>
                     category.isActive ||
@@ -347,7 +344,9 @@ const selectedInventoryIsDraft = computed(() => {
     return isOpeningInventory(inventoryVariantIndex.value)
 })
 
-const originalVariant = (index: number) => {
+const originalVariant = (
+    index: number
+): import('~/types/organisation-product.types').OrganisationProductVariant | undefined => {
     const variantId = values.variants[index]?.id
     return props.organisationProduct?.variants.find((variant) => variant.id === variantId)
 }
@@ -361,7 +360,7 @@ const canRemoveVariant = (index: number): boolean => {
     if (props.organisationProduct?.isPlatformProduct) return false
     if (values.variants.length === 1) return false
     const original = originalVariant(index)
-    if (original && !access.can(ORGANISATION_PRODUCT_PERMISSIONS.DELETE, props.organisationId))
+    if (original && !access.can(ORGANISATION_PRODUCT_PERMISSIONS.UPDATE, props.organisationId))
         return false
     return !original || (original.qty === 0 && original.reservedQty === 0)
 }

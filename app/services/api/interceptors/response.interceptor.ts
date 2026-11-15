@@ -1,10 +1,22 @@
 import { AUTH_ENDPOINT, AUTHORIZATION_HEADER, BEARER_PREFIX } from '~/constants/auth.constants'
 import type { AxiosResponse, AxiosError } from 'axios'
 import type { ApiErrorResponse } from '~/types/errors.types'
-import { isApiErrorResponse } from '~/types/errors.types'
 import { GENERAL_MESSAGES } from '~/constants/messages.constants'
 
-export function createResponseInterceptor() {
+const responseMessage = (response: ApiErrorResponse | undefined, fallbackMessage: string): string =>
+    response?.message?.trim() || fallbackMessage
+
+const showErrorToast = async (message: string): Promise<void> => {
+    if (typeof window === 'undefined') return
+    try {
+        const { useToast } = await import('~/composables/useToast')
+        useToast().error(message)
+    } catch {
+        console.error('Unable to show the API error notification')
+    }
+}
+
+export const createResponseInterceptor = (): ((response: AxiosResponse) => AxiosResponse) => {
     return (response: AxiosResponse): AxiosResponse => {
         // Note: Per-request loading removed - using task-based loading instead
         // Tasks are managed at component/page level
@@ -12,7 +24,9 @@ export function createResponseInterceptor() {
     }
 }
 
-export function createResponseErrorInterceptor() {
+export const createResponseErrorInterceptor = (): ((
+    error: AxiosError<ApiErrorResponse>
+) => Promise<never>) => {
     return async (error: AxiosError<ApiErrorResponse>): Promise<never> => {
         // Note: Per-request loading removed - using task-based loading instead
         // Tasks are managed at component/page level
@@ -40,26 +54,15 @@ export function createResponseErrorInterceptor() {
                         const header = error.config?.headers?.[AUTHORIZATION_HEADER]
                         if (typeof header === 'string' && header.startsWith(BEARER_PREFIX))
                             await session.handleUnauthorized(header.slice(BEARER_PREFIX.length))
-                    } catch (err) {
-                        console.error('Error handling 401:', err)
+                    } catch {
+                        console.error('Unable to clear the unauthorized session')
                     }
                 }
             }
 
             // Handle 403 - Forbidden (no permission)
             if (status === 403) {
-                const message = data?.message || data?.error || GENERAL_MESSAGES.FORBIDDEN
-                if (typeof window !== 'undefined') {
-                    try {
-                        const { useToast } = await import('~/composables/useToast')
-                        const toast = useToast()
-                        if (toast && toast.error) {
-                            toast.error(message)
-                        }
-                    } catch (err) {
-                        console.error('Error showing toast:', err)
-                    }
-                }
+                await showErrorToast(responseMessage(data, GENERAL_MESSAGES.FORBIDDEN))
             }
 
             // Handle 422 - Validation errors (field-level errors)
@@ -67,45 +70,12 @@ export function createResponseErrorInterceptor() {
 
             // Handle other errors - show toast notification
             if (status !== 401 && status !== 403 && status !== 422) {
-                const message = data?.message || data?.error || GENERAL_MESSAGES.ERROR
-                if (typeof window !== 'undefined') {
-                    try {
-                        const { useToast } = await import('~/composables/useToast')
-                        const toast = useToast()
-                        if (toast && toast.error) {
-                            toast.error(message)
-                        }
-                    } catch (err) {
-                        console.error('Error showing toast:', err)
-                    }
-                }
+                await showErrorToast(responseMessage(data, GENERAL_MESSAGES.ERROR))
             }
         } else if (error.request) {
-            // Network error
-            if (typeof window !== 'undefined') {
-                try {
-                    const { useToast } = await import('~/composables/useToast')
-                    const toast = useToast()
-                    if (toast && toast.error) {
-                        toast.error(GENERAL_MESSAGES.NETWORK_ERROR)
-                    }
-                } catch (err) {
-                    console.error('Error showing toast:', err)
-                }
-            }
+            await showErrorToast(GENERAL_MESSAGES.NETWORK_ERROR)
         } else {
-            // Request setup error
-            if (typeof window !== 'undefined') {
-                try {
-                    const { useToast } = await import('~/composables/useToast')
-                    const toast = useToast()
-                    if (toast && toast.error) {
-                        toast.error(GENERAL_MESSAGES.UNEXPECTED_ERROR)
-                    }
-                } catch (err) {
-                    console.error('Error showing toast:', err)
-                }
-            }
+            await showErrorToast(GENERAL_MESSAGES.UNEXPECTED_ERROR)
         }
 
         return Promise.reject(error)

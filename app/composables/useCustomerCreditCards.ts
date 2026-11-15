@@ -11,7 +11,16 @@ import {
     isOrganisationContextCurrent,
 } from '~/services/context/organisation-context-reset.registry'
 
-export function useCustomerCreditCards(customerId: number | (() => number | null)) {
+export const useCustomerCreditCards = (
+    customerId: number | (() => number | null)
+): {
+    cards: globalThis.ComputedRef<CustomerCreditCard[]>
+    loading: globalThis.ComputedRef<boolean>
+    error: globalThis.ComputedRef<string | null>
+    fetchCards: () => Promise<CustomerCreditCard[]>
+    addCard: (data: CreateCustomerCreditCardDTO) => Promise<CustomerCreditCard>
+    activateCard: (cardId: number) => Promise<void>
+} => {
     const nuxtApp = useNuxtApp()
     const store = useCustomerCreditCardStore()
     const customerCreditCardApi = nuxtApp.$customerCreditCardApi as CustomerCreditCardApiService
@@ -24,7 +33,7 @@ export function useCustomerCreditCards(customerId: number | (() => number | null
         return id ? store.cardsForCustomer(id) : []
     })
 
-    async function fetchCards(): Promise<CustomerCreditCard[]> {
+    const fetchCards = async (): Promise<CustomerCreditCard[]> => {
         const contextRevision = organisationContextRevision()
         const id = resolvedCustomerId.value
         if (!id) return []
@@ -47,7 +56,7 @@ export function useCustomerCreditCards(customerId: number | (() => number | null
         }
     }
 
-    async function addCard(data: CreateCustomerCreditCardDTO): Promise<CustomerCreditCard> {
+    const addCard = async (data: CreateCustomerCreditCardDTO): Promise<CustomerCreditCard> => {
         const id = resolvedCustomerId.value
         if (!id) throw new Error('Customer is required')
 
@@ -66,7 +75,7 @@ export function useCustomerCreditCards(customerId: number | (() => number | null
         }
     }
 
-    async function activateCard(cardId: number): Promise<void> {
+    const activateCard = async (cardId: number): Promise<void> => {
         const id = resolvedCustomerId.value
         if (!id) throw new Error('Customer is required')
 

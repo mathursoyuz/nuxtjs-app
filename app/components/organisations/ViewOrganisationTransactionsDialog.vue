@@ -78,7 +78,7 @@ const emptyMessage = computed(() => {
     return 'No procurement orders found.'
 })
 
-function close(): void {
+const close = (): void => {
     emit('update:modelValue', false)
 }
 

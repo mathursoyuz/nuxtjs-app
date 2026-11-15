@@ -140,7 +140,6 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { useNuxtApp } from '#app'
 import ConfirmDialog from '~/components/dialogs/ConfirmDialog.vue'
 import { useToast } from '~/composables/useToast'
 import type { CustomerOrderItem, CustomerSaleOrder } from '~/types/order.types'
@@ -157,8 +156,7 @@ const emit = defineEmits<{
     'update:modelValue': [value: boolean]
     refunded: [order: CustomerSaleOrder]
 }>()
-const nuxtApp = useNuxtApp()
-const orderApi = nuxtApp.$orderApi as import('~/services/api/wrappers/order.api').OrderApiService
+const orderApi = useOrders()
 const { successFromResponse, errorFromError } = useToast()
 const lines = ref<RefundLine[]>([])
 const refundShipping = ref(false)
@@ -183,10 +181,10 @@ const remainingShipping = computed(() =>
 )
 const hasRefundableItems = computed(() => lines.value.some((line) => line.remaining > 0))
 const allItemsSelected = computed({
-    get: () =>
+    get: (): boolean =>
         hasRefundableItems.value &&
         lines.value.filter((line) => line.remaining > 0).every((line) => line.selected),
-    set: (selected: boolean) => {
+    set: (selected: boolean): void => {
         for (const line of lines.value) {
             if (line.remaining > 0) line.selected = selected
         }
@@ -200,7 +198,7 @@ const refundTotal = computed(() =>
 )
 const canSubmit = computed(() => refundTotal.value > 0 && !processing.value)
 
-function reset(): void {
+const reset = (): void => {
     lines.value = props.order.items.map((item) => {
         const refunded = refunds.value
             .flatMap((refund) => refund.items)
@@ -217,26 +215,26 @@ function reset(): void {
     reason.value = ''
     showManualConfirmation.value = false
 }
-function lineRefund(line: RefundLine): number {
+const lineRefund = (line: RefundLine): number => {
     if (!line.selected || line.remaining === 0) return 0
     const quantity = Math.min(Math.max(Number(line.quantity) || 1, 1), line.remaining)
     return moneyValue(
         ((line.item.totalAmount + line.item.taxAmount) / line.item.quantity) * quantity
     )
 }
-function close(value: boolean): void {
+const close = (value: boolean): void => {
     if (!processing.value) emit('update:modelValue', value)
 }
-function moneyValue(value: number): number {
+const moneyValue = (value: number): number => {
     return Math.round((value + Number.EPSILON) * 100) / 100
 }
-function money(value: number): string {
+const money = (value: number): string => {
     return new Intl.NumberFormat('en-US', {
         style: 'currency',
         currency: props.order.currency,
     }).format(value)
 }
-async function submit(manual: boolean): Promise<void> {
+const submit = async (manual: boolean): Promise<void> => {
     processing.value = true
     manualProcessing.value = manual
     try {

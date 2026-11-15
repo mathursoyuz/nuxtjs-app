@@ -9,7 +9,7 @@
                 </div>
             </div>
             <v-btn
-                v-if="canWriteCustomerOrders"
+                v-if="canCreateCustomerOrders"
                 color="primary"
                 prepend-icon="mdi-plus"
                 to="/orders/create"
@@ -38,7 +38,7 @@
                     <template #item.orderType="{ item }">
                         <v-chip
                             size="small"
-                            :color="item.orderType === 'PROCUREMENT' ? 'indigo' : 'teal'"
+                            :color="item.orderType === 'PROCUREMENT' ? 'info' : 'secondary'"
                             variant="tonal"
                         >
                             {{ item.orderType === 'PROCUREMENT' ? 'Procurement' : 'Customer sale' }}
@@ -71,7 +71,10 @@
                         </div>
                         <div v-else>
                             <div>
-                                {{ item.organisation?.name || `Organisation #${item.organisationId}` }}
+                                {{
+                                    item.organisation?.name ||
+                                    `Organisation #${item.organisationId}`
+                                }}
                             </div>
                             <div class="text-caption">
                                 <template v-if="item.customer">
@@ -207,7 +210,6 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { useNuxtApp } from '#app'
 import { useToast } from '~/composables/useToast'
 import type { CommerceOrder, CustomerSaleOrder, PaymentAttempt } from '~/types/order.types'
 import { useAccessStore } from '~/stores/access.store'
@@ -229,9 +231,8 @@ definePageMeta({
 
 type OrderRow = CommerceOrder & { rowKey: string }
 
-const nuxtApp = useNuxtApp()
 const access = useAccessStore()
-const orderApi = nuxtApp.$orderApi as import('~/services/api/wrappers/order.api').OrderApiService
+const orderApi = useOrders()
 const { successFromResponse, errorFromError, error: showError } = useToast()
 const orders = ref<OrderRow[]>([])
 const tab = ref<'all' | 'pending'>('all')
@@ -248,13 +249,13 @@ const showRefund = ref(false)
 const cancelOrderTarget = ref<OrderRow | null>(null)
 const showCancelConfirmation = ref(false)
 const cancelling = ref(false)
-const canUse = (permission: string) =>
+const canUse = (permission: string): boolean =>
     access.isPlatformContext
         ? access.canAcrossOrganisations(permission) || access.can(permission)
         : access.can(permission)
 const canReadProcurementOrders = computed(() => canUse(PROCUREMENT_ORDER_PERMISSIONS.READ))
 const canReadCustomerOrders = computed(() => canUse(CUSTOMER_ORDER_PERMISSIONS.READ))
-const canWriteCustomerOrders = computed(() => access.can(CUSTOMER_ORDER_PERMISSIONS.WRITE))
+const canCreateCustomerOrders = computed(() => access.can(CUSTOMER_ORDER_PERMISSIONS.CREATE))
 
 const headers = [
     { title: 'Order', key: 'orderNumber' },
@@ -275,10 +276,10 @@ const displayedOrders = computed(() =>
 )
 const hasMore = computed(() => procurementCursor.value !== null || customerCursor.value !== null)
 
-function toRows(
-    procurement: Awaited<ReturnType<typeof orderApi.getProcurementOrders>>['data'],
-    customer: Awaited<ReturnType<typeof orderApi.getCustomerOrders>>['data']
-): OrderRow[] {
+const toRows = (
+    procurement: Awaited<ReturnType<typeof orderApi.getProcurementOrders>>['data'] | undefined,
+    customer: Awaited<ReturnType<typeof orderApi.getCustomerOrders>>['data'] | undefined
+): OrderRow[] => {
     return [
         ...(procurement?.data ?? []).map((order) => ({
             ...order,
@@ -293,21 +294,21 @@ function toRows(
     ].sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt))
 }
 
-function isPending(order: OrderRow): boolean {
+const isPending = (order: OrderRow): boolean => {
     return ['PENDING_PAYMENT', 'PAYMENT_FAILED', 'PAYMENT_PROCESSING', 'PAYMENT_HELD'].includes(
         order.status
     )
 }
 
-function isChargeable(order: OrderRow): boolean {
+const isChargeable = (order: OrderRow): boolean => {
     return order.status === 'PENDING_PAYMENT' || order.status === 'PAYMENT_FAILED'
 }
 
-function isCancellable(order: OrderRow): boolean {
+const isCancellable = (order: OrderRow): boolean => {
     return order.orderType === 'CUSTOMER_SALE' && isChargeable(order)
 }
 
-function isDeliverable(order: OrderRow): boolean {
+const isDeliverable = (order: OrderRow): boolean => {
     return (
         order.orderType === 'CUSTOMER_SALE' &&
         !order.completedAt &&
@@ -315,31 +316,31 @@ function isDeliverable(order: OrderRow): boolean {
     )
 }
 
-function isRefundable(order: OrderRow): boolean {
+const isRefundable = (order: OrderRow): boolean => {
     return (
         order.orderType === 'CUSTOMER_SALE' &&
         ['PAID', 'COMPLETED', 'PARTIALLY_REFUNDED'].includes(order.status)
     )
 }
 
-function canWriteOrder(order: OrderRow): boolean {
+const canWriteOrder = (order: OrderRow): boolean => {
     const permission =
         order.orderType === 'PROCUREMENT'
-            ? PROCUREMENT_ORDER_PERMISSIONS.WRITE
-            : CUSTOMER_ORDER_PERMISSIONS.WRITE
+            ? PROCUREMENT_ORDER_PERMISSIONS.UPDATE
+            : CUSTOMER_ORDER_PERMISSIONS.UPDATE
     return access.can(permission, order.organisationId)
 }
 
-function lastAttempt(order: OrderRow): PaymentAttempt | undefined {
+const lastAttempt = (order: OrderRow): PaymentAttempt | undefined => {
     return order.attempts.at(-1)
 }
 
-function viewOrder(order: OrderRow): void {
+const viewOrder = (order: OrderRow): void => {
     selectedOrder.value = order
     showDetails.value = true
 }
 
-function updateOrder(order: CommerceOrder): void {
+const updateOrder = (order: CommerceOrder): void => {
     const row: OrderRow = { ...order, rowKey: `${order.orderType}-${order.id}` }
     orders.value = orders.value.map((candidate) =>
         candidate.rowKey === row.rowKey ? row : candidate
@@ -347,28 +348,28 @@ function updateOrder(order: CommerceOrder): void {
     selectedOrder.value = row
 }
 
-function updateSaleOrder(order: CustomerSaleOrder): void {
+const updateSaleOrder = (order: CustomerSaleOrder): void => {
     updateOrder({ ...order, orderType: 'CUSTOMER_SALE' })
     refundOrder.value = order
 }
 
-function requestRefund(order: OrderRow): void {
+const requestRefund = (order: OrderRow): void => {
     if (order.orderType !== 'CUSTOMER_SALE') return
     refundOrder.value = order
     showRefund.value = true
 }
 
-function requestCancel(order: OrderRow): void {
+const requestCancel = (order: OrderRow): void => {
     cancelOrderTarget.value = order
     showCancelConfirmation.value = true
 }
 
-function closeCancelConfirmation(): void {
+const closeCancelConfirmation = (): void => {
     showCancelConfirmation.value = false
     cancelOrderTarget.value = null
 }
 
-async function completeDelivery(order: OrderRow): Promise<void> {
+const completeDelivery = async (order: OrderRow): Promise<void> => {
     if (order.orderType !== 'CUSTOMER_SALE') return
     actionRowKey.value = order.rowKey
     try {
@@ -383,7 +384,7 @@ async function completeDelivery(order: OrderRow): Promise<void> {
     }
 }
 
-async function cancelSaleOrder(): Promise<void> {
+const cancelSaleOrder = async (): Promise<void> => {
     const order = cancelOrderTarget.value
     if (!order || order.orderType !== 'CUSTOMER_SALE') return
     cancelling.value = true
@@ -400,36 +401,36 @@ async function cancelSaleOrder(): Promise<void> {
     }
 }
 
-function formatStatus(value: string): string {
+const formatStatus = (value: string): string => {
     return value ? value.replaceAll('_', ' ').toLowerCase() : 'not attempted'
 }
 
-function statusColor(status: string): string {
+const statusColor = (status: string): string => {
     if (status === 'PAID' || status === 'COMPLETED') return 'success'
     if (status === 'PAYMENT_FAILED') return 'error'
     if (status === 'CANCELLED') return 'error'
-    if (status === 'PARTIALLY_REFUNDED') return 'orange'
+    if (status === 'PARTIALLY_REFUNDED') return 'warning'
     if (status === 'PENDING_PAYMENT') return 'warning'
-    if (status === 'REFUNDED') return 'grey'
+    if (status === 'REFUNDED') return 'on-surface-variant'
     return 'info'
 }
 
-function money(value: number, currency = 'USD'): string {
+const money = (value: number, currency: string = 'USD'): string => {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(value)
 }
 
-function formatDate(value: string): string {
+const formatDate = (value: string): string => {
     return new Intl.DateTimeFormat('en-US', {
         dateStyle: 'medium',
         timeStyle: 'short',
     }).format(new Date(value))
 }
 
-function idempotencyKey(order: OrderRow): string {
+const idempotencyKey = (order: OrderRow): string => {
     return `admin-${order.orderType.toLowerCase()}-charge-${order.id}-${crypto.randomUUID()}`
 }
 
-async function loadOrders(): Promise<void> {
+const loadOrders = async (): Promise<void> => {
     loading.value = true
     try {
         const [procurementResponse, customerResponse] = await Promise.all([
@@ -450,7 +451,7 @@ async function loadOrders(): Promise<void> {
     }
 }
 
-async function loadMore(): Promise<void> {
+const loadMore = async (): Promise<void> => {
     loadingMore.value = true
     try {
         const [procurementResponse, customerResponse] = await Promise.all([
@@ -474,7 +475,7 @@ async function loadMore(): Promise<void> {
     }
 }
 
-async function charge(order: OrderRow): Promise<void> {
+const charge = async (order: OrderRow): Promise<void> => {
     chargingRowKey.value = order.rowKey
     try {
         const response =

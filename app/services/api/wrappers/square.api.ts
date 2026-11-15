@@ -1,4 +1,4 @@
-import type { CachedApiClient } from '../CachedApiClient';
+import HttpFactory from '@/repository/factory';
 import type { ApiResponse } from '~/types/api.types';
 
 export interface SquareCategory {
@@ -34,11 +34,12 @@ export interface SquareLocation {
 /**
  * Square API wrapper service
  */
-export class SquareApiService {
-    constructor(private readonly cachedApi: CachedApiClient) {}
-
+export class SquareApiService extends HttpFactory {
     async getCategories(): Promise<ApiResponse<SquareCategory[]>> {
-        return this.cachedApi.get<SquareCategory[]>('/square/categories', undefined, 'square:categories', 5 * 60 * 1000);
+        return await this.call<SquareCategory[]>('GET', '/square/categories', undefined, {
+            cacheKey: 'square:categories',
+            ttl: 5 * 60 * 1000,
+        });
     }
 
     async getProducts(categoryIds: string[], locationIds?: string[]): Promise<ApiResponse<SquareProduct[]>> {
@@ -48,7 +49,11 @@ export class SquareApiService {
         if (locationIds && locationIds.length > 0) {
             params.locationIds = locationIds.join(',');
         }
-        return this.cachedApi.get<SquareProduct[]>('/square/products', { params }, `square:products:${categoryIds.join(',')}`, 5 * 60 * 1000);
+        return await this.call<SquareProduct[]>('GET', '/square/products', undefined, {
+            config: { params },
+            cacheKey: `square:products:${categoryIds.join(',')}`,
+            ttl: 5 * 60 * 1000,
+        });
     }
 
     async getTransactions(beginTime?: string, endTime?: string): Promise<ApiResponse<SquareTransaction[]>> {
@@ -56,18 +61,33 @@ export class SquareApiService {
         if (beginTime) params.beginTime = beginTime;
         if (endTime) params.endTime = endTime;
         const cacheKey = `square:transactions:${beginTime || 'all'}:${endTime || 'all'}`;
-        return this.cachedApi.get<SquareTransaction[]>('/square/transactions', { params }, cacheKey, 5 * 60 * 1000);
+        return await this.call<SquareTransaction[]>('GET', '/square/transactions', undefined, {
+            config: { params },
+            cacheKey,
+            ttl: 5 * 60 * 1000,
+        });
     }
 
     async getVendors(): Promise<ApiResponse<SquareVendor[]>> {
-        return this.cachedApi.get<SquareVendor[]>('/square/vendors', undefined, 'square:vendors', 5 * 60 * 1000);
+        return await this.call<SquareVendor[]>('GET', '/square/vendors', undefined, {
+            cacheKey: 'square:vendors',
+            ttl: 5 * 60 * 1000,
+        });
     }
 
     async getLocations(): Promise<ApiResponse<SquareLocation[]>> {
-        return this.cachedApi.get<SquareLocation[]>('/square/locations', undefined, 'square:locations', 5 * 60 * 1000);
+        return await this.call<SquareLocation[]>('GET', '/square/locations', undefined, {
+            cacheKey: 'square:locations',
+            ttl: 5 * 60 * 1000,
+        });
     }
 
     async refreshCategories(): Promise<ApiResponse<SquareCategory[]>> {
-        return this.cachedApi.get<SquareCategory[]>('/square/categories', undefined, 'square:categories', undefined, true);
+        return await this.call<SquareCategory[]>('GET', '/square/categories', undefined, {
+            cacheKey: 'square:categories',
+            skipCache: true,
+        });
     }
 }
+
+export default SquareApiService;

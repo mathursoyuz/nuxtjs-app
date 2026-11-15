@@ -61,20 +61,19 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useNuxtApp } from '#app'
 import { useLoadingTask } from '~/composables/useLoadingTask'
 import { useToast } from '~/composables/useToast'
 import DataTable from '~/components/data-table/DataTable.vue'
 import type { CorksyOrder, CorksyConfig } from '~/services/api/wrappers/corksy.api'
+import { CORKSY_PERMISSIONS } from '~/constants/integration-permissions.constants'
 
 definePageMeta({
-    middleware: ['auth'],
+    middleware: ['auth', 'permission'],
+    access: { permission: CORKSY_PERMISSIONS.READ },
 })
 
-const nuxtApp = useNuxtApp()
 const { errorFromError } = useToast()
-const corksyApi =
-    nuxtApp.$corksyApi as import('~/services/api/wrappers/corksy.api').CorksyApiService
+const corksy = useCorksy()
 
 const orders = ref<CorksyOrder[]>([])
 const loading = ref(false)
@@ -118,7 +117,7 @@ const fetchOrders = async () => {
     try {
         const task = useLoadingTask('load-corksy-orders')
         await task.execute(async () => {
-            const response = await corksyApi.listStoredOrders(selectedBrandSlug.value ?? undefined)
+            const response = await corksy.listStoredOrders(selectedBrandSlug.value ?? undefined)
             if (response.success && response.data) {
                 orders.value = response.data
                 buildHeadersFromOrders()
@@ -136,7 +135,7 @@ const fetchOrders = async () => {
 
 const fetchConfigs = async () => {
     try {
-        const response = await corksyApi.listConfigs()
+        const response = await corksy.listConfigs()
         if (response.success && response.data) {
             brandOptions.value = response.data.map((cfg: CorksyConfig) => ({
                 label: cfg.brandName,

@@ -4,7 +4,8 @@
             <div class="text-h6 mb-2">Please fix the following errors:</div>
             <ul class="mb-0">
                 <li v-for="(error, field) in errorList" :key="field">
-                    <strong>{{ field }}:</strong> {{ error }}
+                    <strong>{{ field }}:</strong>
+                    {{ error }}
                 </li>
             </ul>
         </v-alert>
@@ -12,23 +13,24 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed } from 'vue'
 
 interface Props {
-    errors: Record<string, string | string[] | undefined>;
+    errors: Record<string, string | string[] | undefined>
 }
 
-const props = defineProps<Props>();
+const props = defineProps<Props>()
 
 const errorList = computed(() => {
-    const list: Record<string, string> = {};
+    const list: Record<string, string> = {}
     for (const [field, error] of Object.entries(props.errors)) {
         if (error) {
-            list[field] = Array.isArray(error) ? error[0] : error;
+            const message = Array.isArray(error) ? error[0] : error
+            if (message) list[field] = message
         }
     }
-    return list;
-});
+    return list
+})
 
-const hasErrors = computed(() => Object.keys(errorList.value).length > 0);
+const hasErrors = computed(() => Object.keys(errorList.value).length > 0)
 </script>

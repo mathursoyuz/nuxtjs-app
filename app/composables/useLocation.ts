@@ -1,136 +1,266 @@
-import { computed } from 'vue';
-import { useNuxtApp } from '#app';
-import { useLocationStore } from '~/stores/location.store';
-import { useToast } from '~/composables/useToast';
-import { LOCATION_MESSAGES } from '~/constants/messages.constants';
-import type { Location, CreateLocationDTO, UpdateLocationDTO } from '~/types/location.types';
-import { organisationContextRevision, isOrganisationContextCurrent } from '~/services/context/organisation-context-reset.registry';
+import { computed } from 'vue'
+import { useNuxtApp } from '#app'
+import { useLocationStore } from '~/stores/location.store'
+import { useToast } from '~/composables/useToast'
+import { LOCATION_MESSAGES } from '~/constants/messages.constants'
+import type { Location, CreateLocationDTO, UpdateLocationDTO } from '~/types/location.types'
+import {
+    organisationContextRevision,
+    isOrganisationContextCurrent,
+} from '~/services/context/organisation-context-reset.registry'
 
-export function useLocation() {
-    const nuxtApp = useNuxtApp();
-    const locationStore = useLocationStore();
-    const locationApi = nuxtApp.$locationApi as import('~/services/api/wrappers/location.api').LocationApiService;
-    const { successFromResponse, errorFromError } = useToast();
+export const useLocation = (): {
+    locations: globalThis.ComputedRef<
+        {
+            id: number
+            organisationId: number
+            name: string
+            address: string | null
+            city: string | null
+            state: string | null
+            country: string | null
+            phoneNumber: string | null
+            lat: string | null
+            long: string | null
+            squareLocationId: string | null
+            isSquareSynced: boolean
+            qbLocationId: string | null
+            isQbSynced: boolean
+            qbSyncErrorReason: string | null
+            qbLastSyncedAt: string | null
+            isActive: boolean
+            createdAt: string
+            updatedAt: string
+        }[]
+    >
+    currentLocation: globalThis.ComputedRef<{
+        id: number
+        organisationId: number
+        name: string
+        address: string | null
+        city: string | null
+        state: string | null
+        country: string | null
+        phoneNumber: string | null
+        lat: string | null
+        long: string | null
+        squareLocationId: string | null
+        isSquareSynced: boolean
+        qbLocationId: string | null
+        isQbSynced: boolean
+        qbSyncErrorReason: string | null
+        qbLastSyncedAt: string | null
+        isActive: boolean
+        createdAt: string
+        updatedAt: string
+    } | null>
+    loading: globalThis.ComputedRef<boolean>
+    error: globalThis.ComputedRef<string | null>
+    activeLocations: globalThis.ComputedRef<
+        {
+            id: number
+            organisationId: number
+            name: string
+            address: string | null
+            city: string | null
+            state: string | null
+            country: string | null
+            phoneNumber: string | null
+            lat: string | null
+            long: string | null
+            squareLocationId: string | null
+            isSquareSynced: boolean
+            qbLocationId: string | null
+            isQbSynced: boolean
+            qbSyncErrorReason: string | null
+            qbLastSyncedAt: string | null
+            isActive: boolean
+            createdAt: string
+            updatedAt: string
+        }[]
+    >
+    locationsByOrganisation: (
+        organisationId: number
+    ) => globalThis.ComputedRef<
+        {
+            id: number
+            organisationId: number
+            name: string
+            address: string | null
+            city: string | null
+            state: string | null
+            country: string | null
+            phoneNumber: string | null
+            lat: string | null
+            long: string | null
+            squareLocationId: string | null
+            isSquareSynced: boolean
+            qbLocationId: string | null
+            isQbSynced: boolean
+            qbSyncErrorReason: string | null
+            qbLastSyncedAt: string | null
+            isActive: boolean
+            createdAt: string
+            updatedAt: string
+        }[]
+    >
+    fetchLocations: (organisationId?: number) => Promise<Location[]>
+    refreshLocations: (organisationId?: number) => Promise<Location[]>
+    fetchLocationById: (id: number) => Promise<Location>
+    createLocation: (data: CreateLocationDTO) => Promise<Location>
+    updateLocation: (id: number, data: UpdateLocationDTO) => Promise<Location>
+    updateLocationStatus: (id: number, isActive: boolean) => Promise<Location>
+    deleteLocation: (id: number) => Promise<void>
+} => {
+    const nuxtApp = useNuxtApp()
+    const locationStore = useLocationStore()
+    const locationApi =
+        nuxtApp.$locationApi as import('~/services/api/wrappers/location.api').LocationApiService
+    const { successFromResponse, errorFromError } = useToast()
 
     if (!locationApi) {
-        throw new Error('LocationApiService not available');
+        throw new Error('LocationApiService not available')
     }
 
     const fetchLocations = async (organisationId?: number): Promise<Location[]> => {
-        const contextRevision = organisationContextRevision();
-        locationStore.setLoading(true);
-        locationStore.clearError();
+        const contextRevision = organisationContextRevision()
+        locationStore.setLoading(true)
+        locationStore.clearError()
 
         try {
-            const response = await locationApi.getAllLocations(organisationId);
+            const response = await locationApi.getAllLocations(organisationId)
             if (response.success && response.data) {
-                if (isOrganisationContextCurrent(contextRevision)) locationStore.setLocations(response.data);
-                successFromResponse(response, LOCATION_MESSAGES.FETCH_SUCCESS);
-                return response.data;
+                if (isOrganisationContextCurrent(contextRevision))
+                    locationStore.setLocations(response.data)
+                successFromResponse(response, LOCATION_MESSAGES.FETCH_SUCCESS)
+                return response.data
             }
-            throw new Error(response.message || 'Failed to fetch locations');
+            throw new Error(response.message || 'Failed to fetch locations')
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : 'Failed to fetch locations';
+            const errorMessage =
+                error instanceof Error ? error.message : 'Failed to fetch locations'
             if (isOrganisationContextCurrent(contextRevision)) {
-                locationStore.setError(errorMessage);
-                errorFromError(error, LOCATION_MESSAGES.FETCH_ERROR);
+                locationStore.setError(errorMessage)
+                errorFromError(error, LOCATION_MESSAGES.FETCH_ERROR)
             }
-            throw error;
+            throw error
         } finally {
-            if (isOrganisationContextCurrent(contextRevision)) locationStore.setLoading(false);
+            if (isOrganisationContextCurrent(contextRevision)) locationStore.setLoading(false)
         }
-    };
+    }
+
+    const refreshLocations = async (organisationId?: number): Promise<Location[]> => {
+        const response = await locationApi.refreshLocations(organisationId)
+        if (!response.success || !response.data) {
+            throw new Error(response.message || 'Failed to refresh locations')
+        }
+        locationStore.setLocations(response.data)
+        return response.data
+    }
 
     const fetchLocationById = async (id: number): Promise<Location> => {
-        const contextRevision = organisationContextRevision();
-        locationStore.setLoading(true);
-        locationStore.clearError();
+        const contextRevision = organisationContextRevision()
+        locationStore.setLoading(true)
+        locationStore.clearError()
 
         try {
-            const response = await locationApi.getLocationById(id);
+            const response = await locationApi.getLocationById(id)
             if (response.success && response.data) {
-                if (isOrganisationContextCurrent(contextRevision)) locationStore.setCurrentLocation(response.data);
-                successFromResponse(response, LOCATION_MESSAGES.FETCH_SUCCESS);
-                return response.data;
+                if (isOrganisationContextCurrent(contextRevision))
+                    locationStore.setCurrentLocation(response.data)
+                successFromResponse(response, LOCATION_MESSAGES.FETCH_SUCCESS)
+                return response.data
             }
-            throw new Error(response.message || 'Failed to fetch location');
+            throw new Error(response.message || 'Failed to fetch location')
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : 'Failed to fetch location';
+            const errorMessage = error instanceof Error ? error.message : 'Failed to fetch location'
             if (isOrganisationContextCurrent(contextRevision)) {
-                locationStore.setError(errorMessage);
-                errorFromError(error, LOCATION_MESSAGES.FETCH_ERROR);
+                locationStore.setError(errorMessage)
+                errorFromError(error, LOCATION_MESSAGES.FETCH_ERROR)
             }
-            throw error;
+            throw error
         } finally {
-            if (isOrganisationContextCurrent(contextRevision)) locationStore.setLoading(false);
+            if (isOrganisationContextCurrent(contextRevision)) locationStore.setLoading(false)
         }
-    };
+    }
 
     const createLocation = async (data: CreateLocationDTO): Promise<Location> => {
-        locationStore.setLoading(true);
-        locationStore.clearError();
+        locationStore.setLoading(true)
+        locationStore.clearError()
 
         try {
-            const response = await locationApi.createLocation(data);
+            const response = await locationApi.createLocation(data)
             if (response.success && response.data) {
-                locationStore.addLocation(response.data);
-                successFromResponse(response, LOCATION_MESSAGES.CREATE_SUCCESS);
-                return response.data;
+                locationStore.addLocation(response.data)
+                successFromResponse(response, LOCATION_MESSAGES.CREATE_SUCCESS)
+                return response.data
             }
-            throw new Error(response.message || 'Failed to create location');
+            throw new Error(response.message || 'Failed to create location')
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : 'Failed to create location';
-            locationStore.setError(errorMessage);
-            errorFromError(error, LOCATION_MESSAGES.CREATE_ERROR);
-            throw error;
+            const errorMessage =
+                error instanceof Error ? error.message : 'Failed to create location'
+            locationStore.setError(errorMessage)
+            errorFromError(error, LOCATION_MESSAGES.CREATE_ERROR)
+            throw error
         } finally {
-            locationStore.setLoading(false);
+            locationStore.setLoading(false)
         }
-    };
+    }
 
     const updateLocation = async (id: number, data: UpdateLocationDTO): Promise<Location> => {
-        locationStore.setLoading(true);
-        locationStore.clearError();
+        locationStore.setLoading(true)
+        locationStore.clearError()
 
         try {
-            const response = await locationApi.updateLocation(id, data);
+            const response = await locationApi.updateLocation(id, data)
             if (response.success && response.data) {
-                locationStore.updateLocation(response.data);
-                successFromResponse(response, LOCATION_MESSAGES.UPDATE_SUCCESS);
-                return response.data;
+                locationStore.updateLocation(response.data)
+                successFromResponse(response, LOCATION_MESSAGES.UPDATE_SUCCESS)
+                return response.data
             }
-            throw new Error(response.message || 'Failed to update location');
+            throw new Error(response.message || 'Failed to update location')
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : 'Failed to update location';
-            locationStore.setError(errorMessage);
-            errorFromError(error, LOCATION_MESSAGES.UPDATE_ERROR);
-            throw error;
+            const errorMessage =
+                error instanceof Error ? error.message : 'Failed to update location'
+            locationStore.setError(errorMessage)
+            errorFromError(error, LOCATION_MESSAGES.UPDATE_ERROR)
+            throw error
         } finally {
-            locationStore.setLoading(false);
+            locationStore.setLoading(false)
         }
-    };
+    }
 
     const deleteLocation = async (id: number): Promise<void> => {
-        locationStore.setLoading(true);
-        locationStore.clearError();
+        locationStore.setLoading(true)
+        locationStore.clearError()
 
         try {
-            const response = await locationApi.deleteLocation(id);
+            const response = await locationApi.deleteLocation(id)
             if (response.success) {
-                locationStore.removeLocation(id);
-                successFromResponse(response, LOCATION_MESSAGES.DELETE_SUCCESS);
+                locationStore.removeLocation(id)
+                successFromResponse(response, LOCATION_MESSAGES.DELETE_SUCCESS)
             } else {
-                throw new Error(response.message || 'Failed to delete location');
+                throw new Error(response.message || 'Failed to delete location')
             }
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : 'Failed to delete location';
-            locationStore.setError(errorMessage);
-            errorFromError(error, LOCATION_MESSAGES.DELETE_ERROR);
-            throw error;
+            const errorMessage =
+                error instanceof Error ? error.message : 'Failed to delete location'
+            locationStore.setError(errorMessage)
+            errorFromError(error, LOCATION_MESSAGES.DELETE_ERROR)
+            throw error
         } finally {
-            locationStore.setLoading(false);
+            locationStore.setLoading(false)
         }
-    };
+    }
+
+    const updateLocationStatus = async (id: number, isActive: boolean): Promise<Location> => {
+        const response = await locationApi.updateLocationStatus(id, isActive)
+        if (!response.success || !response.data) {
+            throw new Error(response.message || 'Failed to update location status')
+        }
+        locationStore.updateLocation(response.data)
+        return response.data
+    }
 
     return {
         locations: computed(() => locationStore.locations),
@@ -138,11 +268,37 @@ export function useLocation() {
         loading: computed(() => locationStore.loading),
         error: computed(() => locationStore.error),
         activeLocations: computed(() => locationStore.activeLocations),
-        locationsByOrganisation: (organisationId: number) => computed(() => locationStore.locationsByOrganisation(organisationId)),
+        locationsByOrganisation: (
+            organisationId: number
+        ): globalThis.ComputedRef<
+            {
+                id: number
+                organisationId: number
+                name: string
+                address: string | null
+                city: string | null
+                state: string | null
+                country: string | null
+                phoneNumber: string | null
+                lat: string | null
+                long: string | null
+                squareLocationId: string | null
+                isSquareSynced: boolean
+                qbLocationId: string | null
+                isQbSynced: boolean
+                qbSyncErrorReason: string | null
+                qbLastSyncedAt: string | null
+                isActive: boolean
+                createdAt: string
+                updatedAt: string
+            }[]
+        > => computed(() => locationStore.locationsByOrganisation(organisationId)),
         fetchLocations,
+        refreshLocations,
         fetchLocationById,
         createLocation,
         updateLocation,
+        updateLocationStatus,
         deleteLocation,
-    };
+    }
 }

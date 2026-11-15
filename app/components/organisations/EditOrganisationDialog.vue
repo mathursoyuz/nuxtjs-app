@@ -162,7 +162,13 @@
                         <v-form ref="billingFormRef" v-model="billingFormValid">
                             <v-sheet class="pa-10">
                                 <!-- Existing Credit Cards -->
-                                <div v-if="existingCreditCards.length > 0" class="mb-6">
+                                <div
+                                    v-if="
+                                        canManageCard(ORGANISATION_CREDIT_CARD_PERMISSIONS.READ) &&
+                                        existingCreditCards.length > 0
+                                    "
+                                    class="mb-6"
+                                >
                                     <h3 class="text-h6 mb-4">Existing Credit Cards</h3>
                                     <v-card
                                         v-for="card in existingCreditCards"
@@ -186,6 +192,12 @@
                                                 label="Active"
                                                 color="primary"
                                                 hide-details
+                                                :disabled="
+                                                    card.isActive ||
+                                                    !canManageCard(
+                                                        ORGANISATION_CREDIT_CARD_PERMISSIONS.UPDATE
+                                                    )
+                                                "
                                                 :loading="togglingCardId === card.id"
                                                 @update:model-value="
                                                     toggleCreditCardActive(card.id, !!$event)
@@ -306,9 +318,25 @@
                                 </v-row>
 
                                 <!-- New Credit Card -->
-                                <v-divider class="my-6" />
-                                <h3 class="text-h6 mb-4">Add New Credit Card</h3>
-                                <v-row>
+                                <v-divider
+                                    v-if="
+                                        canManageCard(ORGANISATION_CREDIT_CARD_PERMISSIONS.CREATE)
+                                    "
+                                    class="my-6"
+                                />
+                                <h3
+                                    v-if="
+                                        canManageCard(ORGANISATION_CREDIT_CARD_PERMISSIONS.CREATE)
+                                    "
+                                    class="text-h6 mb-4"
+                                >
+                                    Add New Credit Card
+                                </h3>
+                                <v-row
+                                    v-if="
+                                        canManageCard(ORGANISATION_CREDIT_CARD_PERMISSIONS.CREATE)
+                                    "
+                                >
                                     <v-col cols="12">
                                         <v-text-field
                                             v-model="creditCardData.cardNumber"
@@ -316,8 +344,7 @@
                                             variant="outlined"
                                             density="compact"
                                             placeholder="1234 5678 9012 3456"
-                                            :rules="[rules.required]"
-                                            required
+                                            :rules="[rules.requiredIfCard]"
                                         />
                                     </v-col>
 
@@ -330,8 +357,7 @@
                                             density="compact"
                                             item-title="title"
                                             item-value="value"
-                                            :rules="[rules.required]"
-                                            required
+                                            :rules="[rules.requiredIfCard]"
                                         />
                                     </v-col>
 
@@ -344,8 +370,7 @@
                                             density="compact"
                                             item-title="title"
                                             item-value="value"
-                                            :rules="[rules.required]"
-                                            required
+                                            :rules="[rules.requiredIfCard]"
                                         />
                                     </v-col>
 
@@ -357,8 +382,7 @@
                                             density="compact"
                                             placeholder="123"
                                             maxlength="4"
-                                            :rules="[rules.required]"
-                                            required
+                                            :rules="[rules.requiredIfCard]"
                                         />
                                     </v-col>
                                 </v-row>
@@ -388,15 +412,22 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { useNuxtApp } from '#app'
+import { useQuickbooks } from '~/composables/useQuickbooks'
 
 import ImageUpload from '~/components/forms/ImageUpload.vue'
 import { useCountry } from '~/composables/useCountry'
 import { useToast } from '~/composables/useToast'
 import { useOrganisation } from '~/composables/useOrganisation'
+import { useAccessStore } from '~/stores/access.store'
+import { ORGANISATION_CREDIT_CARD_PERMISSIONS } from './organisation-credit-card.permissions'
 import { ORGANISATION_MESSAGES } from '~/constants/messages.constants'
 import type { Organisation } from '~/types/organisation.types'
 import type { OrganisationCreditCard } from '~/services/api/wrappers/organisation-credit-card.api'
+import {
+    organisationEditBasicSchema,
+    organisationBillingSchema,
+    organisationPaymentCardSchema,
+} from '~/schemas/organisation.schema'
 
 interface Props {
     modelValue: boolean
@@ -410,13 +441,12 @@ const emit = defineEmits<{
     submit: []
 }>()
 
-const nuxtApp = useNuxtApp()
-const organisationApi =
-    nuxtApp.$organisationApi as import('~/services/api/wrappers/organisation.api').OrganisationApiService
-const creditCardApi =
-    nuxtApp.$organisationCreditCardApi as import('~/services/api/wrappers/organisation-credit-card.api').OrganisationCreditCardApiService
-const quickbooksApi =
-    nuxtApp.$quickbooksApi as import('~/services/api/wrappers/quickbooks.api').QuickBooksApiService
+const organisationApi = useOrganisationManagement()
+const creditCardApi = useOrganisationCreditCards()
+const access = useAccessStore()
+const canManageCard = (permission: string): boolean =>
+    props.organisation !== null && access.can(permission, props.organisation.id)
+const { operations: quickbooks } = useQuickbooks()
 const { countryOptions, fetchCountries, fetchStates } = useCountry()
 const { successFromResponse, errorFromError, warning } = useToast()
 const { uploadLogo } = useOrganisation()
@@ -500,30 +530,35 @@ const yearOptions = Array.from({ length: 16 }, (_, i) => {
 })
 
 const rules = {
-    required: (v: unknown) => !!v || 'This field is required',
-    email: (v: string) => {
+    required: (v: unknown): true | 'This field is required' => !!v || 'This field is required',
+    email: (v: string): true | 'Email is required' | 'Must be a valid email address' => {
         if (!v) return 'Email is required'
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
         return emailRegex.test(v) || 'Must be a valid email address'
     },
-    emailUnique: () =>
+    emailUnique: (): true | 'This email is already in use' =>
         emailUniqueError.value === null ||
         emailUniqueError.value === '' ||
         'This email is already in use',
-    min: (min: number) => (v: number) => v >= min || `Value must be at least ${min}`,
+    min:
+        (min: number): ((v: number) => string | true) =>
+        (v: number) =>
+            v >= min || `Value must be at least ${min}`,
     // Conditional required: required only if credit card data exists
-    requiredIfCard: (v: unknown) => {
+    requiredIfCard: (v: unknown): true | 'This field is required when adding a credit card' => {
         if (!hasAnyCreditCardData.value) return true
         return !!v || 'This field is required when adding a credit card'
     },
     // Billing company: optional, but if entered, min 5 chars
-    billingCompany: (v: string) => {
+    billingCompany: (
+        v: string
+    ): true | 'Company name must be at least 5 characters if provided' => {
         if (!v || !v.trim()) return true // Optional
         return v.trim().length >= 5 || 'Company name must be at least 5 characters if provided'
     },
 }
 
-const handleEmailBlur = async () => {
+const handleEmailBlur = async (): Promise<void> => {
     if (!formData.value.email || !rules.email(formData.value.email)) {
         emailUniqueError.value = null
         return
@@ -566,7 +601,7 @@ const handleEmailBlur = async () => {
     }
 }
 
-const handleBillingCountryChange = async (countryId: string) => {
+const handleBillingCountryChange = async (countryId: string): Promise<void> => {
     billingCountryCode.value = countryId
     formData.value.billingCountryCode = countryId
     if (countryId) {
@@ -581,8 +616,8 @@ const handleBillingCountryChange = async (countryId: string) => {
     formData.value.billingStateCode = ''
 }
 
-const loadCreditCards = async () => {
-    if (!props.organisation) return
+const loadCreditCards = async (): Promise<void> => {
+    if (!props.organisation || !canManageCard(ORGANISATION_CREDIT_CARD_PERMISSIONS.READ)) return
     try {
         const response = await creditCardApi.getAllOrganisationCreditCards(props.organisation.id)
         if (response.success && response.data) {
@@ -593,20 +628,11 @@ const loadCreditCards = async () => {
     }
 }
 
-const toggleCreditCardActive = async (cardId: number, isActive: boolean) => {
+const toggleCreditCardActive = async (cardId: number, isActive: boolean): Promise<void> => {
     if (!props.organisation) return
 
     togglingCardId.value = cardId
     try {
-        // If activating, deactivate all other cards first
-        if (isActive) {
-            for (const card of existingCreditCards.value) {
-                if (card.id !== cardId && card.isActive) {
-                    await creditCardApi.toggleActive(props.organisation.id, card.id, false)
-                }
-            }
-        }
-
         const response = await creditCardApi.toggleActive(props.organisation.id, cardId, isActive)
         if (response.success) {
             successFromResponse(
@@ -625,7 +651,7 @@ const toggleCreditCardActive = async (cardId: number, isActive: boolean) => {
     }
 }
 
-const loadOrganisationData = async () => {
+const loadOrganisationData = async (): Promise<void> => {
     if (!props.organisation) {
         return
     }
@@ -678,31 +704,36 @@ const loadOrganisationData = async () => {
     await loadCreditCards()
 }
 
-const handleSubmit = async () => {
+const handleSubmit = async (): Promise<void> => {
     if (!props.organisation) return
 
     // Validate the current tab's form
     let isValid = false
     if (tab.value === 'basic') {
-        isValid = basicFormRef.value?.validate() ?? false
-        if (!isValid) {
-            return // Don't proceed if basic form has errors
-        }
+        const validation = await basicFormRef.value?.validate()
+        isValid =
+            validation?.valid === true &&
+            organisationEditBasicSchema.safeParse({
+                ...formData.value,
+                shippingCost: Number(formData.value.shippingCost) || 0,
+            }).success
     } else if (tab.value === 'billing') {
-        isValid = billingFormRef.value?.validate() ?? false
-        if (!isValid) {
-            return // Don't proceed if billing form has errors
-        }
+        const validation = await billingFormRef.value?.validate()
+        isValid =
+            validation?.valid === true &&
+            (hasAnyCreditCardData.value
+                ? organisationPaymentCardSchema.safeParse({
+                      ...formData.value,
+                      ...creditCardData.value,
+                  }).success
+                : organisationBillingSchema.safeParse(formData.value).success)
     }
 
-    if (!isValid) {
-        return // Safety check
-    }
+    if (!isValid) return
 
     loading.value = true
     try {
         const updateData = { ...formData.value }
-        delete (updateData as any).password
         // Ensure shippingCost is a number
         updateData.shippingCost =
             typeof updateData.shippingCost === 'string'
@@ -733,6 +764,27 @@ const handleSubmit = async () => {
                 emit('update:modelValue', false)
             }
         } else if (tab.value === 'billing') {
+            if (!hasAnyCreditCardData.value) {
+                const response = await organisationApi.updateOrganisationBilling(
+                    props.organisation.id,
+                    {
+                        billingFirstName: formData.value.billingFirstName,
+                        billingLastName: formData.value.billingLastName,
+                        billingCompany: formData.value.billingCompany,
+                        billingAddress: formData.value.billingAddress,
+                        billingCity: formData.value.billingCity,
+                        billingStateCode: formData.value.billingStateCode,
+                        billingPostalCode: formData.value.billingPostalCode,
+                        billingCountryCode: formData.value.billingCountryCode,
+                        billingPhone: formData.value.billingPhone,
+                    }
+                )
+                if (!response.success) return
+                successFromResponse(response, ORGANISATION_MESSAGES.UPDATE_SUCCESS)
+                emit('submit')
+                emit('update:modelValue', false)
+                return
+            }
             const creditCardResponse = await creditCardApi.createOrganisationCreditCard(
                 props.organisation.id,
                 {
@@ -752,6 +804,7 @@ const handleSubmit = async () => {
                     billingPhone: formData.value.billingPhone,
                 }
             )
+            if (!creditCardResponse.success) return
             successFromResponse(creditCardResponse, ORGANISATION_MESSAGES.CREDIT_CARD_ADD_SUCCESS)
 
             emit('submit')
@@ -783,10 +836,10 @@ watch(
     }
 )
 
-const loadQuickbooksCompanies = async () => {
+const loadQuickbooksCompanies = async (): Promise<void> => {
     loadingCompanies.value = true
     try {
-        const response = await quickbooksApi.getCompanies()
+        const response = await quickbooks.getCompanies()
         if (response.success && response.data) {
             quickbooksCompanies.value = response.data
         }

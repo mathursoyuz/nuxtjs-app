@@ -5,11 +5,11 @@ import { registerOrganisationContextReset } from '~/services/context/organisatio
 export const useFilterStore = defineStore('filters', () => {
     const organisationId = ref<number | null>(null)
 
-    function setOrganisationId(value: number | null) {
+    const setOrganisationId = (value: number | null): void => {
         organisationId.value = value
     }
 
-    function reset() {
+    const reset = (): void => {
         organisationId.value = null
     }
 

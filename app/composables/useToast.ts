@@ -1,33 +1,60 @@
-import { computed } from 'vue';
-import { useToastStore } from '~/stores/toast.store';
-import type { Toast } from '~/stores/toast.store';
-import type { ApiResponse } from '~/types/api.types';
-import { useApiMessage } from './useApiMessage';
+import { computed } from 'vue'
+import { useToastStore } from '~/stores/toast.store'
+import type { Toast } from '~/stores/toast.store'
+import type { ApiResponse } from '~/types/api.types'
+import { useApiMessage } from './useApiMessage'
 
-export function useToast() {
+export const useToast = (): {
+    toasts: globalThis.ComputedRef<
+        {
+            id: string
+            message: string
+            type: 'success' | 'error' | 'warning' | 'info'
+            timeout?: number | undefined
+            timestamp: Date
+        }[]
+    >
+    show: (message: string, type?: Toast['type'], timeout?: number) => string
+    success: (message: string, timeout?: number) => string
+    error: (message: string, timeout?: number) => string
+    warning: (message: string, timeout?: number) => string
+    info: (message: string, timeout?: number) => string
+    remove: (id: string) => void
+    clearAll: () => void
+    successFromResponse: (
+        response: ApiResponse<unknown> | undefined | null,
+        fallbackMessage: string,
+        timeout?: number
+    ) => string
+    errorFromError: (error: unknown, fallbackMessage: string, timeout?: number) => string
+} => {
     try {
-        const toastStore = useToastStore();
-        const { getSuccessMessage, getErrorMessage } = useApiMessage();
+        const toastStore = useToastStore()
+        const { getSuccessMessage, getErrorMessage } = useApiMessage()
 
-        const show = (message: string, type: Toast['type'] = 'info', timeout = 5000): string => {
-            return toastStore.addToast(message, type, timeout);
-        };
+        const show = (
+            message: string,
+            type: Toast['type'] = 'info',
+            timeout: number = 5000
+        ): string => {
+            return toastStore.addToast(message, type, timeout)
+        }
 
-        const success = (message: string, timeout = 5000): string => {
-            return toastStore.success(message, timeout);
-        };
+        const success = (message: string, timeout: number = 5000): string => {
+            return toastStore.success(message, timeout)
+        }
 
-        const error = (message: string, timeout = 5000): string => {
-            return toastStore.error(message, timeout);
-        };
+        const error = (message: string, timeout: number = 5000): string => {
+            return toastStore.error(message, timeout)
+        }
 
-        const warning = (message: string, timeout = 5000): string => {
-            return toastStore.warning(message, timeout);
-        };
+        const warning = (message: string, timeout: number = 5000): string => {
+            return toastStore.warning(message, timeout)
+        }
 
-        const info = (message: string, timeout = 5000): string => {
-            return toastStore.info(message, timeout);
-        };
+        const info = (message: string, timeout: number = 5000): string => {
+            return toastStore.info(message, timeout)
+        }
 
         /**
          * Show success toast from API response with fallback to constant
@@ -39,11 +66,11 @@ export function useToast() {
         const successFromResponse = (
             response: ApiResponse<unknown> | undefined | null,
             fallbackMessage: string,
-            timeout = 5000
+            timeout: number = 5000
         ): string => {
-            const message = getSuccessMessage(response, fallbackMessage);
-            return toastStore.success(message, timeout);
-        };
+            const message = getSuccessMessage(response, fallbackMessage)
+            return toastStore.success(message, timeout)
+        }
 
         /**
          * Show error toast from error object with fallback to constant
@@ -55,19 +82,19 @@ export function useToast() {
         const errorFromError = (
             error: unknown,
             fallbackMessage: string,
-            timeout = 5000
+            timeout: number = 5000
         ): string => {
-            const message = getErrorMessage(error, fallbackMessage);
-            return toastStore.error(message, timeout);
-        };
+            const message = getErrorMessage(error, fallbackMessage)
+            return toastStore.error(message, timeout)
+        }
 
         const remove = (id: string): void => {
-            toastStore.removeToast(id);
-        };
+            toastStore.removeToast(id)
+        }
 
         const clearAll = (): void => {
-            toastStore.clearAll();
-        };
+            toastStore.clearAll()
+        }
 
         return {
             toasts: computed(() => toastStore.visibleToasts),
@@ -81,12 +108,12 @@ export function useToast() {
             // New helper methods
             successFromResponse,
             errorFromError,
-        };
+        }
     } catch (err) {
         // Fallback if store is not initialized
-        console.warn('Toast store not initialized:', err);
-        const noop = () => {};
-        const noopString = () => '';
+        console.warn('Toast store not initialized:', err)
+        const noop = (): void => {}
+        const noopString = (): string => ''
         return {
             toasts: computed(() => []),
             show: noopString,
@@ -98,6 +125,6 @@ export function useToast() {
             clearAll: noop,
             successFromResponse: noopString,
             errorFromError: noopString,
-        };
+        }
     }
 }

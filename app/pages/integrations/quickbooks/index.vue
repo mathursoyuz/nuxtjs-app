@@ -8,10 +8,14 @@
                     <v-card-title>Connection Status</v-card-title>
                     <v-card-text>
                         <v-alert :type="isConnected ? 'success' : 'warning'" class="mb-4">
-                            {{ isConnected ? 'Connected to QuickBooks' : 'Not connected to QuickBooks' }}
+                            {{
+                                isConnected
+                                    ? 'Connected to QuickBooks'
+                                    : 'Not connected to QuickBooks'
+                            }}
                         </v-alert>
                         <v-btn
-                            v-if="!isConnected"
+                            v-if="canWrite && !isConnected"
                             color="primary"
                             prepend-icon="mdi-link"
                             @click="initiateAuth"
@@ -19,7 +23,7 @@
                             Connect to QuickBooks
                         </v-btn>
                         <v-btn
-                            v-else
+                            v-else-if="canWrite"
                             color="error"
                             prepend-icon="mdi-link-off"
                             @click="disconnect"
@@ -35,6 +39,7 @@
                             <v-card-title>Categories</v-card-title>
                             <v-card-text>
                                 <v-btn
+                                    v-if="canWrite"
                                     color="primary"
                                     prepend-icon="mdi-download"
                                     :loading="isCategorySyncing"
@@ -44,10 +49,16 @@
                                 >
                                     Manage Category Sync
                                 </v-btn>
-                                <v-chip :color="getStatusColor(syncStatus.categories.status)" size="small">
+                                <v-chip
+                                    :color="getStatusColor(syncStatus.categories.status)"
+                                    size="small"
+                                >
                                     {{ syncStatus.categories.status }}
                                 </v-chip>
-                                <div v-if="syncStatus.categories.lastSync" class="text-caption mt-2">
+                                <div
+                                    v-if="syncStatus.categories.lastSync"
+                                    class="text-caption mt-2"
+                                >
                                     Last sync: {{ formatDate(syncStatus.categories.lastSync) }}
                                 </div>
                             </v-card-text>
@@ -59,6 +70,7 @@
                             <v-card-title>Products</v-card-title>
                             <v-card-text>
                                 <v-btn
+                                    v-if="canWrite"
                                     color="primary"
                                     prepend-icon="mdi-download"
                                     :loading="isProductSyncing"
@@ -68,7 +80,10 @@
                                 >
                                     Manage Product Sync
                                 </v-btn>
-                                <v-chip :color="getStatusColor(syncStatus.products.status)" size="small">
+                                <v-chip
+                                    :color="getStatusColor(syncStatus.products.status)"
+                                    size="small"
+                                >
                                     {{ syncStatus.products.status }}
                                 </v-chip>
                                 <div v-if="syncStatus.products.lastSync" class="text-caption mt-2">
@@ -83,6 +98,7 @@
                             <v-card-title>Customers</v-card-title>
                             <v-card-text>
                                 <v-btn
+                                    v-if="canWrite"
                                     color="primary"
                                     prepend-icon="mdi-download"
                                     :loading="isCustomerSyncing"
@@ -92,7 +108,10 @@
                                 >
                                     Manage Customer Sync
                                 </v-btn>
-                                <v-chip :color="getStatusColor(syncStatus.customers.status)" size="small">
+                                <v-chip
+                                    :color="getStatusColor(syncStatus.customers.status)"
+                                    size="small"
+                                >
                                     {{ syncStatus.customers.status }}
                                 </v-chip>
                                 <div v-if="syncStatus.customers.lastSync" class="text-caption mt-2">
@@ -107,19 +126,28 @@
                             <v-card-title>Transactions</v-card-title>
                             <v-card-text>
                                 <v-btn
+                                    v-if="canWrite"
                                     color="primary"
                                     prepend-icon="mdi-download"
                                     :loading="isTransactionSyncing"
                                     class="mb-2"
                                     block
-                                    @click="navigateTo('/integrations/quickbooks/sync/transactions')"
+                                    @click="
+                                        navigateTo('/integrations/quickbooks/sync/transactions')
+                                    "
                                 >
                                     Manage Transaction Sync
                                 </v-btn>
-                                <v-chip :color="getStatusColor(syncStatus.transactions.status)" size="small">
+                                <v-chip
+                                    :color="getStatusColor(syncStatus.transactions.status)"
+                                    size="small"
+                                >
                                     {{ syncStatus.transactions.status }}
                                 </v-chip>
-                                <div v-if="syncStatus.transactions.lastSync" class="text-caption mt-2">
+                                <div
+                                    v-if="syncStatus.transactions.lastSync"
+                                    class="text-caption mt-2"
+                                >
                                     Last sync: {{ formatDate(syncStatus.transactions.lastSync) }}
                                 </div>
                             </v-card-text>
@@ -132,34 +160,46 @@
 </template>
 
 <script setup lang="ts">
-import { SYSTEM_ROLE } from '~/constants/access.constants'
+import { QUICKBOOKS_PERMISSIONS } from '~/constants/integration-permissions.constants'
 
-import { computed } from 'vue';
-import { useQuickbooks } from '~/composables/useQuickbooks';
-import { formatDate } from '~/utils/date.util';
+import { computed } from 'vue'
+import { useQuickbooks } from '~/composables/useQuickbooks'
+import { formatDate } from '~/utils/date.util'
+import { useAccessStore } from '~/stores/access.store'
 
 definePageMeta({
-    middleware: ['auth', 'role'],
-    roles: [SYSTEM_ROLE.PLATFORM_ADMIN],
-});
+    middleware: ['auth', 'permission'],
+    access: { permission: QUICKBOOKS_PERMISSIONS.READ },
+})
 
-const { isConnected, syncStatus, isCategorySyncing, isProductSyncing, isCustomerSyncing, isTransactionSyncing, initiateAuth } = useQuickbooks();
+const access = useAccessStore()
+const canWrite = computed(() => access.can(QUICKBOOKS_PERMISSIONS.WRITE))
+
+const {
+    isConnected,
+    syncStatus,
+    isCategorySyncing,
+    isProductSyncing,
+    isCustomerSyncing,
+    isTransactionSyncing,
+    initiateAuth,
+} = useQuickbooks()
 
 const disconnect = () => {
     // Implement disconnect logic
-    console.log('Disconnect QuickBooks');
-};
+    console.log('Disconnect QuickBooks')
+}
 
 const getStatusColor = (status: string) => {
     switch (status) {
         case 'success':
-            return 'success';
+            return 'success'
         case 'error':
-            return 'error';
+            return 'error'
         case 'syncing':
-            return 'primary';
+            return 'primary'
         default:
-            return 'grey';
+            return 'grey'
     }
-};
+}
 </script>

@@ -155,14 +155,14 @@
 </template>
 
 <script setup lang="ts">
-import { SYSTEM_ROLE } from '~/constants/access.constants'
+import { SQUARE_SYNC_PERMISSIONS } from '~/constants/integration-permissions.constants'
 
 import { ref, computed, onMounted } from 'vue'
-import { useNuxtApp } from '#app'
+import { useSquareImport } from '~/composables/useSquareImport'
 
 definePageMeta({
-    middleware: ['auth', 'role'],
-    roles: [SYSTEM_ROLE.PLATFORM_ADMIN],
+    middleware: ['auth', 'permission'],
+    access: { permission: SQUARE_SYNC_PERMISSIONS.READ },
 })
 
 interface InventoryRecord {
@@ -235,9 +235,7 @@ interface GroupedInventoryItem {
     totalQtySold: number
 }
 
-const nuxtApp = useNuxtApp()
-const squareImportApi =
-    nuxtApp.$squareImportApi as import('~/services/api/wrappers/square-import.api').SquareImportApiService
+const { operations: squareImport } = useSquareImport()
 const { organisations, fetchOrganisations } = useOrganisation()
 
 const loading = ref(false)
@@ -321,7 +319,7 @@ const groupedInventory = computed<GroupedInventoryItem[]>(() => {
 const fetchData = async () => {
     loading.value = true
     try {
-        const response = await squareImportApi.getAllInventory(selectedOrganisationId.value)
+        const response = await squareImport.getAllInventory(selectedOrganisationId.value)
         if (response.success && response.data) {
             inventoryRecords.value = response.data
         }

@@ -1,7 +1,7 @@
 <template>
     <v-card-title class="dialog-header d-flex align-center justify-space-between ga-4 pa-4">
         <div class="min-width-0">
-            <div class="text-h5 text-white text-wrap">{{ title }}</div>
+            <div class="text-h5 text-on-primary text-wrap">{{ title }}</div>
             <div class="dialog-header__context text-caption text-wrap">
                 <span v-if="resolvedScope">Scope: {{ resolvedScope }}</span>
                 <span v-else>Organisation: {{ resolvedOrganisationName }}</span>
@@ -16,7 +16,7 @@
                 v-if="closeable"
                 icon="mdi-close"
                 variant="text"
-                color="white"
+                color="on-primary"
                 :disabled="closeDisabled"
                 :aria-label="`Close ${title}`"
                 @click="emit('close')"
@@ -62,11 +62,16 @@ const resolvedOrganisationName = computed(
 
 <style scoped>
 .dialog-header {
-    background: linear-gradient(135deg, #7f1d2d 0%, #9b2335 55%, #be3455 100%);
+    background: linear-gradient(
+        135deg,
+        rgb(var(--v-theme-primary)) 0%,
+        rgb(var(--v-theme-primary)) 55%,
+        rgb(var(--v-theme-accent)) 100%
+    );
 }
 
 .dialog-header__context {
-    color: rgba(255, 255, 255, 0.86);
+    color: rgb(var(--v-theme-on-primary) / 0.86);
 }
 
 .min-width-0 {

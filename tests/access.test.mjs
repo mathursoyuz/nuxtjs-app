@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict'
 import { beforeEach, test } from 'node:test'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import { relative, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { registerHooks } from 'node:module'
+import ts from 'typescript'
 import { createPinia, setActivePinia } from 'pinia'
 
 const appRoot = new URL('../app/', import.meta.url)
@@ -292,6 +295,31 @@ test('target-selection pages remain available after switching organisation conte
     assert.equal(allowed, undefined)
 })
 
+test('any-permission routes accept a permission granted in any accessible organisation', async () => {
+    fixture()
+    const allowed = await permissionMiddleware({
+        params: {},
+        meta: {
+            access: {
+                anyPermissions: ['organisation-products.write', 'users.write'],
+                allowAnyOrganisation: true,
+            },
+        },
+    })
+    const denied = await permissionMiddleware({
+        params: {},
+        meta: {
+            access: {
+                anyPermissions: ['organisation-products.delete', 'products.delete'],
+                allowAnyOrganisation: true,
+            },
+        },
+    })
+
+    assert.equal(allowed, undefined)
+    assert.equal(denied, '/unauthorized')
+})
+
 test('overlapping refresh and context switch always clear busy flags', async () => {
     const state = fixture()
     const access = useAccessStore()
@@ -372,17 +400,358 @@ test('permission actions and SPA route metadata use the current contract', () =>
         'utf8'
     )
     const organisationDialog = readFileSync(
-        new URL('../app/components/organisation-products/ViewOrganisationProductsDialog.vue', import.meta.url),
+        new URL(
+            '../app/components/organisation-products/ViewOrganisationProductsDialog.vue',
+            import.meta.url
+        ),
         'utf8'
     )
 
     assert.match(productPage, /access:\s*\{ permission: PRODUCT_PERMISSIONS\.READ \}/)
-    assert.doesNotMatch(productPage, /PRODUCT_PERMISSIONS\.(CREATE|UPDATE)/)
+    assert.match(productPage, /access\.can\(PRODUCT_PERMISSIONS\.CREATE\)/)
+    assert.match(productPage, /access\.can\(PRODUCT_PERMISSIONS\.UPDATE\)/)
     assert.doesNotMatch(topbar, /href:\s*['"`]/)
     assert.doesNotMatch(organisationDialog, /loadContext\(/)
-    assert.match(organisationDialog, /access\.can\(ORGANISATION_PRODUCT_PERMISSIONS\.WRITE, props\.organisationId\)/)
+    assert.match(
+        organisationDialog,
+        /access\.can\(ORGANISATION_PRODUCT_PERMISSIONS\.UPDATE, props\.organisationId\)/
+    )
     assert.doesNotMatch(authStore, /useAccessStore|access\.store/)
     assert.doesNotMatch(accessStore, /useAuthStore|auth\.store/)
     assert.match(sessionStore, /useAuthStore/)
     assert.match(sessionStore, /useAccessStore/)
+})
+
+test('every integration page declares permission middleware and permission metadata', () => {
+    const integrationRoot = fileURLToPath(new URL('../app/pages/integrations/', import.meta.url))
+    const collectVueFiles = (directory) =>
+        readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+            const path = resolve(directory, entry.name)
+            return entry.isDirectory()
+                ? collectVueFiles(path)
+                : entry.name.endsWith('.vue')
+                  ? [path]
+                  : []
+        })
+
+    for (const path of collectVueFiles(integrationRoot)) {
+        const source = readFileSync(path, 'utf8')
+        const page = relative(integrationRoot, path)
+        assert.match(
+            source,
+            /middleware:\s*\['auth',\s*'permission'\]/,
+            `${page} must use permission middleware`
+        )
+        assert.match(
+            source,
+            /access:\s*\{\s*permission:\s*[A-Z_]+_PERMISSIONS\.(READ|WRITE)\s*\}/,
+            `${page} must declare a module permission`
+        )
+        assert.doesNotMatch(
+            source,
+            /middleware:\s*\[[^\]]*'role'/,
+            `${page} still uses role middleware`
+        )
+    }
+})
+
+test('integration navigation is permission-driven from the single navigation config', () => {
+    const navigation = JSON.parse(
+        readFileSync(new URL('../app/config/navigation.json', import.meta.url), 'utf8')
+    )
+    const integrations = navigation.sections.find((section) => section.key === 'integrations')
+
+    assert.ok(integrations)
+    assert.ok(integrations.items.length > 0)
+    for (const item of integrations.items) {
+        assert.ok(item.permissions?.length, `${item.key} must declare permissions`)
+        assert.ok(
+            item.permissions.every((permission) => permission.endsWith('.read')),
+            `${item.key} navigation must require read access`
+        )
+    }
+})
+
+test('subscription orders require one subscription read permission at route entry', () => {
+    const source = readFileSync(
+        new URL('../app/pages/subscriptions/orders.vue', import.meta.url),
+        'utf8'
+    )
+
+    assert.match(source, /middleware:\s*\['auth',\s*'permission'\]/)
+    assert.match(source, /anyPermissions:/)
+    assert.match(source, /allowAnyOrganisation:\s*true/)
+})
+
+test('frontend source contains no native browser prompts or explicit any types', () => {
+    const sourceRoot = fileURLToPath(new URL('../app/', import.meta.url))
+    const collectSourceFiles = (directory) =>
+        readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+            const path = resolve(directory, entry.name)
+            return entry.isDirectory()
+                ? collectSourceFiles(path)
+                : /\.(?:ts|vue|js)$/.test(entry.name)
+                  ? [path]
+                  : []
+        })
+
+    for (const path of collectSourceFiles(sourceRoot)) {
+        const source = readFileSync(path, 'utf8')
+        const file = relative(sourceRoot, path)
+        assert.doesNotMatch(
+            source,
+            /\b(?:window\.)?(?:alert|confirm|prompt)\s*\(/,
+            `${file} must use application dialogs or toasts`
+        )
+        assert.doesNotMatch(
+            source,
+            /(?:[:<]|\bas)\s*any\b|\bany\[\]|Record<[^>]*any/,
+            `${file} contains an explicit any type`
+        )
+    }
+})
+
+test('first-party UI uses semantic Vuetify colors and shared payment field schemas', () => {
+    const sourceRoot = fileURLToPath(new URL('../app/', import.meta.url))
+    const excludedIntegrations = ['/pages/integrations/', '/components/integrations/']
+    const collectSourceFiles = (directory) =>
+        readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+            const path = resolve(directory, entry.name)
+            return entry.isDirectory()
+                ? collectSourceFiles(path)
+                : /\.(?:ts|vue)$/.test(entry.name)
+                  ? [path]
+                  : []
+        })
+
+    for (const path of collectSourceFiles(sourceRoot)) {
+        const normalized = path.replaceAll('\\', '/')
+        if (excludedIntegrations.some((fragment) => normalized.includes(fragment))) continue
+        const source = readFileSync(path, 'utf8')
+        const file = relative(sourceRoot, path)
+        assert.doesNotMatch(
+            source,
+            /(?:color=|:color=)[^\n>]*(?:['"](?:grey|gray|orange|red|blue|green|yellow|purple|pink|black|white)['"])/,
+            `${file} must use a semantic Vuetify theme color`
+        )
+        assert.doesNotMatch(
+            source,
+            /return ['"](?:grey|gray|orange|red|blue|green|yellow|purple|pink|black|white)['"]/,
+            `${file} must return a semantic Vuetify theme color`
+        )
+        if (normalized.includes('/components/') || normalized.includes('/pages/')) {
+            assert.doesNotMatch(
+                source,
+                /(?:cardNumber|expMonth|expYear|cvc|billingAddress):\s*z\./,
+                `${file} must compose payment validation from the shared payment schemas`
+            )
+        }
+    }
+})
+
+test('every first-party dialog uses the shared themed dialog header', () => {
+    for (const sourceDirectory of ['components', 'pages']) {
+        const sourceRoot = fileURLToPath(new URL(`../app/${sourceDirectory}/`, import.meta.url))
+        const collectVueFiles = (directory) =>
+            readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+                const path = resolve(directory, entry.name)
+                return entry.isDirectory()
+                    ? collectVueFiles(path)
+                    : entry.name.endsWith('.vue')
+                      ? [path]
+                      : []
+            })
+
+        for (const path of collectVueFiles(sourceRoot)) {
+            const normalized = path.replaceAll('\\', '/')
+            if (normalized.includes('/integrations/')) continue
+            const source = readFileSync(path, 'utf8')
+            if (!source.includes('<v-dialog')) continue
+            assert.match(
+                source,
+                /<(?:Dialogs)?DialogHeader\b/,
+                `${relative(sourceRoot, path)} must use the shared dialog header`
+            )
+        }
+    }
+})
+
+test('frontend free functions use arrow syntax', () => {
+    const sourceRoot = fileURLToPath(new URL('../app/', import.meta.url))
+    const collectSourceFiles = (directory) =>
+        readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+            const path = resolve(directory, entry.name)
+            return entry.isDirectory()
+                ? collectSourceFiles(path)
+                : /\.(?:ts|vue|js)$/.test(entry.name)
+                  ? [path]
+                  : []
+        })
+
+    for (const path of collectSourceFiles(sourceRoot)) {
+        const source = readFileSync(path, 'utf8')
+        assert.doesNotMatch(
+            source,
+            /^\s*(?:export\s+)?(?:async\s+)?function\s+[A-Za-z_$]/m,
+            `${relative(sourceRoot, path)} contains a free function declaration`
+        )
+    }
+})
+
+test('frontend application functions have explicit parameter and return types', () => {
+    const sourceRoot = fileURLToPath(new URL('../app/', import.meta.url))
+    const excludedIntegrations = ['quickbooks', 'square', 'shipstation', 'corksy']
+    const collectSourceFiles = (directory) =>
+        readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+            const path = resolve(directory, entry.name)
+            return entry.isDirectory()
+                ? collectSourceFiles(path)
+                : /\.(?:ts|vue)$/.test(entry.name)
+                  ? [path]
+                  : []
+        })
+    const requiresExplicitSignature = (node) => {
+        if (
+            ts.isMethodDeclaration(node) ||
+            ts.isGetAccessorDeclaration(node) ||
+            ts.isSetAccessorDeclaration(node) ||
+            ts.isConstructorDeclaration(node)
+        )
+            return true
+        if (!ts.isArrowFunction(node) && !ts.isFunctionExpression(node)) return false
+        return (
+            ts.isVariableDeclaration(node.parent) ||
+            ts.isPropertyDeclaration(node.parent) ||
+            ts.isPropertyAssignment(node.parent)
+        )
+    }
+    const failures = []
+
+    for (const path of collectSourceFiles(sourceRoot)) {
+        const file = relative(sourceRoot, path)
+        if (excludedIntegrations.some((fragment) => file.toLowerCase().includes(fragment))) continue
+        const rawSource = readFileSync(path, 'utf8')
+        const scriptMatch = path.endsWith('.vue')
+            ? rawSource.match(/<script\s+setup[^>]*>([\s\S]*?)<\/script>/)
+            : null
+        const sourceText = path.endsWith('.vue') ? scriptMatch?.[1] : rawSource
+        if (sourceText === undefined) continue
+        const source = ts.createSourceFile(
+            file,
+            sourceText,
+            ts.ScriptTarget.Latest,
+            true,
+            ts.ScriptKind.TS
+        )
+        const visit = (node) => {
+            if (ts.isFunctionLike(node) && node.body && requiresExplicitSignature(node)) {
+                const line = source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1
+                for (const parameter of node.parameters)
+                    if (!parameter.type) failures.push(`${file}:${line} parameter`)
+                if (
+                    !ts.isConstructorDeclaration(node) &&
+                    !ts.isSetAccessorDeclaration(node) &&
+                    !node.type
+                )
+                    failures.push(`${file}:${line} return`)
+            }
+            ts.forEachChild(node, visit)
+        }
+        visit(source)
+    }
+
+    assert.deepEqual(failures, [])
+})
+
+test('Vuetify forms use schema validation and await validate results', () => {
+    const sourceRoot = fileURLToPath(new URL('../app/', import.meta.url))
+    const collectVueFiles = (directory) =>
+        readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+            const path = resolve(directory, entry.name)
+            return entry.isDirectory()
+                ? collectVueFiles(path)
+                : entry.name.endsWith('.vue')
+                  ? [path]
+                  : []
+        })
+
+    for (const path of collectVueFiles(sourceRoot)) {
+        const source = readFileSync(path, 'utf8')
+        const file = relative(sourceRoot, path)
+        if (source.includes('<v-form')) {
+            assert.match(
+                source,
+                /(?:Schema|schema|useFormValidation|useForm<)/,
+                `${file} must use schema validation`
+            )
+        }
+        assert.doesNotMatch(
+            source,
+            /if\s*\([^\n]*\.validate\(\)/,
+            `${file} must await and inspect the validate result`
+        )
+    }
+})
+
+test('every API wrapper inherits the shared HttpFactory', () => {
+    const wrapperRoot = fileURLToPath(new URL('../app/services/api/wrappers/', import.meta.url))
+
+    for (const entry of readdirSync(wrapperRoot, { withFileTypes: true })) {
+        if (!entry.isFile() || !entry.name.endsWith('.ts')) continue
+        const source = readFileSync(resolve(wrapperRoot, entry.name), 'utf8')
+        assert.match(source, /import HttpFactory from ['"]@\/repository\/factory['"]/)
+        assert.match(source, /export class \w+ extends HttpFactory/)
+        assert.match(source, /this\.call</, `${entry.name} must use the shared call method`)
+        assert.match(source, /export default \w+ApiService/)
+        assert.doesNotMatch(source, /constructor\(private readonly (?:cachedApi|api):/)
+        assert.doesNotMatch(
+            source,
+            /this\.(?:cachedApi|api)\.(?:get|post|put|patch|delete)\s*\(/,
+            `${entry.name} must not bypass the shared call method`
+        )
+    }
+})
+
+test('pages and components access APIs only through composables or stores', () => {
+    for (const sourceDirectory of ['components', 'pages']) {
+        const sourceRoot = fileURLToPath(new URL(`../app/${sourceDirectory}/`, import.meta.url))
+        const collectSourceFiles = (directory) =>
+            readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+                const path = resolve(directory, entry.name)
+                return entry.isDirectory()
+                    ? collectSourceFiles(path)
+                    : /\.(?:ts|vue)$/.test(entry.name)
+                      ? [path]
+                      : []
+            })
+
+        for (const path of collectSourceFiles(sourceRoot)) {
+            const source = readFileSync(path, 'utf8')
+            const file = relative(sourceRoot, path)
+            assert.doesNotMatch(
+                source,
+                /useNuxtApp\s*\(/,
+                `${sourceDirectory}/${file} must use a domain composable or store`
+            )
+            assert.doesNotMatch(
+                source,
+                /\$[A-Za-z][A-Za-z0-9]*Api\b/,
+                `${sourceDirectory}/${file} must not inject an API wrapper`
+            )
+        }
+    }
+})
+
+test('Vuetify uses tree-shaken SVG icons instead of the complete MDI font', () => {
+    const nuxtConfig = readFileSync(
+        fileURLToPath(new URL('../nuxt.config.ts', import.meta.url)),
+        'utf8'
+    )
+    const vuetifyPlugin = readFileSync(
+        fileURLToPath(new URL('../app/plugins/vuetify.ts', import.meta.url)),
+        'utf8'
+    )
+
+    assert.doesNotMatch(nuxtConfig, /@mdi\/font/)
+    assert.match(vuetifyPlugin, /vuetify\/iconsets\/mdi-svg/)
 })

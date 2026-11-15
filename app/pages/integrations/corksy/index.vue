@@ -32,6 +32,7 @@
                             </v-col>
                             <v-col cols="12" md="6">
                                 <v-btn
+                                    v-if="canWrite"
                                     color="primary"
                                     prepend-icon="mdi-package-variant"
                                     :loading="loading"
@@ -50,49 +51,51 @@
 </template>
 
 <script setup lang="ts">
-import { SYSTEM_ROLE } from '~/constants/access.constants'
+import { CORKSY_PERMISSIONS } from '~/constants/integration-permissions.constants'
 
-import { ref } from 'vue';
-import { useNuxtApp } from '#app';
+import { computed, ref } from 'vue'
+import { useAccessStore } from '~/stores/access.store'
 
 definePageMeta({
-    middleware: ['auth', 'role'],
-    roles: [SYSTEM_ROLE.PLATFORM_ADMIN],
-});
+    middleware: ['auth', 'permission'],
+    access: { permission: CORKSY_PERMISSIONS.READ },
+})
 
-const nuxtApp = useNuxtApp();
-const corksyApi = nuxtApp.$corksyApi as import('~/services/api/wrappers/corksy.api').CorksyApiService;
+const access = useAccessStore()
+const canWrite = computed(() => access.can(CORKSY_PERMISSIONS.WRITE))
 
-const loading = ref(false);
-const brandSlug = ref('');
+const corksy = useCorksy()
+
+const loading = ref(false)
+const brandSlug = ref('')
 
 const getAccessToken = async () => {
-    if (!brandSlug.value) return;
-    loading.value = true;
+    if (!brandSlug.value) return
+    loading.value = true
     try {
-        const response = await corksyApi.getAccessToken(brandSlug.value);
+        const response = await corksy.getAccessToken(brandSlug.value)
         if (response.success) {
-            console.log('Access token:', response.data);
+            console.log('Access token:', response.data)
         }
     } catch (error) {
-        console.error('Error getting access token:', error);
+        console.error('Error getting access token:', error)
     } finally {
-        loading.value = false;
+        loading.value = false
     }
-};
+}
 
 const getOrders = async () => {
-    if (!brandSlug.value) return;
-    loading.value = true;
+    if (!brandSlug.value) return
+    loading.value = true
     try {
-        const response = await corksyApi.getOrders(brandSlug.value);
+        const response = await corksy.syncOrdersFromCorksy(brandSlug.value)
         if (response.success) {
-            console.log('Orders:', response.data);
+            console.log('Orders:', response.data)
         }
     } catch (error) {
-        console.error('Error getting orders:', error);
+        console.error('Error getting orders:', error)
     } finally {
-        loading.value = false;
+        loading.value = false
     }
-};
+}
 </script>

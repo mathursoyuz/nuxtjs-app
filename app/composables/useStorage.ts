@@ -1,11 +1,11 @@
-import { StorageServiceImpl } from '~/services/storage/StorageServiceImpl';
-import type { StorageService } from '~/services/storage/StorageService';
+import { StorageServiceImpl } from '~/services/storage/StorageServiceImpl'
+import type { StorageService } from '~/services/storage/StorageService'
 
-let storageServiceInstance: StorageService | null = null;
+let storageServiceInstance: StorageService | null = null
 
-export function useStorageService(): StorageService {
+export const useStorageService = (): StorageService => {
     if (!storageServiceInstance) {
-        storageServiceInstance = new StorageServiceImpl();
+        storageServiceInstance = new StorageServiceImpl()
     }
-    return storageServiceInstance;
+    return storageServiceInstance
 }
