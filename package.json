@@ -14,10 +14,13 @@
         "test:access": "node --experimental-transform-types tests/access.test.mjs",
         "test:membership-slug": "node --experimental-transform-types tests/membership-slug.test.mjs",
         "test:membership-batch": "node --test tests/membership-batch.test.mjs",
-        "test:phone-number": "node --experimental-transform-types tests/phone-number.test.mjs"
+        "test:phone-number": "node --experimental-transform-types tests/phone-number.test.mjs",
+        "test:payment-card": "node --experimental-transform-types tests/payment-card.test.mjs",
+        "test:location": "node --experimental-transform-types --test tests/location-coordinates.test.mjs"
     },
     "dependencies": {
         "@mdi/font": "^7.4.47",
+        "@mdi/js": "^7.4.47",
         "@pinia/nuxt": "^0.11.3",
         "@vee-validate/zod": "^4.15.1",
         "axios": "^1.13.2",
@@ -29,6 +32,7 @@
         "zod": "^3.25.0"
     },
     "devDependencies": {
+        "@types/node": "^26.6.5",
         "eslint-config-prettier": "^10.1.8",
         "eslint-plugin-prettier": "^5.5.5",
         "prettier": "^3.8.1",

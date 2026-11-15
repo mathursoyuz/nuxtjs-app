@@ -189,14 +189,25 @@
                 </v-card-text>
             </v-card>
         </div>
+
+        <ConfirmDialog
+            v-model="removeConfirmOpen"
+            title="Remove Shipping Address"
+            message="Are you sure you want to remove this shipping address?"
+            confirm-text="Remove"
+            cancel-text="Cancel"
+            confirm-color="error"
+            :loading="removingAddress"
+            entity-label="Customer"
+            :entity-name="customerName"
+            @cancel="cancelRemoveShippingAddress"
+            @confirm="confirmRemoveShippingAddress"
+        />
     </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
-import { useForm } from 'vee-validate'
-import { toTypedSchema } from '@vee-validate/zod'
-import { z } from 'zod'
+import { computed, ref, watch } from 'vue'
 import { customerShippingAddressSchema } from '~/schemas/customer.schema'
 import { useCustomer } from '~/composables/useCustomer'
 import { useCountry } from '~/composables/useCountry'
@@ -205,13 +216,9 @@ import { useLoadingTask } from '~/composables/useLoadingTask'
 import { CUSTOMER_MESSAGES } from '~/constants/messages.constants'
 import { CUSTOMER_LIMITS } from '~/constants/customer.constants'
 import type { Customer, CustomerShippingAddress } from '~/services/api/wrappers/customer.api'
+import ConfirmDialog from '~/components/dialogs/ConfirmDialog.vue'
 
 const MAX_SHIPPING_ADDRESSES = CUSTOMER_LIMITS.SHIPPING_ADDRESSES
-
-// Shipping addresses schema
-const shippingAddressesSchema = z.object({
-    shippingAddresses: z.array(customerShippingAddressSchema),
-})
 
 interface Props {
     customer: Customer | null
@@ -233,44 +240,43 @@ const shippingAddresses = ref<
 const editingAddressIndex = ref<number | null>(null)
 const savingAddressIndex = ref<number | null>(null)
 const stateOptionsCache = ref<Record<string, Array<{ title: string; value: string }>>>({})
-
-const { errors: shippingErrors } = useForm({
-    validationSchema: toTypedSchema(shippingAddressesSchema),
-    initialValues: {
-        shippingAddresses: [],
+const shippingErrors = ref<Record<number, Record<string, string>>>({})
+const removeAddressIndex = ref<number | null>(null)
+const removingAddress = ref(false)
+const removeConfirmOpen = computed({
+    get: (): boolean => removeAddressIndex.value !== null,
+    set: (value: boolean): void => {
+        if (!value) removeAddressIndex.value = null
     },
-    validateOnMount: false,
 })
+const customerName = computed(() =>
+    props.customer ? `${props.customer.firstName} ${props.customer.lastName}` : ''
+)
 
-const getStateOptions = (countryCode: string) => {
+const getStateOptions = (countryCode: string): { title: string; value: string }[] => {
     return stateOptionsCache.value[countryCode] || []
 }
 
-const getStateName = (stateCode: string, countryCode: string) => {
+const getStateName = (stateCode: string, countryCode: string): string => {
     const states = getStateOptions(countryCode)
     const state = states.find((s) => s.value === stateCode)
     return state?.title || stateCode
 }
 
-const getCountryName = (countryCode: string) => {
+const getCountryName = (countryCode: string): string => {
     const country = countryOptions.value.find((c) => c.value === countryCode)
     return country?.title || countryCode
 }
 
-const getShippingErrors = (index: number) => {
-    const errors = shippingErrors.value as any
-    if (errors && errors.shippingAddresses && errors.shippingAddresses[index]) {
-        return errors.shippingAddresses[index]
-    }
-    return {}
-}
+const getShippingErrors = (index: number): Record<string, string> =>
+    shippingErrors.value[index] ?? {}
 
-const getAddressError = (index: number, field: string) => {
+const getAddressError = (index: number, field: string): string => {
     const errors = getShippingErrors(index)
     return errors[field] || ''
 }
 
-const handleShippingCountryChange = async (index: number, countryCode: string) => {
+const handleShippingCountryChange = async (index: number, countryCode: string): Promise<void> => {
     const address = shippingAddresses.value[index]
     if (address) {
         address.countryCode = countryCode
@@ -290,7 +296,7 @@ const handleShippingCountryChange = async (index: number, countryCode: string) =
 }
 
 // Load customer data from prop
-const loadData = async () => {
+const loadData = async (): Promise<void> => {
     if (!props.fullCustomerData) return
 
     const fullCustomer = props.fullCustomerData
@@ -318,7 +324,7 @@ const loadData = async () => {
 }
 
 // Shipping address handlers
-const addNewShippingAddress = () => {
+const addNewShippingAddress = (): void => {
     if (shippingAddresses.value.length >= MAX_SHIPPING_ADDRESSES) return
     const newAddress: CustomerShippingAddress & { isNew: boolean; isEditing: boolean } = {
         id: 0,
@@ -342,14 +348,14 @@ const addNewShippingAddress = () => {
     editingAddressIndex.value = shippingAddresses.value.length - 1
 }
 
-const editAddress = (index: number) => {
+const editAddress = (index: number): void => {
     editingAddressIndex.value = index
     if (shippingAddresses.value[index]) {
         shippingAddresses.value[index].isEditing = true
     }
 }
 
-const cancelEditAddress = async (index: number) => {
+const cancelEditAddress = async (index: number): Promise<void> => {
     if (shippingAddresses.value[index]?.isNew) {
         shippingAddresses.value.splice(index, 1)
     } else {
@@ -361,27 +367,23 @@ const cancelEditAddress = async (index: number) => {
     await loadData()
 }
 
-const saveShippingAddress = async (index: number) => {
+const saveShippingAddress = async (index: number): Promise<void> => {
     if (!props.customer) return
 
     const address = shippingAddresses.value[index]
     if (!address) return
 
-    // Validate address
-    try {
-        customerShippingAddressSchema.parse(address)
-    } catch (err: any) {
-        if (err.errors) {
-            const fieldErrors: Record<string, string> = {}
-            err.errors.forEach((error: any) => {
-                if (error.path && error.path.length > 0) {
-                    fieldErrors[error.path[0]] = error.message
-                }
-            })
-            // Show validation errors
-            return
+    const validation = customerShippingAddressSchema.safeParse(address)
+    if (!validation.success) {
+        const fieldErrors: Record<string, string> = {}
+        for (const issue of validation.error.issues) {
+            const [field] = issue.path
+            if (field !== undefined) fieldErrors[String(field)] = issue.message
         }
+        shippingErrors.value[index] = fieldErrors
+        return
     }
+    delete shippingErrors.value[index]
 
     savingAddressIndex.value = index
 
@@ -425,7 +427,7 @@ const saveShippingAddress = async (index: number) => {
     }
 }
 
-const removeShippingAddress = async (index: number) => {
+const removeShippingAddress = (index: number): void => {
     const address = shippingAddresses.value[index]
     if (!address) return
 
@@ -434,20 +436,33 @@ const removeShippingAddress = async (index: number) => {
         return
     }
 
-    if (confirm(`Are you sure you want to remove this shipping address?`)) {
-        try {
-            const loadingTask = useLoadingTask('remove-shipping-address')
-            await loadingTask.execute(async () => {
-                if (address.id && props.customer) {
-                    await deleteShippingAddress(props.customer.id, address.id)
-                    success(CUSTOMER_MESSAGES.SHIPPING_REMOVE_SUCCESS)
-                    await loadData()
-                }
-            })
-        } catch (err) {
-            console.error('Error removing shipping address:', err)
-            errorFromError(err, CUSTOMER_MESSAGES.SHIPPING_REMOVE_ERROR)
-        }
+    removeAddressIndex.value = index
+}
+
+const cancelRemoveShippingAddress = (): void => {
+    removeAddressIndex.value = null
+}
+
+const confirmRemoveShippingAddress = async (): Promise<void> => {
+    const index = removeAddressIndex.value
+    if (index === null || removingAddress.value) return
+    const address = shippingAddresses.value[index]
+    if (!address?.id || !props.customer) return
+
+    removingAddress.value = true
+    try {
+        const loadingTask = useLoadingTask('remove-shipping-address')
+        await loadingTask.execute(async () => {
+            await deleteShippingAddress(props.customer!.id, address.id)
+            success(CUSTOMER_MESSAGES.SHIPPING_REMOVE_SUCCESS)
+            removeAddressIndex.value = null
+            await loadData()
+        })
+    } catch (err) {
+        console.error('Error removing shipping address:', err)
+        errorFromError(err, CUSTOMER_MESSAGES.SHIPPING_REMOVE_ERROR)
+    } finally {
+        removingAddress.value = false
     }
 }
 

@@ -1,11 +1,10 @@
-import type { CachedApiClient } from '../CachedApiClient'
+import HttpFactory from '@/repository/factory'
 import type { ApiResponse } from '~/types/api.types'
 
 export interface Organisation {
     id: number
     name: string
     email: string
-    password: string
     websiteUrl: string
     shippingCost: number
     referralCode: string | null
@@ -35,7 +34,6 @@ export interface OrganisationLookupOption {
 export interface CreateOrganisationDTO {
     name: string
     email: string
-    password?: string | null
     websiteUrl: string
     shippingCost: number
     referralCode?: string | null
@@ -57,108 +55,157 @@ export interface CreateOrganisationDTO {
 
 export interface UpdateOrganisationDTO extends Partial<CreateOrganisationDTO> {}
 
+export type UpdateOrganisationBillingDTO = Pick<
+    CreateOrganisationDTO,
+    | 'billingFirstName'
+    | 'billingLastName'
+    | 'billingCompany'
+    | 'billingAddress'
+    | 'billingCity'
+    | 'billingStateCode'
+    | 'billingPostalCode'
+    | 'billingCountryCode'
+    | 'billingPhone'
+>
+
 /**
  * Organisation API wrapper service
  */
-export class OrganisationApiService {
-    constructor(private readonly cachedApi: CachedApiClient) {}
-
+export class OrganisationApiService extends HttpFactory {
     async getAllOrganisations(): Promise<ApiResponse<Organisation[]>> {
-        return this.cachedApi.get<Organisation[]>('/organisations', undefined, 'organisations:all', 5 * 60 * 1000)
+        return await this.call<Organisation[]>('GET', '/organisations', undefined, {
+            cacheKey: 'organisations:all',
+            ttl: 5 * 60 * 1000,
+        })
     }
 
-    async lookupOrganisations(search = '', limit = 25): Promise<ApiResponse<OrganisationLookupOption[]>> {
+    async lookupOrganisations(
+        search: string = '',
+        limit: number = 25
+    ): Promise<ApiResponse<OrganisationLookupOption[]>> {
         const normalizedSearch = search.trim()
-        return this.cachedApi.get<OrganisationLookupOption[]>(
+        return await this.call<OrganisationLookupOption[]>(
+            'GET',
             '/organisations/lookup',
-            { params: { search: normalizedSearch, limit } },
-            `organisations:lookup:${normalizedSearch.toLowerCase()}:${limit}`,
-            60 * 1000
+            undefined,
+            {
+                config: { params: { search: normalizedSearch, limit } },
+                cacheKey: `organisations:lookup:${normalizedSearch.toLowerCase()}:${limit}`,
+                ttl: 60 * 1000,
+            }
         )
     }
 
     async getOrganisationById(id: number): Promise<ApiResponse<Organisation>> {
-        return this.cachedApi.get<Organisation>(
-            `/organisations/${id}`,
-            undefined,
-            `organisations:${id}`,
-            5 * 60 * 1000
-        )
+        return await this.call<Organisation>('GET', `/organisations/${id}`, undefined, {
+            cacheKey: `organisations:${id}`,
+            ttl: 5 * 60 * 1000,
+        })
     }
 
     async createOrganisation(data: CreateOrganisationDTO): Promise<ApiResponse<Organisation>> {
-        const response = await this.cachedApi.post<Organisation>(
+        return await this.call<Organisation, CreateOrganisationDTO>(
+            'POST',
             '/organisations',
             data,
-            undefined,
-            'organisations:.*'
+            { invalidatePattern: 'organisations:.*' }
         )
-        return response
     }
 
-    async updateOrganisation(id: number, data: UpdateOrganisationDTO): Promise<ApiResponse<Organisation>> {
-        const response = await this.cachedApi.put<Organisation>(
+    async updateOrganisation(
+        id: number,
+        data: UpdateOrganisationDTO
+    ): Promise<ApiResponse<Organisation>> {
+        const response = await this.call<Organisation, UpdateOrganisationDTO>(
+            'PUT',
             `/organisations/${id}`,
             data,
-            undefined,
-            'organisations:.*'
+            { invalidatePattern: 'organisations:.*' }
         )
-        this.cachedApi.invalidate(`organisations:${id}`)
+        this.invalidateCacheKey(`organisations:${id}`)
         return response
     }
 
-    async uploadOrganisationLogo(id: number, file: File): Promise<ApiResponse<{ message: string }>> {
+    async updateOrganisationBilling(
+        id: number,
+        data: UpdateOrganisationBillingDTO
+    ): Promise<ApiResponse<Organisation>> {
+        const response = await this.call<Organisation, UpdateOrganisationBillingDTO>(
+            'PATCH',
+            `/organisations/${id}/billing`,
+            data,
+            { invalidatePattern: 'organisations:.*' }
+        )
+        this.invalidateCacheKey(`organisations:${id}`)
+        return response
+    }
+
+    async uploadOrganisationLogo(
+        id: number,
+        file: File
+    ): Promise<ApiResponse<{ message: string }>> {
         const formData = new FormData()
         formData.append('uploadImage', file)
 
-        const response = await this.cachedApi.patch<{ message: string }>(
+        const response = await this.call<{ message: string }, FormData>(
+            'PATCH',
             `/organisations/${id}/uploadImage`,
             formData,
             {
-                headers: {
-                    'Content-Type': 'multipart/form-data',
+                config: {
+                    headers: {
+                        'Content-Type': 'multipart/form-data',
+                    },
                 },
-            },
-            'organisations:.*'
+                invalidatePattern: 'organisations:.*',
+            }
         )
 
-        this.cachedApi.invalidate(`organisations:${id}`)
+        this.invalidateCacheKey(`organisations:${id}`)
         return response
     }
 
     async toggleActive(id: number, isActive: boolean): Promise<ApiResponse<Organisation>> {
-        const response = await this.cachedApi.patch<Organisation>(
+        const response = await this.call<Organisation, { isActive: boolean }>(
+            'PATCH',
             `/organisations/${id}`,
             { isActive },
-            undefined,
-            'organisations:.*'
+            { invalidatePattern: 'organisations:.*' }
         )
-        this.cachedApi.invalidate(`organisations:${id}`)
+        this.invalidateCacheKey(`organisations:${id}`)
         return response
     }
 
     async refreshOrganisations(): Promise<ApiResponse<Organisation[]>> {
-        return this.cachedApi.get<Organisation[]>('/organisations', undefined, 'organisations:all', undefined, true)
+        return await this.call<Organisation[]>('GET', '/organisations', undefined, {
+            cacheKey: 'organisations:all',
+            skipCache: true,
+        })
     }
 
     async checkEmailExists(
         email: string,
         organisationId?: number
     ): Promise<ApiResponse<{ available: boolean }>> {
-        return this.cachedApi.post<{ available: boolean }>('/organisations/check-email', {
-            email,
-            organisationId,
-        })
+        const data = { email, organisationId }
+        return await this.call<{ available: boolean }, typeof data>(
+            'POST',
+            '/organisations/check-email',
+            data
+        )
     }
 
     async deleteOrganisation(id: number): Promise<ApiResponse<{ message: string }>> {
-        const response = await this.cachedApi.delete<{ message: string }>(
+        const response = await this.call<{ message: string }>(
+            'DELETE',
             `/organisations/${id}`,
             undefined,
-            'organisations:.*'
+            { invalidatePattern: 'organisations:.*' }
         )
-        this.cachedApi.invalidate(`organisations:${id}`)
-        this.cachedApi.invalidate('organisations:all')
+        this.invalidateCacheKey(`organisations:${id}`)
+        this.invalidateCacheKey('organisations:all')
         return response
     }
 }
+
+export default OrganisationApiService

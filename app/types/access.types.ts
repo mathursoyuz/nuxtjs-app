@@ -63,7 +63,11 @@ export type AccessRequirement =
           allowAnyOrganisation?: boolean
       }
     | { allPermissions: readonly string[] }
-    | { anyPermissions: readonly string[]; allowCrossOrganisation?: boolean }
+    | {
+          anyPermissions: readonly string[]
+          allowCrossOrganisation?: boolean
+          allowAnyOrganisation?: boolean
+      }
     | { capability: AccessCapability }
 export interface AccessRole {
     id: number

@@ -9,6 +9,7 @@
                         <v-row>
                             <v-col cols="12" md="6">
                                 <v-btn
+                                    v-if="canWrite"
                                     color="primary"
                                     prepend-icon="mdi-store"
                                     :loading="loading"
@@ -19,6 +20,7 @@
                             </v-col>
                             <v-col cols="12" md="6">
                                 <v-btn
+                                    v-if="canWrite"
                                     color="primary"
                                     prepend-icon="mdi-package-variant"
                                     :loading="loading"
@@ -36,46 +38,48 @@
 </template>
 
 <script setup lang="ts">
-import { SYSTEM_ROLE } from '~/constants/access.constants'
+import { SHIPSTATION_PERMISSIONS } from '~/constants/integration-permissions.constants'
 
-import { ref } from 'vue';
-import { useNuxtApp } from '#app';
+import { computed, ref } from 'vue'
+import { useAccessStore } from '~/stores/access.store'
 
 definePageMeta({
-    middleware: ['auth', 'role'],
-    roles: [SYSTEM_ROLE.PLATFORM_ADMIN],
-});
+    middleware: ['auth', 'permission'],
+    access: { permission: SHIPSTATION_PERMISSIONS.READ },
+})
 
-const nuxtApp = useNuxtApp();
-const shipstationApi = nuxtApp.$shipstationApi as import('~/services/api/wrappers/shipstation.api').ShipStationApiService;
+const access = useAccessStore()
+const canWrite = computed(() => access.can(SHIPSTATION_PERMISSIONS.WRITE))
 
-const loading = ref(false);
+const shipstation = useShipStation()
+
+const loading = ref(false)
 
 const fetchStores = async () => {
-    loading.value = true;
+    loading.value = true
     try {
-        const response = await shipstationApi.getStores();
+        const response = await shipstation.getStores()
         if (response.success) {
-            console.log('Stores:', response.data);
+            console.log('Stores:', response.data)
         }
     } catch (error) {
-        console.error('Error fetching stores:', error);
+        console.error('Error fetching stores:', error)
     } finally {
-        loading.value = false;
+        loading.value = false
     }
-};
+}
 
 const fetchOrders = async () => {
-    loading.value = true;
+    loading.value = true
     try {
-        const response = await shipstationApi.getOrders();
+        const response = await shipstation.getOrders()
         if (response.success) {
-            console.log('Orders:', response.data);
+            console.log('Orders:', response.data)
         }
     } catch (error) {
-        console.error('Error fetching orders:', error);
+        console.error('Error fetching orders:', error)
     } finally {
-        loading.value = false;
+        loading.value = false
     }
-};
+}
 </script>

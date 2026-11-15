@@ -10,19 +10,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onErrorCaptured } from 'vue';
+import { ref, onErrorCaptured } from 'vue'
 
-const hasError = ref(false);
-const errorMessage = ref('');
+const hasError = ref(false)
+const errorMessage = ref('')
 
 onErrorCaptured((err) => {
-    hasError.value = true;
-    errorMessage.value = err instanceof Error ? err.message : 'An unexpected error occurred';
-    return false; // Prevent error from propagating
-});
+    hasError.value = true
+    errorMessage.value = err instanceof Error ? err.message : 'An unexpected error occurred'
+    return false // Prevent error from propagating
+})
 
-const reset = () => {
-    hasError.value = false;
-    errorMessage.value = '';
-};
+const reset = (): void => {
+    hasError.value = false
+    errorMessage.value = ''
+}
 </script>

@@ -112,6 +112,7 @@
             v-model="showManageShippingDialog"
             :customer="selectedCustomer"
             :organisation-id="selectedCustomer.organisationId"
+            order-context
             @submit="refreshCustomerShipping"
         />
 
@@ -126,7 +127,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { useNuxtApp, useRoute } from '#app'
+import { useRoute } from '#app'
 import CustomerSearchStep from '~/components/orders/CustomerSearchStep.vue'
 import OrderAddressStep from '~/components/orders/OrderAddressStep.vue'
 import OrderProductStep from '~/components/orders/OrderProductStep.vue'
@@ -144,19 +145,14 @@ import { CUSTOMER_ORDER_PERMISSIONS } from '~/components/orders/order.permission
 
 definePageMeta({
     middleware: ['auth', 'permission'],
-    access: { permission: CUSTOMER_ORDER_PERMISSIONS.WRITE, allowAnyOrganisation: true },
+    access: { permission: CUSTOMER_ORDER_PERMISSIONS.CREATE, allowAnyOrganisation: true },
 })
 
 type WizardTab = 'customer' | 'details' | 'products' | 'review'
 
-const nuxtApp = useNuxtApp()
 const route = useRoute()
 const access = useAccessStore()
-const customerApi =
-    nuxtApp.$customerApi as import('~/services/api/wrappers/customer.api').CustomerApiService
-const cardApi =
-    nuxtApp.$customerCreditCardApi as import('~/services/api/wrappers/customer-credit-card.api').CustomerCreditCardApiService
-const orderApi = nuxtApp.$orderApi as import('~/services/api/wrappers/order.api').OrderApiService
+const orderApi = useOrders()
 const { successFromResponse, errorFromError, error: showError } = useToast()
 
 const emptyAddress = (): CustomerOrderAddress => ({
@@ -191,8 +187,9 @@ const showCardDialog = ref(false)
 
 const organisationName = computed(
     () =>
-        access.organisations.find((organisation) => organisation.id === selectedCustomer.value?.organisationId)?.name ??
-        `Organisation #${selectedCustomer.value?.organisationId ?? ''}`
+        access.organisations.find(
+            (organisation) => organisation.id === selectedCustomer.value?.organisationId
+        )?.name ?? `Organisation #${selectedCustomer.value?.organisationId ?? ''}`
 )
 const requiredAddressFields: Array<keyof CustomerOrderAddress> = [
     'firstName',
@@ -239,7 +236,7 @@ const canContinue = computed(() => {
     return false
 })
 
-function toBilling(customer: Customer): CustomerOrderAddress {
+const toBilling = (customer: Customer): CustomerOrderAddress => {
     return {
         firstName: customer.firstName,
         lastName: customer.lastName,
@@ -254,7 +251,7 @@ function toBilling(customer: Customer): CustomerOrderAddress {
     }
 }
 
-function toPrimaryShipping(customer: Customer): CustomerOrderAddress {
+const toPrimaryShipping = (customer: Customer): CustomerOrderAddress => {
     return {
         firstName: customer.shipping.firstName ?? customer.firstName,
         lastName: customer.shipping.lastName ?? customer.lastName,
@@ -269,40 +266,40 @@ function toPrimaryShipping(customer: Customer): CustomerOrderAddress {
     }
 }
 
-function money(value: number): string {
+const money = (value: number): string => {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value)
 }
 
-function nextStep(): void {
+const nextStep = (): void => {
     if (!canContinue.value) return
     const order: WizardTab[] = ['customer', 'details', 'products', 'review']
     tab.value = order[Math.min(order.indexOf(tab.value) + 1, order.length - 1)] ?? 'review'
 }
 
-function previousStep(): void {
+const previousStep = (): void => {
     const order: WizardTab[] = ['customer', 'details', 'products', 'review']
     tab.value = order[Math.max(order.indexOf(tab.value) - 1, 0)] ?? 'customer'
 }
 
-function selectShippingAddress(payload: {
+const selectShippingAddress = (payload: {
     id: number | null
     address: CustomerOrderAddress
-}): void {
+}): void => {
     shippingAddressId.value = payload.id
     shippingAddress.value = payload.address
 }
 
-function openShippingManagement(): void {
+const openShippingManagement = (): void => {
     showShippingDialog.value = false
     showManageShippingDialog.value = true
 }
 
-async function refreshCards(selectActive = false): Promise<void> {
+const refreshCards = async (selectActive: boolean = false): Promise<void> => {
     const customer = selectedCustomer.value
     if (!customer) return
     loadingCards.value = true
     try {
-        const response = await cardApi.refreshCustomerCreditCards(customer.id)
+        const response = await orderApi.getCustomerOrderCards(customer.id)
         cards.value = response.data ?? []
         const selectedStillExists = cards.value.some((card) => card.id === selectedCardId.value)
         if (selectActive || !selectedStillExists) {
@@ -316,33 +313,34 @@ async function refreshCards(selectActive = false): Promise<void> {
     }
 }
 
-async function handleCardAdded(): Promise<void> {
+const handleCardAdded = async (): Promise<void> => {
     const customer = selectedCustomer.value
     if (!customer) return
     try {
-        const response = await customerApi.getCustomerById(customer.id)
-        if (response.data) {
-            selectedCustomer.value = response.data
-            billingAddress.value = toBilling(response.data)
-        }
+        const response = await orderApi.getCustomerOrderCustomer(customer.id)
+        if (!response.data) throw new Error('Customer details were not returned')
+        const refreshedCustomer = response.data
+        selectedCustomer.value = refreshedCustomer
+        billingAddress.value = toBilling(refreshedCustomer)
     } catch (error) {
         errorFromError(error, 'Card was added, but customer billing could not be refreshed')
     }
     await refreshCards(true)
 }
 
-async function refreshCustomerShipping(): Promise<void> {
+const refreshCustomerShipping = async (): Promise<void> => {
     const customer = selectedCustomer.value
     if (!customer) return
     try {
-        const response = await customerApi.getCustomerById(customer.id)
-        if (response.data) selectedCustomer.value = response.data
+        const response = await orderApi.getCustomerOrderCustomer(customer.id)
+        if (!response.data) throw new Error('Customer details were not returned')
+        selectedCustomer.value = response.data
     } catch (error) {
         errorFromError(error, 'Failed to refresh shipping addresses')
     }
 }
 
-async function submitOrder(): Promise<void> {
+const submitOrder = async (): Promise<void> => {
     const customer = selectedCustomer.value
     if (!customer || !canCharge.value || selectedCardId.value === null) return
     submitting.value = true
@@ -405,8 +403,9 @@ await access.ensureReady()
 const requestedCustomerId = Number(route.query.customerId)
 if (Number.isSafeInteger(requestedCustomerId) && requestedCustomerId > 0) {
     try {
-        const response = await customerApi.getCustomerById(requestedCustomerId)
-        selectedCustomer.value = response.data ?? null
+        const response = await orderApi.getCustomerOrderCustomer(requestedCustomerId)
+        if (!response.data) throw new Error('Customer details were not returned')
+        selectedCustomer.value = response.data
     } catch (error) {
         errorFromError(error, 'Failed to load the selected customer')
     }

@@ -25,7 +25,7 @@
                         Manage customer subscriptions
                     </v-btn>
                     <v-btn
-                        v-if="canWrite"
+                        v-if="canCreate"
                         variant="tonal"
                         prepend-icon="mdi-shape-plus"
                         @click="addGroupOpen = true"
@@ -33,7 +33,7 @@
                         Add group
                     </v-btn>
                     <v-btn
-                        v-if="canWrite"
+                        v-if="canCreate"
                         color="primary"
                         prepend-icon="mdi-plus"
                         @click="addMembershipOpen = true"
@@ -54,7 +54,7 @@
                                     <v-list-item-subtitle>{{ group.slug }}</v-list-item-subtitle>
                                     <template #append>
                                         <v-btn
-                                            v-if="canWrite"
+                                            v-if="canUpdate"
                                             icon="mdi-pencil"
                                             size="small"
                                             variant="text"
@@ -91,7 +91,7 @@
                                         @click="listMembers(item)"
                                     />
                                     <v-btn
-                                        v-if="canWrite"
+                                        v-if="canUpdate"
                                         icon="mdi-pencil"
                                         size="small"
                                         variant="text"
@@ -168,6 +168,20 @@
         :membership="selectedMembership"
         :refresh-key="subscriberRefreshKey"
     />
+    <ConfirmDialog
+        :model-value="membershipToDelete !== null"
+        title="Delete Membership"
+        :message="`Delete ${membershipToDelete?.name ?? 'this membership'}?`"
+        confirm-text="Delete"
+        cancel-text="Cancel"
+        confirm-color="error"
+        :loading="deleting"
+        :organisation-name="organisationName"
+        entity-label="Membership"
+        :entity-name="membershipToDelete?.name"
+        @cancel="membershipToDelete = null"
+        @confirm="confirmRemoveMembership"
+    />
 </template>
 
 <script setup lang="ts">
@@ -178,6 +192,7 @@ import CustomerSubscriptionSearchDialog from './CustomerSubscriptionSearchDialog
 import EditMembershipTypeDialog from './EditMembershipTypeDialog.vue'
 import EditOrganisationMembershipDialog from './EditOrganisationMembershipDialog.vue'
 import MembershipSubscribersDialog from './MembershipSubscribersDialog.vue'
+import ConfirmDialog from '~/components/dialogs/ConfirmDialog.vue'
 import {
     CUSTOMER_MEMBERSHIP_SUBSCRIPTION_PERMISSIONS,
     ORGANISATION_MEMBERSHIP_PERMISSIONS,
@@ -200,8 +215,11 @@ const { store, loadOrganisation, loadOrganisationFormOptions, deleteOrganisation
     manager
 const { successFromResponse, errorFromError } = useToast()
 
-const canWrite = computed(() =>
-    access.can(ORGANISATION_MEMBERSHIP_PERMISSIONS.WRITE, props.organisationId)
+const canCreate = computed(() =>
+    access.can(ORGANISATION_MEMBERSHIP_PERMISSIONS.CREATE, props.organisationId)
+)
+const canUpdate = computed(() =>
+    access.can(ORGANISATION_MEMBERSHIP_PERMISSIONS.UPDATE, props.organisationId)
 )
 const canDelete = computed(() =>
     access.can(ORGANISATION_MEMBERSHIP_PERMISSIONS.DELETE, props.organisationId)
@@ -210,7 +228,8 @@ const canReadCustomerSubscriptions = computed(() =>
     access.can(CUSTOMER_MEMBERSHIP_SUBSCRIPTION_PERMISSIONS.READ, props.organisationId)
 )
 const canWriteCustomerSubscriptions = computed(() =>
-    access.can(CUSTOMER_MEMBERSHIP_SUBSCRIPTION_PERMISSIONS.WRITE, props.organisationId)
+    access.can(CUSTOMER_MEMBERSHIP_SUBSCRIPTION_PERMISSIONS.CREATE, props.organisationId) ||
+    access.can(CUSTOMER_MEMBERSHIP_SUBSCRIPTION_PERMISSIONS.UPDATE, props.organisationId)
 )
 const addGroupOpen = ref(false)
 const editGroupOpen = ref(false)
@@ -221,6 +240,8 @@ const membersOpen = ref(false)
 const subscriberRefreshKey = ref(0)
 const selectedGroup = ref<MembershipType | null>(null)
 const selectedMembership = ref<Membership | null>(null)
+const membershipToDelete = ref<Membership | null>(null)
+const deleting = ref(false)
 const categoryOptions = ref<Array<{ title: string; value: number }>>([])
 const productOptions = ref<Array<{ title: string; value: number }>>([])
 const headers = [
@@ -255,14 +276,24 @@ const listMembers = (item: Membership): void => {
     selectedMembership.value = item
     membersOpen.value = true
 }
-const removeMembership = async (item: Membership): Promise<void> => {
-    if (!confirm(`Delete ${item.name}?`)) return
+const removeMembership = (item: Membership): void => {
+    membershipToDelete.value = item
+}
+const confirmRemoveMembership = async (): Promise<void> => {
+    if (!membershipToDelete.value || deleting.value) return
+    deleting.value = true
     try {
-        const response = await deleteOrganisationMembership(props.organisationId, item.id)
+        const response = await deleteOrganisationMembership(
+            props.organisationId,
+            membershipToDelete.value.id
+        )
         successFromResponse(response, 'Membership deleted.')
+        membershipToDelete.value = null
         await refresh()
     } catch (error) {
         errorFromError(error, 'Unable to delete membership.')
+    } finally {
+        deleting.value = false
     }
 }
 const close = (): void => emit('update:modelValue', false)

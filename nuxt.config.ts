@@ -11,7 +11,7 @@ export default defineNuxtConfig({
         pageTransition: { name: 'page', mode: 'out-in' },
         layoutTransition: { name: 'layout', mode: 'out-in' },
     },
-    css: ['@mdi/font/css/materialdesignicons.css', 'vuetify/styles'],
+    css: ['vuetify/styles'],
     build: {
         transpile: ['vuetify'],
     },

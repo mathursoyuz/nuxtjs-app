@@ -5,7 +5,7 @@
                 <div class="d-flex align-center justify-space-between mb-4">
                     <h1 class="text-h4">Products</h1>
                     <div class="d-flex align-center gap-2">
-                        <template v-if="access.can(PRODUCT_PERMISSIONS.WRITE)">
+                        <template v-if="access.can(PRODUCT_PERMISSIONS.CREATE)">
                             <v-btn
                                 color="primary"
                                 prepend-icon="mdi-plus"
@@ -133,7 +133,7 @@
 
                             <template #item.isActive="{ item }">
                                 <v-switch
-                                    :disabled="!access.can(PRODUCT_PERMISSIONS.WRITE)"
+                                    :disabled="!access.can(PRODUCT_PERMISSIONS.UPDATE)"
                                     :model-value="item.isActive"
                                     density="compact"
                                     hide-details
@@ -147,7 +147,7 @@
                             <template #item.syncActions="{ item }">
                                 <!-- QB Sync/Resync Button -->
                                 <v-btn
-                                    v-if="access.can(PRODUCT_PERMISSIONS.WRITE)"
+                                    v-if="access.can(PRODUCT_PERMISSIONS.UPDATE)"
                                     :prepend-icon="item.qbProductId ? 'mdi-sync-alert' : 'mdi-sync'"
                                     size="small"
                                     :color="item.qbProductId ? 'error' : 'primary'"
@@ -215,7 +215,7 @@
                                         title="View Details"
                                     ></v-btn>
                                     <v-btn
-                                        v-if="access.can(PRODUCT_PERMISSIONS.WRITE)"
+                                        v-if="access.can(PRODUCT_PERMISSIONS.UPDATE)"
                                         icon="mdi-pencil"
                                         size="small"
                                         color="primary"
@@ -242,7 +242,7 @@
 
         <!-- Add Product Dialog - Lazy loaded -->
         <AddProductDialog
-            v-if="showAddDialog && access.can(PRODUCT_PERMISSIONS.WRITE)"
+            v-if="showAddDialog && access.can(PRODUCT_PERMISSIONS.CREATE)"
             v-model="showAddDialog"
             :categories="categoryOptions"
             :locations="locationOptions"
@@ -252,7 +252,7 @@
 
         <!-- Edit Product Dialog - Lazy loaded -->
         <EditProductDialog
-            v-if="showEditDialog && access.can(PRODUCT_PERMISSIONS.WRITE)"
+            v-if="showEditDialog && access.can(PRODUCT_PERMISSIONS.UPDATE)"
             v-model="showEditDialog"
             :product="selectedProduct"
             :categories="categoryOptions"
@@ -284,6 +284,25 @@
             :title="`${selectedInventoryProduct.name} — ${selectedInventoryVariant.sku}`"
             @saved="handleSupplyInventorySaved"
         />
+
+        <ConfirmDialog
+            :model-value="productsToDelete.length > 0"
+            title="Delete Product"
+            :message="deleteConfirmationMessage"
+            confirm-text="Delete"
+            cancel-text="Cancel"
+            confirm-color="error"
+            :loading="deleting"
+            :organisation-name="platformOrganisationName"
+            entity-label="Product"
+            :entity-name="
+                productsToDelete.length === 1
+                    ? productsToDelete[0]?.name
+                    : `${productsToDelete.length} selected products`
+            "
+            @cancel="productsToDelete = []"
+            @confirm="confirmDelete"
+        />
     </v-container>
 </template>
 
@@ -301,7 +320,7 @@ import { PRODUCT_MESSAGES } from '~/constants/messages.constants'
 import { defineAsyncComponent } from 'vue'
 import type { Product, ProductVariant } from '~/types/product.types'
 import type { InventoryLocation } from '~/types/inventory.types'
-import type { InventoryApiService } from '~/services/api/wrappers/inventory.api'
+import ConfirmDialog from '~/components/dialogs/ConfirmDialog.vue'
 
 // Lazy load dialog components - only loaded when needed
 const AddProductDialog = defineAsyncComponent(
@@ -338,8 +357,13 @@ const canManagePlatformInventory = computed(
         access.platformOrganisationId !== null &&
         access.can(INVENTORY_PERMISSIONS.WRITE, access.platformOrganisationId)
 )
-const { successFromResponse, errorFromError } = useToast()
-const inventoryApi = useNuxtApp().$inventoryApi as InventoryApiService
+const platformOrganisationName = computed(
+    () =>
+        access.organisations.find((item) => item.id === access.platformOrganisationId)?.name ??
+        'Platform'
+)
+const { successFromResponse, errorFromError, success } = useToast()
+const { fetchInventoryLocations } = useInventory()
 const inventoryLocations = ref<InventoryLocation[]>([])
 
 const showAddDialog = ref(false)
@@ -354,7 +378,7 @@ const syncingProductId = ref<number | null>(null)
 const syncingTo = ref<'qb' | 'square' | null>(null)
 let contextRevision = 0
 
-function clearContextDialogs() {
+const clearContextDialogs = (): void => {
     contextRevision++
     showAddDialog.value = showEditDialog.value = showViewDialog.value = false
     showSupplyInventory.value = false
@@ -363,21 +387,24 @@ function clearContextDialogs() {
     selectedInventoryVariant.value = null
     selectedProductId.value = null
     selectedItems.value = []
+    productsToDelete.value = []
     inventoryLocations.value = []
 }
 
-async function loadCatalogue() {
+const loadCatalogue = async (): Promise<void> => {
     if (access.loading || !access.can(PRODUCT_PERMISSIONS.READ)) return
     const current = contextRevision
     try {
         await fetchProducts()
         if (current !== contextRevision || access.loading) return
         const formDataRequests: Promise<unknown>[] = []
-        if (access.can(PRODUCT_PERMISSIONS.WRITE)) formDataRequests.push(fetchCategories())
+        if (access.can(PRODUCT_PERMISSIONS.CREATE) || access.can(PRODUCT_PERMISSIONS.UPDATE)) {
+            formDataRequests.push(fetchCategories())
+        }
         if (canManagePlatformInventory.value && access.platformOrganisationId) {
             formDataRequests.push(
-                inventoryApi.getInventoryLocations(access.platformOrganisationId).then((response) => {
-                    inventoryLocations.value = response.data ?? []
+                fetchInventoryLocations(access.platformOrganisationId).then((locations) => {
+                    inventoryLocations.value = locations
                 })
             )
         }
@@ -387,7 +414,7 @@ async function loadCatalogue() {
     }
 }
 
-const handleSyncToQB = async (product: Product) => {
+const handleSyncToQB = async (product: Product): Promise<void> => {
     syncingProductId.value = product.id
     syncingTo.value = 'qb'
 
@@ -401,11 +428,11 @@ const handleSyncToQB = async (product: Product) => {
                 : 'Syncing product to QuickBooks...'
         )
 
-        const response = await syncProductToQB(product.id)
+        await syncProductToQB(product.id)
         const fallbackMessage = product.qbSyncErrorReason
             ? PRODUCT_MESSAGES.SYNC_QB_RESYNC_SUCCESS
             : PRODUCT_MESSAGES.SYNC_QB_SUCCESS
-        successFromResponse({ success: true, message: '', data: response }, fallbackMessage)
+        success(fallbackMessage)
         await fetchProducts()
     } catch (error) {
         errorFromError(error, PRODUCT_MESSAGES.SYNC_QB_ERROR)
@@ -431,6 +458,13 @@ const headers = [
 
 const searchQuery = ref('')
 const selectedItems = ref<Product[]>([])
+const productsToDelete = ref<Product[]>([])
+const deleting = ref(false)
+const deleteConfirmationMessage = computed(() =>
+    productsToDelete.value.length === 1
+        ? `Are you sure you want to delete ${productsToDelete.value[0]?.name ?? 'this product'}?`
+        : `Are you sure you want to delete ${productsToDelete.value.length} product(s)?`
+)
 
 const categoryOptions = computed(() => {
     return categories.value.map((c) => ({
@@ -462,17 +496,17 @@ const filteredProducts = computed(() => {
     })
 })
 
-const openAddProductDialog = () => {
+const openAddProductDialog = (): void => {
     showAddDialog.value = true
 }
 
-const handleProductCreated = async () => {
+const handleProductCreated = async (): Promise<void> => {
     await fetchProducts()
     showAddDialog.value = false
 }
 
-const handleEdit = async (item: unknown) => {
-    if (access.loading || !access.can(PRODUCT_PERMISSIONS.WRITE)) return
+const handleEdit = async (item: unknown): Promise<void> => {
+    if (access.loading || !access.can(PRODUCT_PERMISSIONS.UPDATE)) return
     const current = contextRevision
     const product = item as Product
     const loadingStore = useLoadingStore()
@@ -500,7 +534,7 @@ const handleEdit = async (item: unknown) => {
     }
 }
 
-const handleToggleActive = async (id: number, isActive: boolean) => {
+const handleToggleActive = async (id: number, isActive: boolean): Promise<void> => {
     try {
         await toggleActive(id, isActive)
         await fetchProducts() // Refresh the list
@@ -509,61 +543,63 @@ const handleToggleActive = async (id: number, isActive: boolean) => {
     }
 }
 
-const handleProductUpdated = async () => {
+const handleProductUpdated = async (): Promise<void> => {
     await fetchProducts()
     showEditDialog.value = false
     selectedProduct.value = null
 }
 
-const handleView = (item: Product) => {
+const handleView = (item: Product): void => {
     selectedProductId.value = item.id
     showViewDialog.value = true
 }
 
-const openSupplyInventory = (product: Product, variant: ProductVariant) => {
+const openSupplyInventory = (product: Product, variant: ProductVariant): void => {
     selectedInventoryProduct.value = product
     selectedInventoryVariant.value = variant
     showSupplyInventory.value = true
 }
 
-const handleSupplyInventorySaved = () => {
+const handleSupplyInventorySaved = (): void => {
     showSupplyInventory.value = false
     selectedInventoryProduct.value = null
     selectedInventoryVariant.value = null
 }
 
-const handleEditFromView = (productId: number) => {
+const handleEditFromView = (productId: number): void => {
     showViewDialog.value = false
     handleEdit({ id: productId } as Product)
 }
 
-const handleProductDeleted = async () => {
+const handleProductDeleted = async (): Promise<void> => {
     await fetchProducts()
 }
 
-const handleDelete = async (item: unknown) => {
+const handleDelete = (item: unknown): void => {
     const product = item as Product
-    if (confirm(`Are you sure you want to delete ${product.name}?`)) {
-        try {
-            await deleteProduct(product.id)
-        } catch (error) {
-            console.error('Failed to delete product:', error)
-        }
-    }
+    productsToDelete.value = [product]
 }
 
-const handleBulkDelete = async (selected: unknown[]) => {
+const handleBulkDelete = (selected: unknown[]): void => {
     const products = selected as Product[]
-    if (confirm(`Are you sure you want to delete ${products.length} product(s)?`)) {
-        try {
-            await Promise.all(products.map((item) => deleteProduct(item.id)))
-        } catch (error) {
-            console.error('Failed to delete products:', error)
-        }
+    productsToDelete.value = [...products]
+}
+
+const confirmDelete = async (): Promise<void> => {
+    if (productsToDelete.value.length === 0 || deleting.value) return
+    deleting.value = true
+    try {
+        await Promise.all(productsToDelete.value.map((item) => deleteProduct(item.id)))
+        productsToDelete.value = []
+        selectedItems.value = []
+    } catch (error) {
+        console.error('Failed to delete products:', error)
+    } finally {
+        deleting.value = false
     }
 }
 
-const getTypeColor = (type: string) => {
+const getTypeColor = (type: string): 'primary' | 'secondary' | 'success' | 'info' => {
     switch (type) {
         case 'simple':
             return 'primary'
@@ -572,7 +608,7 @@ const getTypeColor = (type: string) => {
         case 'bundle':
             return 'success'
         default:
-            return 'grey'
+            return 'info'
     }
 }
 

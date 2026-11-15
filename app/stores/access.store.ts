@@ -59,7 +59,9 @@ export const useAccessStore = defineStore('access', () => {
         actingOrganisationId.value ? contexts.value[actingOrganisationId.value] : undefined
     )
     const isPlatformContext = computed(
-        () => !!actingOrganisationId.value && actingOrganisationId.value === platformOrganisationId.value
+        () =>
+            !!actingOrganisationId.value &&
+            actingOrganisationId.value === platformOrganisationId.value
     )
     const busy = computed(() => loading.value || refreshing.value || switching.value)
 
@@ -68,18 +70,19 @@ export const useAccessStore = defineStore('access', () => {
     let refreshRequest: Promise<void> | null = null
     let switchRevision = 0
 
-    const clearContextData = () => {
+    const clearContextData = (): void => {
         cache.clearCache()
         resetOrganisationContext()
     }
 
-    const contextStorageKey = (userId: number) => `${ACTING_ORGANISATION_STORAGE_PREFIX}${userId}`
+    const contextStorageKey = (userId: number): string =>
+        `${ACTING_ORGANISATION_STORAGE_PREFIX}${userId}`
 
-    const clearStoredContext = () => {
+    const clearStoredContext = (): void => {
         if (identity.value) contextStorage.remove(contextStorageKey(identity.value.id))
     }
 
-    const reset = () => {
+    const reset = (): void => {
         clearStoredContext()
         revision++
         switchRevision++
@@ -102,7 +105,7 @@ export const useAccessStore = defineStore('access', () => {
         clearContextData()
     }
 
-    const requestContext = async (organisationId: number) => {
+    const requestContext = async (organisationId: number): Promise<AccessContext> => {
         const response = await api.context(organisationId)
         if (!response.data || response.data.organisationId !== organisationId)
             throw new Error('Unable to load organisation permissions.')
@@ -122,9 +125,11 @@ export const useAccessStore = defineStore('access', () => {
                 ? storedOrganisationId
                 : null
 
-        const available = (organisationId: number | null) =>
-            organisationId !== null && snapshot.organisations.some((organisation) => organisation.id === organisationId)
-        if (storedOrganisationId !== null && !available(savedOrganisationId)) contextStorage.remove(storageKey)
+        const available = (organisationId: number | null): boolean =>
+            organisationId !== null &&
+            snapshot.organisations.some((organisation) => organisation.id === organisationId)
+        if (storedOrganisationId !== null && !available(savedOrganisationId))
+            contextStorage.remove(storageKey)
         const nextActingOrganisationId = available(preferredOrganisationId)
             ? preferredOrganisationId
             : available(savedOrganisationId)
@@ -135,7 +140,8 @@ export const useAccessStore = defineStore('access', () => {
 
         const contextIds = new Set<number>()
         if (nextActingOrganisationId !== null) contextIds.add(nextActingOrganisationId)
-        if (available(snapshot.platformOrganisationId)) contextIds.add(snapshot.platformOrganisationId)
+        if (available(snapshot.platformOrganisationId))
+            contextIds.add(snapshot.platformOrganisationId)
         const loadedContexts = await Promise.all([...contextIds].map(requestContext))
 
         return {
@@ -147,14 +153,16 @@ export const useAccessStore = defineStore('access', () => {
         }
     }
 
-    const applyLoadedAccess = (next: LoadedAccess) => {
+    const applyLoadedAccess = (next: LoadedAccess): void => {
         identity.value = next.snapshot.identity
         organisations.value = next.snapshot.organisations
         platformOrganisationId.value = next.snapshot.platformOrganisationId
         capabilities.value = next.snapshot.capabilities
         crossOrganisationPermissions.value = next.snapshot.crossOrganisationPermissions
-        crossOrganisationOrganisationIds.value = next.snapshot.crossOrganisationOrganisationIds ?? {}
-        organisationPermissionOrganisationIds.value = next.snapshot.organisationPermissionOrganisationIds ?? {}
+        crossOrganisationOrganisationIds.value =
+            next.snapshot.crossOrganisationOrganisationIds ?? {}
+        organisationPermissionOrganisationIds.value =
+            next.snapshot.organisationPermissionOrganisationIds ?? {}
         permissionDefinitions.value = next.snapshot.permissionDefinitions
         contexts.value = next.contexts
         actingOrganisationId.value = next.actingOrganisationId
@@ -205,7 +213,7 @@ export const useAccessStore = defineStore('access', () => {
         return pending
     }
 
-    const switchActingOrganisation = async (organisationId: number) => {
+    const switchActingOrganisation = async (organisationId: number): Promise<void> => {
         if (!canSwitchOrganisations.value)
             throw new Error('Only platform admins and platform users can switch organisations.')
         if (!organisations.value.some((organisation) => organisation.id === organisationId))
@@ -220,29 +228,40 @@ export const useAccessStore = defineStore('access', () => {
             if (current !== revision || currentSwitch !== switchRevision) return
             contexts.value = { ...contexts.value, [organisationId]: context }
             actingOrganisationId.value = organisationId
-            if (identity.value) contextStorage.set(contextStorageKey(identity.value.id), organisationId)
+            if (identity.value)
+                contextStorage.set(contextStorageKey(identity.value.id), organisationId)
             clearContextData()
         } finally {
             if (currentSwitch === switchRevision) switching.value = false
         }
     }
 
-    const can = (permission: string, organisationId = actingOrganisationId.value) => {
+    const can = (
+        permission: string,
+        organisationId: number | null = actingOrganisationId.value
+    ): boolean => {
         if (!ready.value) return false
         const definition = definitions.value.get(permission)
         if (!definition) return false
         const permissionOrganisationId =
-            definition.scope === PERMISSION_SCOPE.PLATFORM ? platformOrganisationId.value : organisationId
-        const context = permissionOrganisationId ? contexts.value[permissionOrganisationId] : undefined
+            definition.scope === PERMISSION_SCOPE.PLATFORM
+                ? platformOrganisationId.value
+                : organisationId
+        const context = permissionOrganisationId
+            ? contexts.value[permissionOrganisationId]
+            : undefined
         if (context) return context.bypassPermissions || context.permissions.includes(permission)
         return (
             definition.scope === PERMISSION_SCOPE.ORGANISATION &&
             permissionOrganisationId !== null &&
-            (organisationPermissionOrganisationIds.value[permission]?.includes(permissionOrganisationId) ?? false)
+            (organisationPermissionOrganisationIds.value[permission]?.includes(
+                permissionOrganisationId
+            ) ??
+                false)
         )
     }
 
-    const canAcrossOrganisations = (permission: string) => {
+    const canAcrossOrganisations = (permission: string): boolean => {
         const definition = definitions.value.get(permission)
         return (
             ready.value &&
@@ -252,12 +271,14 @@ export const useAccessStore = defineStore('access', () => {
         )
     }
 
-    const organisationsWithCrossOrganisationPermission = (permission: string) => {
+    const organisationsWithCrossOrganisationPermission = (
+        permission: string
+    ): { id: number; name: string }[] => {
         const allowed = new Set(crossOrganisationOrganisationIds.value[permission] ?? [])
         return organisations.value.filter((organisation) => allowed.has(organisation.id))
     }
 
-    const canForAnyOrganisation = (permission: string) => {
+    const canForAnyOrganisation = (permission: string): boolean => {
         const definition = definitions.value.get(permission)
         return (
             ready.value &&
@@ -266,15 +287,15 @@ export const useAccessStore = defineStore('access', () => {
         )
     }
 
-    const meets = (requirement?: AccessRequirement, organisationId?: number) => {
+    const meets = (requirement?: AccessRequirement, organisationId?: number): boolean => {
         if (!requirement) return true
         if ('capability' in requirement) return capabilities.value[requirement.capability]
         const satisfies = (
             permission: string,
-            allowCrossOrganisation = false,
-            allowCurrentContext = false,
-            allowAnyOrganisation = false
-        ) =>
+            allowCrossOrganisation: boolean = false,
+            allowCurrentContext: boolean = false,
+            allowAnyOrganisation: boolean = false
+        ): boolean =>
             organisationId !== undefined
                 ? can(permission, organisationId)
                 : allowAnyOrganisation && canForAnyOrganisation(permission)
@@ -292,7 +313,12 @@ export const useAccessStore = defineStore('access', () => {
         if ('allPermissions' in requirement)
             return requirement.allPermissions.every((permission) => can(permission, organisationId))
         return requirement.anyPermissions.some((permission) =>
-            satisfies(permission, requirement.allowCrossOrganisation)
+            satisfies(
+                permission,
+                requirement.allowCrossOrganisation,
+                false,
+                requirement.allowAnyOrganisation
+            )
         )
     }
 

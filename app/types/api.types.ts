@@ -1,21 +1,17 @@
-import type { ApiErrorResponse } from './errors.types';
+import type { ApiErrorResponse } from './errors.types'
 
 export interface ApiResponse<T> {
-    data?: T;
-    message?: string;
-    statusCode?: number;
-    success?: boolean;
-    // Support for direct response formats (e.g., auth responses)
-    [key: string]: unknown;
+    statusCode: number
+    success: true
+    message: string
+    timestamp: string
+    data: T | null
 }
 
-export interface ApiError extends ApiErrorResponse {
-    message: string;
-    statusCode: number;
-}
+export type ApiError = ApiErrorResponse
 
 export interface RequestConfig {
-    headers?: Record<string, string>;
-    params?: Record<string, string | number | boolean>;
-    timeout?: number;
+    headers?: Record<string, string>
+    params?: Record<string, string | number | boolean>
+    timeout?: number
 }

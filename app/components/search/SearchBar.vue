@@ -18,26 +18,33 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref } from 'vue'
 
 interface Props {
-    modelValue: string;
-    label?: string;
-    placeholder?: string;
-    prependIcon?: string;
-    appendIcon?: string;
-    variant?: 'filled' | 'outlined' | 'plain' | 'underlined' | 'solo' | 'solo-inverted' | 'solo-filled';
-    density?: 'default' | 'comfortable' | 'compact';
-    clearable?: boolean;
-    disabled?: boolean;
-    loading?: boolean;
-    debounce?: number;
+    modelValue: string
+    label?: string
+    placeholder?: string
+    prependIcon?: string
+    appendIcon?: string
+    variant?:
+        | 'filled'
+        | 'outlined'
+        | 'plain'
+        | 'underlined'
+        | 'solo'
+        | 'solo-inverted'
+        | 'solo-filled'
+    density?: 'default' | 'comfortable' | 'compact'
+    clearable?: boolean
+    disabled?: boolean
+    loading?: boolean
+    debounce?: number
 }
 
 interface Emits {
-    (e: 'update:modelValue', value: string): void;
-    (e: 'search', value: string): void;
-    (e: 'clear'): void;
+    (e: 'update:modelValue', value: string): void
+    (e: 'search', value: string): void
+    (e: 'clear'): void
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -50,32 +57,32 @@ const props = withDefaults(defineProps<Props>(), {
     disabled: false,
     loading: false,
     debounce: 300,
-});
+})
 
-const emit = defineEmits<Emits>();
+const emit = defineEmits<Emits>()
 
-let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+let debounceTimer: ReturnType<typeof setTimeout> | null = null
 
-const handleSearch = (value: string | null) => {
-    const searchValue = value || '';
-    emit('update:modelValue', searchValue);
-    
+const handleSearch = (value: string | null): void => {
+    const searchValue = value || ''
+    emit('update:modelValue', searchValue)
+
     if (debounceTimer) {
-        clearTimeout(debounceTimer);
+        clearTimeout(debounceTimer)
     }
-    
+
     debounceTimer = setTimeout(() => {
-        emit('search', searchValue);
+        emit('search', searchValue)
         if (searchValue === '') {
-            emit('clear');
+            emit('clear')
         }
-    }, props.debounce);
-};
+    }, props.debounce)
+}
 
-const handleEnter = () => {
+const handleEnter = (): void => {
     if (debounceTimer) {
-        clearTimeout(debounceTimer);
+        clearTimeout(debounceTimer)
     }
-    emit('search', props.modelValue);
-};
+    emit('search', props.modelValue)
+}
 </script>

@@ -79,7 +79,6 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { useNuxtApp } from '#app'
 import { useToast } from '~/composables/useToast'
 import type { OrganisationProduct } from '~/types/organisation-product.types'
 import type { Location } from '~/types/location.types'
@@ -87,11 +86,7 @@ import type { CustomerOrderDraftLine } from '~/types/order.types'
 
 const props = defineProps<{ organisationId: number }>()
 const lines = defineModel<CustomerOrderDraftLine[]>({ required: true })
-const nuxtApp = useNuxtApp()
-const locationApi =
-    nuxtApp.$locationApi as import('~/services/api/wrappers/location.api').LocationApiService
-const organisationProductApi =
-    nuxtApp.$organisationProductApi as import('~/services/api/wrappers/organisation-product.api').OrganisationProductApiService
+const { getCustomerOrderCatalog } = useOrders()
 const { errorFromError } = useToast()
 
 const locations = ref<Location[]>([])
@@ -134,19 +129,19 @@ const rows = computed<CustomerOrderDraftLine[]>(() => {
     )
 })
 
-function money(value: number): string {
+const money = (value: number): string => {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value)
 }
 
-function lineFor(variantId: number): CustomerOrderDraftLine | undefined {
+const lineFor = (variantId: number): CustomerOrderDraftLine | undefined => {
     return lines.value.find((line) => line.organisationProductVariantId === variantId)
 }
 
-function isSelected(variantId: number): boolean {
+const isSelected = (variantId: number): boolean => {
     return Boolean(lineFor(variantId))
 }
 
-function toggle(row: CustomerOrderDraftLine, selected: boolean): void {
+const toggle = (row: CustomerOrderDraftLine, selected: boolean): void => {
     if (!selected) {
         lines.value = lines.value.filter(
             (line) => line.organisationProductVariantId !== row.organisationProductVariantId
@@ -158,33 +153,32 @@ function toggle(row: CustomerOrderDraftLine, selected: boolean): void {
     }
 }
 
-function setQuantity(row: CustomerOrderDraftLine, value: number): void {
+const setQuantity = (row: CustomerOrderDraftLine, value: number): void => {
     const quantity = Math.max(
         1,
         Math.min(Number.isFinite(value) ? Math.floor(value) : 1, row.available)
     )
     lines.value = lines.value.map((line) =>
-        line.organisationProductVariantId === row.organisationProductVariantId ? { ...line, quantity } : line
+        line.organisationProductVariantId === row.organisationProductVariantId
+            ? { ...line, quantity }
+            : line
     )
 }
 
-function changeLocation(): void {
+const changeLocation = (): void => {
     lines.value = []
 }
 
-async function load(): Promise<void> {
+const load = async (): Promise<void> => {
     const currentRevision = ++loadRevision
     loading.value = true
     locationId.value = null
     lines.value = []
     try {
-        const [locationResponse, productResponse] = await Promise.all([
-            locationApi.getAllLocations(props.organisationId),
-            organisationProductApi.getAllOrganisationProducts(props.organisationId),
-        ])
+        const response = await getCustomerOrderCatalog(props.organisationId)
         if (currentRevision !== loadRevision) return
-        locations.value = locationResponse.data ?? []
-        products.value = productResponse.data ?? []
+        locations.value = response.data?.locations ?? []
+        products.value = response.data?.products ?? []
         const activeLocations = locations.value.filter((location) => location.isActive)
         if (
             !locationId.value ||

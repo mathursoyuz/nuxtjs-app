@@ -222,11 +222,7 @@
 
                                 <v-window-item value="additional">
                                     <v-row>
-                                        <FormField
-                                            v-model="formData.cpi"
-                                            label="CPI"
-                                            type="text"
-                                        />
+                                        <FormField v-model="formData.cpi" label="CPI" type="text" />
 
                                         <FormField
                                             v-model="formData.isAppUser"
@@ -239,10 +235,18 @@
 
                             <v-row class="mt-4">
                                 <v-col cols="12" class="d-flex justify-end gap-2">
-                                    <v-btn variant="outlined" @click="navigateTo(`/${organisationId}/customers`)">
+                                    <v-btn
+                                        variant="outlined"
+                                        @click="navigateTo(`/${organisationId}/customers`)"
+                                    >
                                         Cancel
                                     </v-btn>
-                                    <v-btn color="primary" type="submit" :loading="loading" :disabled="!valid">
+                                    <v-btn
+                                        color="primary"
+                                        type="submit"
+                                        :loading="loading"
+                                        :disabled="!valid"
+                                    >
                                         Create Customer
                                     </v-btn>
                                 </v-col>
@@ -258,34 +262,35 @@
 <script setup lang="ts">
 import { CUSTOMER_PERMISSIONS } from '~/components/customers/customer.permissions'
 
-import { ref, computed } from 'vue';
-import { useRoute } from 'vue-router';
-import { useCustomer } from '~/composables/useCustomer';
-import { useLocation } from '~/composables/useLocation';
-import { useCountry } from '~/composables/useCountry';
-import FormField from '~/components/forms/FormField.vue';
-import { createCustomerSchema } from '~/schemas/customer.schema';
-import type { CreateCustomerFormData } from '~/schemas/customer.schema';
+import { ref, computed } from 'vue'
+import { useRoute } from 'vue-router'
+import { useCustomer } from '~/composables/useCustomer'
+import { useLocation } from '~/composables/useLocation'
+import { useCountry } from '~/composables/useCountry'
+import FormField from '~/components/forms/FormField.vue'
+import { createCustomerSchema } from '~/schemas/customer.schema'
+import type { CreateCustomerFormData } from '~/schemas/customer.schema'
 
 definePageMeta({
     middleware: ['auth', 'permission'],
-    access: { permission: CUSTOMER_PERMISSIONS.WRITE },
-});
+    access: { permission: CUSTOMER_PERMISSIONS.CREATE },
+})
 
-const route = useRoute();
-const organisationId = computed(() => Number(route.params.organisationId));
+const route = useRoute()
+const organisationId = computed(() => Number(route.params.organisationId))
 
-const { createCustomer, loading } = useCustomer();
-const { locations, fetchLocations } = useLocation();
-const { countries, fetchCountries, fetchStates, getStateOptions } = useCountry();
+const { createCustomer, loading } = useCustomer()
+const { locations, fetchLocations } = useLocation()
+const { countries, fetchCountries, fetchStates, getStateOptions } = useCountry()
 
-const formRef = ref();
-const valid = ref(false);
-const tab = ref('basic');
-const billingStateOptions = ref<Array<{ title: string; value: string }>>([]);
-const shippingStateOptions = ref<Array<{ title: string; value: string }>>([]);
+const formRef = ref()
+const valid = ref(false)
+const tab = ref('basic')
+const billingStateOptions = ref<Array<{ title: string; value: string }>>([])
+const shippingStateOptions = ref<Array<{ title: string; value: string }>>([])
 
 const formData = ref<CreateCustomerFormData>({
+    organisationId: organisationId.value,
     firstName: '',
     lastName: '',
     email: '',
@@ -312,72 +317,75 @@ const formData = ref<CreateCustomerFormData>({
     shippingPostalCode: '',
     shippingCountryCode: '',
     cpi: undefined,
-});
+})
 
 const locationOptions = computed(() => {
     return locations.value.map((l) => ({
         title: l.name,
         value: l.id,
-    }));
-});
+    }))
+})
 
 const countryOptions = computed(() => {
     return countries.value.map((c) => ({
         title: c.name,
-        value: c.code,
-    }));
-});
+        value: c.id,
+    }))
+})
 
 const deliveryMethods = [
     { title: 'Standard', value: 1 },
     { title: 'Express', value: 2 },
     { title: 'Pickup', value: 3 },
-];
+]
 
 const rules = {
-    required: (v: unknown) => !!v || 'This field is required',
-    minLength: (min: number) => (v: string) => (v?.length || 0) >= min || `Must be at least ${min} characters`,
-    email: (v: string) => /.+@.+\..+/.test(v) || 'Must be a valid email',
-};
+    required: (v: unknown): true | 'This field is required' => !!v || 'This field is required',
+    minLength:
+        (min: number): ((v: unknown) => string | true) =>
+        (v: unknown) =>
+            String(v ?? '').length >= min || `Must be at least ${min} characters`,
+    email: (v: unknown): true | 'Must be a valid email' =>
+        /.+@.+\..+/.test(String(v ?? '')) || 'Must be a valid email',
+}
 
-const loadStates = async (type: 'billing' | 'shipping') => {
-    const countryCode = type === 'billing' ? formData.value.billingCountryCode : formData.value.shippingCountryCode;
-    if (!countryCode) return;
+const loadStates = async (type: 'billing' | 'shipping'): Promise<void> => {
+    const countryCode =
+        type === 'billing' ? formData.value.billingCountryCode : formData.value.shippingCountryCode
+    if (!countryCode) return
 
-    const country = countries.value.find((c) => c.code === countryCode);
+    const country = countries.value.find((c) => c.id === countryCode)
     if (country) {
-        await fetchStates(country.id);
-        const stateOptions = getStateOptions(country.id);
+        await fetchStates(country.id)
+        const stateOptions = getStateOptions(country.id)
         if (type === 'billing') {
-            billingStateOptions.value = stateOptions.value;
+            billingStateOptions.value = stateOptions.value
         } else {
-            shippingStateOptions.value = stateOptions.value;
+            shippingStateOptions.value = stateOptions.value
         }
     }
-};
+}
 
-const handleSubmit = async () => {
-    if (!formRef.value?.validate()) return;
+const handleSubmit = async (): Promise<void> => {
+    const validation = await formRef.value?.validate()
+    if (!validation?.valid) return
 
     try {
-        createCustomerSchema.parse(formData.value);
-        await createCustomer({ ...formData.value, organisationId: organisationId.value });
-        navigateTo(`/${organisationId.value}/customers`);
+        createCustomerSchema.parse(formData.value)
+        await createCustomer({ ...formData.value, organisationId: organisationId.value })
+        navigateTo(`/${organisationId.value}/customers`)
     } catch (error) {
-        console.error('Validation or creation error:', error);
+        console.error('Validation or creation error:', error)
     }
-};
+}
 
 // Use useLazyAsyncData for initial data fetching
 const { pending: customerCreatePending } = await useLazyAsyncData(
     'customer-create-initial',
     async () => {
-        await Promise.all([
-            fetchLocations(organisationId.value),
-            fetchCountries(),
-        ]);
+        await Promise.all([fetchLocations(organisationId.value), fetchCountries()])
     }
-);
+)
 </script>
 
 <style scoped>

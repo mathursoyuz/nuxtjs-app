@@ -1,4 +1,4 @@
-import type { CachedApiClient } from '../CachedApiClient';
+import HttpFactory from '@/repository/factory';
 import type { ApiResponse } from '~/types/api.types';
 
 export interface CorksyOrder {
@@ -14,11 +14,12 @@ export interface CorksyConfig {
 /**
  * Corksy API wrapper service
  */
-export class CorksyApiService {
-    constructor(private readonly cachedApi: CachedApiClient) {}
-
+export class CorksyApiService extends HttpFactory {
     async getAccessToken(brandSlug: string): Promise<ApiResponse<string>> {
-        return this.cachedApi.get<string>(`/corksy/${brandSlug}/access-token`, undefined, `corksy:token:${brandSlug}`, 60 * 60 * 1000);
+        return await this.call<string>('GET', `/corksy/${brandSlug}/access-token`, undefined, {
+            cacheKey: `corksy:token:${brandSlug}`,
+            ttl: 60 * 60 * 1000,
+        });
     }
 
     /**
@@ -26,20 +27,22 @@ export class CorksyApiService {
      */
     async listStoredOrders(brandSlug?: string): Promise<ApiResponse<CorksyOrder[]>> {
         const params = brandSlug ? `?brandSlug=${encodeURIComponent(brandSlug)}` : '';
-        return this.cachedApi.get<CorksyOrder[]>(`/corksy/orders${params}`);
+        return await this.call<CorksyOrder[]>('GET', `/corksy/orders${params}`);
     }
 
     /**
      * Trigger fresh fetch from Corksy API for given brandSlug and store in DB.
      */
     async syncOrdersFromCorksy(brandSlug: string): Promise<ApiResponse<CorksyOrder[]>> {
-        return this.cachedApi.get<CorksyOrder[]>(`/corksy/${brandSlug}/get-orders`);
+        return await this.call<CorksyOrder[]>('GET', `/corksy/${brandSlug}/get-orders`);
     }
 
     /**
      * Get available Corksy site configs (brands).
      */
     async listConfigs(): Promise<ApiResponse<CorksyConfig[]>> {
-        return this.cachedApi.get<CorksyConfig[]>(`/corksy/configs`);
+        return await this.call<CorksyConfig[]>('GET', '/corksy/configs');
     }
 }
+
+export default CorksyApiService;

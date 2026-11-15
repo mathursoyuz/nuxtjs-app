@@ -1,30 +1,20 @@
-import type { CachedApiClient } from '../CachedApiClient';
-import type { ApiResponse } from '~/types/api.types';
+import HttpFactory from '@/repository/factory'
+import type { ApiResponse } from '~/types/api.types'
+import type {
+    CreateAuthorizeNetProfileInput,
+    CreateAuthorizeNetProfileResponse,
+} from '~/types/authorize-net.types'
 
-export interface CreateCustomerProfileInputDTO {
-    email: string;
-    firstName: string;
-    lastName: string;
-    phoneNumber?: string;
-    address?: string;
-    city?: string;
-    state?: string;
-    zip?: string;
-    country?: string;
-}
-
-export interface CustomerProfileResult {
-    customerProfileId: string;
-    [key: string]: unknown;
-}
-
-/**
- * Authorize.net API wrapper service
- */
-export class AuthorizeNetApiService {
-    constructor(private readonly cachedApi: CachedApiClient) {}
-
-    async createCustomerProfile(data: CreateCustomerProfileInputDTO): Promise<ApiResponse<CustomerProfileResult>> {
-        return this.cachedApi.post<CustomerProfileResult>('/payments/create-profile', data);
+export class AuthorizeNetApiService extends HttpFactory {
+    async createCustomerProfile(
+        data: CreateAuthorizeNetProfileInput
+    ): Promise<ApiResponse<CreateAuthorizeNetProfileResponse>> {
+        return await this.call<CreateAuthorizeNetProfileResponse, CreateAuthorizeNetProfileInput>(
+            'POST',
+            '/payments/create-profile',
+            data
+        )
     }
 }
+
+export default AuthorizeNetApiService

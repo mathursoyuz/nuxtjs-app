@@ -29,7 +29,10 @@
                     <strong>"{{ category?.name }}"</strong>
                     ?
                 </p>
-                <p v-if="category?.parentId === 0" class="text-caption text-medium-emphasis mt-2">
+                <p
+                    v-if="category?.parentId === null"
+                    class="text-caption text-medium-emphasis mt-2"
+                >
                     This is a root category. Deleting it may affect child categories.
                 </p>
             </v-card-text>
@@ -57,8 +60,6 @@
 import { ref } from 'vue'
 import { useLoadingStore } from '~/stores/loading.store'
 import { useCategory } from '~/composables/useCategory'
-import { useToast } from '~/composables/useToast'
-import { CATEGORY_MESSAGES } from '~/constants/messages.constants'
 import type { Category } from '~/types/category.types'
 
 interface Props {
@@ -76,12 +77,11 @@ const emit = defineEmits<{
 }>()
 
 const { deleteCategory } = useCategory()
-const { successFromResponse, errorFromError } = useToast()
 const loadingStore = useLoadingStore()
 
 const isDeleting = ref(false)
 
-const handleDelete = async () => {
+const handleDelete = async (): Promise<void> => {
     if (!props.category) return
 
     isDeleting.value = true
@@ -89,13 +89,11 @@ const handleDelete = async () => {
     loadingStore.startTask(taskId, 'Deleting category...')
 
     try {
-        const response = await deleteCategory(props.category.id)
-        successFromResponse(response, CATEGORY_MESSAGES.DELETE_SUCCESS)
+        await deleteCategory(props.category.id)
         emit('submit')
         emit('update:modelValue', false)
     } catch (err) {
         console.error('Error deleting category:', err)
-        errorFromError(err, CATEGORY_MESSAGES.DELETE_ERROR)
     } finally {
         isDeleting.value = false
         loadingStore.stopTask(taskId)

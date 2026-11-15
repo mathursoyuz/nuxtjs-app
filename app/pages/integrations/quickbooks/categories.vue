@@ -32,7 +32,7 @@
                         </div>
 
                         <!-- Bulk Actions -->
-                        <div v-if="selectedCategories.length > 0" class="mb-4">
+                        <div v-if="canWrite && selectedCategories.length > 0" class="mb-4">
                             <v-alert type="info" density="compact">
                                 {{ selectedCategories.length }} item(s) selected
                                 <template #append>
@@ -56,69 +56,70 @@
                             :headers="headers"
                             :items="filteredCategories"
                             :loading="loading"
-                            :selectable="true"
-                            :show-select="true"
+                            :selectable="canWrite"
+                            :show-select="canWrite"
                             item-value="Id"
                             class="elevation-1"
                             @update:model-value="handleSelectionChange"
                         >
-                    <template #item.Active="{ item }">
-                        <v-chip :color="item.Active ? 'green' : 'red'" size="small">
-                            {{ item.Active ? 'Active' : 'Inactive' }}
-                        </v-chip>
-                    </template>
-                    <template #item.SubCategory="{ item }">
-                        <v-chip :color="item.SubCategory ? 'blue' : 'grey'" size="small">
-                            {{ item.SubCategory ? 'Sub Category' : 'Category' }}
-                        </v-chip>
-                    </template>
-                    <template #item.syncStatus="{ item }">
-                        <div class="d-flex align-center gap-2">
-                            <v-chip
-                                :color="isCategorySynced(item.Id) ? 'success' : 'warning'"
-                                size="small"
-                                variant="flat"
-                            >
-                                <v-icon start size="small">
-                                    {{
-                                        isCategorySynced(item.Id)
-                                            ? 'mdi-check-circle'
-                                            : 'mdi-alert-circle'
-                                    }}
-                                </v-icon>
-                                {{ isCategorySynced(item.Id) ? 'Synced' : 'Not Synced' }}
-                            </v-chip>
-                    <v-tooltip
-                        v-if="getCategorySyncError(item.Id)"
-                        :text="getCategorySyncError(item.Id) || ''"
-                        location="top"
-                    >
-                                <template #activator="{ props }">
+                            <template #item.Active="{ item }">
+                                <v-chip :color="item.Active ? 'green' : 'red'" size="small">
+                                    {{ item.Active ? 'Active' : 'Inactive' }}
+                                </v-chip>
+                            </template>
+                            <template #item.SubCategory="{ item }">
+                                <v-chip :color="item.SubCategory ? 'blue' : 'grey'" size="small">
+                                    {{ item.SubCategory ? 'Sub Category' : 'Category' }}
+                                </v-chip>
+                            </template>
+                            <template #item.syncStatus="{ item }">
+                                <div class="d-flex align-center gap-2">
                                     <v-chip
-                                        v-bind="props"
-                                        color="error"
+                                        :color="isCategorySynced(item.Id) ? 'success' : 'warning'"
                                         size="small"
                                         variant="flat"
                                     >
-                                        <v-icon start size="small">mdi-alert-circle</v-icon>
-                                        Error
+                                        <v-icon start size="small">
+                                            {{
+                                                isCategorySynced(item.Id)
+                                                    ? 'mdi-check-circle'
+                                                    : 'mdi-alert-circle'
+                                            }}
+                                        </v-icon>
+                                        {{ isCategorySynced(item.Id) ? 'Synced' : 'Not Synced' }}
                                     </v-chip>
-                                </template>
-                            </v-tooltip>
-                        </div>
-                    </template>
-                    <template #item.importActions="{ item }">
-                        <v-btn
-                            color="primary"
-                            size="small"
-                            variant="text"
-                            prepend-icon="mdi-download"
-                            :loading="importing"
-                            @click="importSingleCategory(item)"
-                        >
-                            {{ isCategorySynced(item.Id) ? 'Re-import' : 'Import' }}
-                        </v-btn>
-                    </template>
+                                    <v-tooltip
+                                        v-if="getCategorySyncError(item.Id)"
+                                        :text="getCategorySyncError(item.Id) || ''"
+                                        location="top"
+                                    >
+                                        <template #activator="{ props }">
+                                            <v-chip
+                                                v-bind="props"
+                                                color="error"
+                                                size="small"
+                                                variant="flat"
+                                            >
+                                                <v-icon start size="small">mdi-alert-circle</v-icon>
+                                                Error
+                                            </v-chip>
+                                        </template>
+                                    </v-tooltip>
+                                </div>
+                            </template>
+                            <template #item.importActions="{ item }">
+                                <v-btn
+                                    v-if="canWrite"
+                                    color="primary"
+                                    size="small"
+                                    variant="text"
+                                    prepend-icon="mdi-download"
+                                    :loading="importing"
+                                    @click="importSingleCategory(item)"
+                                >
+                                    {{ isCategorySynced(item.Id) ? 'Re-import' : 'Import' }}
+                                </v-btn>
+                            </template>
                         </v-data-table>
                     </v-card-text>
                 </v-card>
@@ -128,24 +129,27 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useNuxtApp } from '#app'
+import { computed, ref, onMounted } from 'vue'
+import { useQuickbooks } from '~/composables/useQuickbooks'
 import { useLoadingTask } from '~/composables/useLoadingTask'
 import { useToast } from '~/composables/useToast'
 import { INTEGRATION_MESSAGES } from '~/constants/messages.constants'
 import type { QuickBooksCategory } from '~/services/api/wrappers/quickbooks.api'
 import type { Category } from '~/services/api/wrappers/category.api'
+import { QUICKBOOKS_PERMISSIONS } from '~/constants/integration-permissions.constants'
+import { useAccessStore } from '~/stores/access.store'
 
 definePageMeta({
-    middleware: ['auth'],
+    middleware: ['auth', 'permission'],
+    access: { permission: QUICKBOOKS_PERMISSIONS.READ },
 })
 
-const nuxtApp = useNuxtApp()
+const access = useAccessStore()
+const canWrite = computed(() => access.can(QUICKBOOKS_PERMISSIONS.WRITE))
+
 const { successFromResponse, errorFromError, error } = useToast()
-const quickbooksApi =
-    nuxtApp.$quickbooksApi as import('~/services/api/wrappers/quickbooks.api').QuickBooksApiService
-const categoryApi =
-    nuxtApp.$categoryApi as import('~/services/api/wrappers/category.api').CategoryApiService
+const { operations: quickbooks } = useQuickbooks()
+const { refreshCategories } = useCategory()
 
 const categories = ref<QuickBooksCategory[]>([])
 const loading = ref(false)
@@ -201,7 +205,7 @@ const importSelectedCategories = async () => {
     try {
         const task = useLoadingTask('import-qb-categories')
         await task.execute(async () => {
-            const response = await quickbooksApi.importCategories()
+            const response = await quickbooks.importCategories()
             successFromResponse(response, 'Categories imported from QuickBooks')
         })
     } catch (err) {
@@ -217,7 +221,7 @@ const importSingleCategory = async (category: QuickBooksCategory) => {
     try {
         const task = useLoadingTask('import-qb-category')
         await task.execute(async () => {
-            const response = await quickbooksApi.importCategories()
+            const response = await quickbooks.importCategories()
             successFromResponse(
                 response,
                 `Category ${category.Name} imported from QuickBooks (full import executed)`
@@ -236,7 +240,7 @@ const fetchCategories = async () => {
     try {
         const task = useLoadingTask('load-qb-categories')
         await task.execute(async () => {
-            const response = await quickbooksApi.getCategories()
+            const response = await quickbooks.getCategories()
             if (response.success && response.data) {
                 categories.value = response.data
             } else {
@@ -245,10 +249,7 @@ const fetchCategories = async () => {
         })
 
         // Refresh local categories to update sync status mapping
-        const localResponse = await categoryApi.refreshCategories()
-        if (localResponse.success && localResponse.data) {
-            localCategories.value = localResponse.data
-        }
+        localCategories.value = await refreshCategories()
     } catch (err) {
         console.error('Error fetching QuickBooks categories:', err)
         errorFromError(err, INTEGRATION_MESSAGES.QB_FETCH_ERROR)

@@ -26,6 +26,6 @@ const drawer = ref(true)
 
 <style scoped>
 .main-content {
-    background: #f8f9fa;
+    background: rgb(var(--v-theme-background));
 }
 </style>

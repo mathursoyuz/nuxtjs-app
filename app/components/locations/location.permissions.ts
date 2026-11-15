@@ -1,5 +1,6 @@
 export const LOCATION_PERMISSIONS = {
     READ: 'locations.read',
-    WRITE: 'locations.write',
+    CREATE: 'locations.create',
+    UPDATE: 'locations.update',
     DELETE: 'locations.delete',
 } as const

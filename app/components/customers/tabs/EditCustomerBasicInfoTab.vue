@@ -107,38 +107,11 @@
                             />
                         </Field>
                     </v-col>
-                    <v-col cols="12" md="6">
-                        <div class="text-body-2 font-weight-medium mb-2">Avatar Image</div>
-                        <div
-                            v-if="!avatarPreview"
-                            class="upload-zone upload-zone-small d-flex flex-column align-center justify-center pa-4"
-                            @click="triggerAvatarInput"
-                            @dragover.prevent
-                            @drop.prevent="handleAvatarDrop"
-                        >
-                            <v-icon size="32" color="primary" class="mb-2">mdi-cloud-upload</v-icon>
-                            <div class="text-body-2 text-center">Drop Avatar here to upload</div>
-                            <input
-                                ref="avatarInput"
-                                type="file"
-                                accept="image/*"
-                                style="display: none"
-                                @change="handleAvatarChange"
-                            />
-                        </div>
-                        <div v-else class="avatar-preview-container">
-                            <v-img
-                                :src="avatarPreview"
-                                max-height="150"
-                                max-width="150"
-                                contain
-                                class="rounded mb-2"
-                            />
-                            <v-btn variant="text" color="error" size="small" @click="removeAvatar">
-                                Remove
-                            </v-btn>
-                        </div>
-                    </v-col>
+                    <EditCustomerAvatarPicker
+                        v-model="avatarFile"
+                        :existing-image-url="avatarUrl"
+                        :reset-token="avatarResetToken"
+                    />
                     <v-col cols="12" md="6">
                         <Field v-slot="{ field, errorMessage }" name="phoneNumber" validate-on-blur>
                             <div>
@@ -294,9 +267,13 @@ const formRef = ref()
 const isSubmitting = ref(false)
 const checkingEmail = ref(false)
 const selectedOrganisationId = ref<number | null>(null)
-const avatarInput = ref<HTMLInputElement | null>(null)
-const avatarPreview = ref<string | null>(null)
 const avatarFile = ref<File | null>(null)
+const avatarResetToken = ref(0)
+const avatarUrl = computed((): string | null =>
+    props.fullCustomerData?.avatar
+        ? getFullImageUrl(props.fullCustomerData.avatar, 'customers')
+        : null
+)
 let locationRequestId = 0
 const formLocations = ref<Array<{ id: number; name: string }>>([])
 const selectedCountryCode = ref<string>('US')
@@ -367,12 +344,12 @@ const { handleSubmit, setFieldValue, values, errors, resetForm, setErrors } =
     })
 
 // Phone number handlers
-const handleCountryCodeChange = (countryCode: string) => {
+const handleCountryCodeChange = (countryCode: string): void => {
     selectedCountryCode.value = countryCode
     updatePhoneNumberField()
 }
 
-const handlePhoneNumberChange = (value: string) => {
+const handlePhoneNumberChange = (value: string): void => {
     if (value && value.trim().length > 0 && phoneCountryCodes.value.length > 0) {
         const parsed = parseInternationalPhoneNumber(value, phoneCountryCodes.value)
         if (parsed) {
@@ -386,7 +363,7 @@ const handlePhoneNumberChange = (value: string) => {
     updatePhoneNumberField()
 }
 
-const updatePhoneNumberField = () => {
+const updatePhoneNumberField = (): void => {
     const fullPhoneNumber = buildInternationalPhoneNumber(
         selectedCountryCode.value,
         phoneNumberValue.value,
@@ -396,7 +373,10 @@ const updatePhoneNumberField = () => {
 }
 
 // Email validation on blur
-const handleEmailBlur = async (field: { value?: string; onBlur: (e: Event) => void }) => {
+const handleEmailBlur = async (field: {
+    value?: string
+    onBlur: (e: Event) => void
+}): Promise<void> => {
     const syntheticEvent = new Event('blur') as Event
     field.onBlur(syntheticEvent)
 
@@ -424,55 +404,7 @@ const handleEmailBlur = async (field: { value?: string; onBlur: (e: Event) => vo
     }
 }
 
-// Avatar handlers
-const triggerAvatarInput = () => {
-    avatarInput.value?.click()
-}
-
-const handleAvatarChange = (event: Event) => {
-    const target = event.target as HTMLInputElement
-    const file = target.files?.[0]
-    if (!file) return
-
-    if (file.size > 2 * 1024 * 1024) {
-        error('File size must be less than 2MB')
-        return
-    }
-
-    if (!file.type.startsWith('image/')) {
-        error('Please select an image file')
-        return
-    }
-
-    avatarFile.value = file
-    const reader = new FileReader()
-    reader.onload = (e) => {
-        avatarPreview.value = e.target?.result as string
-    }
-    reader.readAsDataURL(file)
-    target.value = ''
-}
-
-const handleAvatarDrop = (event: DragEvent) => {
-    const file = event.dataTransfer?.files[0]
-    if (!file) return
-    const fakeEvent = {
-        target: {
-            files: [file],
-        },
-    } as unknown as Event
-    handleAvatarChange(fakeEvent)
-}
-
-const removeAvatar = () => {
-    avatarFile.value = null
-    avatarPreview.value = null
-    if (avatarInput.value) {
-        avatarInput.value.value = ''
-    }
-}
-
-const handleOrganisationChange = async (newOrganisationId: number | null) => {
+const handleOrganisationChange = async (newOrganisationId: number | null): Promise<void> => {
     if (newOrganisationId) {
         setFieldValue('organisationId', newOrganisationId)
         const requestId = ++locationRequestId
@@ -489,7 +421,7 @@ const handleOrganisationChange = async (newOrganisationId: number | null) => {
 }
 
 // Load customer data from prop
-const loadData = async () => {
+const loadData = async (): Promise<void> => {
     if (!props.fullCustomerData) return
 
     setErrors({})
@@ -500,12 +432,8 @@ const loadData = async () => {
     selectedOrganisationId.value = fullCustomer.organisationId || DEFAULT_ORGANISATION_ID
     formLocations.value = await fetchLocations(fullCustomer.organisationId)
 
-    if (fullCustomer.avatar) {
-        avatarPreview.value = getFullImageUrl(fullCustomer.avatar, 'customers')
-    } else {
-        avatarPreview.value = null
-    }
     avatarFile.value = null
+    avatarResetToken.value += 1
 
     if (fullCustomer.phoneNumber) {
         const parsed = parseInternationalPhoneNumber(
@@ -625,7 +553,7 @@ const submitForm = handleSubmit(async (formValues) => {
     }
 })
 
-const handleFormSubmit = () => {
+const handleFormSubmit = (): void => {
     submitForm()
 }
 
@@ -644,28 +572,6 @@ watch(
 </script>
 
 <style scoped>
-.upload-zone {
-    border: 2px dashed rgba(155, 35, 53, 0.4);
-    border-radius: 8px;
-    background-color: rgba(155, 35, 53, 0.02);
-    cursor: pointer;
-    transition: all 0.2s ease;
-    min-height: 150px;
-}
-
-.upload-zone:hover {
-    border-color: rgba(155, 35, 53, 0.8);
-    background-color: rgba(155, 35, 53, 0.05);
-}
-
-.upload-zone-small {
-    min-height: 100px;
-}
-
-.avatar-preview-container {
-    text-align: center;
-}
-
 .gap-2 {
     gap: 8px;
 }

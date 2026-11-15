@@ -14,12 +14,8 @@
                 </v-row>
                 <v-row class="mt-2">
                     <v-col cols="12" class="d-flex justify-end gap-2">
-                        <v-btn variant="outlined" @click="clearFilters">
-                            Clear All
-                        </v-btn>
-                        <v-btn color="primary" @click="applyFilters">
-                            Apply Filters
-                        </v-btn>
+                        <v-btn variant="outlined" @click="clearFilters">Clear All</v-btn>
+                        <v-btn color="primary" @click="applyFilters">Apply Filters</v-btn>
                     </v-col>
                 </v-row>
             </v-expansion-panel-text>
@@ -28,53 +24,53 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed } from 'vue'
 
 interface Props {
-    modelValue?: Record<string, unknown>;
-    defaultExpanded?: boolean;
+    modelValue?: Record<string, unknown>
+    defaultExpanded?: boolean
 }
 
 interface Emits {
-    (e: 'update:modelValue', value: Record<string, unknown>): void;
-    (e: 'apply', value: Record<string, unknown>): void;
-    (e: 'clear'): void;
+    (e: 'update:modelValue', value: Record<string, unknown>): void
+    (e: 'apply', value: Record<string, unknown>): void
+    (e: 'clear'): void
 }
 
 const props = withDefaults(defineProps<Props>(), {
     defaultExpanded: false,
-});
+})
 
-const emit = defineEmits<Emits>();
+const emit = defineEmits<Emits>()
 
-const panel = ref(props.defaultExpanded ? [0] : []);
-const filters = ref<Record<string, unknown>>(props.modelValue || {});
+const panel = ref(props.defaultExpanded ? [0] : [])
+const filters = ref<Record<string, unknown>>(props.modelValue || {})
 
 const activeFilterCount = computed(() => {
     return Object.values(filters.value).filter((v) => {
-        if (Array.isArray(v)) return v.length > 0;
-        if (typeof v === 'string') return v.trim().length > 0;
-        return v !== null && v !== undefined;
-    }).length;
-});
+        if (Array.isArray(v)) return v.length > 0
+        if (typeof v === 'string') return v.trim().length > 0
+        return v !== null && v !== undefined
+    }).length
+})
 
-const applyFilters = () => {
-    emit('update:modelValue', { ...filters.value });
-    emit('apply', { ...filters.value });
-};
+const applyFilters = (): void => {
+    emit('update:modelValue', { ...filters.value })
+    emit('apply', { ...filters.value })
+}
 
-const clearFilters = () => {
-    filters.value = {};
-    emit('update:modelValue', {});
-    emit('clear');
-};
+const clearFilters = (): void => {
+    filters.value = {}
+    emit('update:modelValue', {})
+    emit('clear')
+}
 
 // Expose methods for parent components
 defineExpose({
     filters,
     applyFilters,
     clearFilters,
-});
+})
 </script>
 
 <style scoped>

@@ -8,40 +8,40 @@ export const useProcurementOrderStore = defineStore('procurement-order', () => {
     const loadingByOrganisationId = ref<Record<number, boolean>>({})
     const errorByOrganisationId = ref<Record<number, string | null>>({})
 
-    function ordersForOrganisation(organisationId: number): ProcurementOrder[] {
+    const ordersForOrganisation = (organisationId: number): ProcurementOrder[] => {
         return ordersByOrganisationId.value[organisationId] ?? []
     }
 
-    function isLoadingOrganisation(organisationId: number): boolean {
+    const isLoadingOrganisation = (organisationId: number): boolean => {
         return loadingByOrganisationId.value[organisationId] ?? false
     }
 
-    function errorForOrganisation(organisationId: number): string | null {
+    const errorForOrganisation = (organisationId: number): string | null => {
         return errorByOrganisationId.value[organisationId] ?? null
     }
 
-    function setOrders(organisationId: number, orders: ProcurementOrder[]): void {
+    const setOrders = (organisationId: number, orders: ProcurementOrder[]): void => {
         ordersByOrganisationId.value = {
             ...ordersByOrganisationId.value,
             [organisationId]: orders,
         }
     }
 
-    function setLoading(organisationId: number, loading: boolean): void {
+    const setLoading = (organisationId: number, loading: boolean): void => {
         loadingByOrganisationId.value = {
             ...loadingByOrganisationId.value,
             [organisationId]: loading,
         }
     }
 
-    function setError(organisationId: number, error: string | null): void {
+    const setError = (organisationId: number, error: string | null): void => {
         errorByOrganisationId.value = {
             ...errorByOrganisationId.value,
             [organisationId]: error,
         }
     }
 
-    function resetForOrganisationContext(): void {
+    const resetForOrganisationContext = (): void => {
         ordersByOrganisationId.value = {}
         loadingByOrganisationId.value = {}
         errorByOrganisationId.value = {}

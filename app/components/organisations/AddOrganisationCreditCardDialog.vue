@@ -42,6 +42,7 @@
                                     label="Active"
                                     color="primary"
                                     hide-details
+                                    :disabled="card.isActive || togglingCardId !== null"
                                     :loading="togglingCardId === card.id"
                                     @update:model-value="
                                         toggleCreditCardActive(card.id, $event ?? false)
@@ -170,6 +171,9 @@
                             <v-text-field
                                 v-model="creditCardData.cardNumber"
                                 label="Card Number"
+                                inputmode="numeric"
+                                autocomplete="cc-number"
+                                maxlength="19"
                                 variant="outlined"
                                 density="compact"
                                 placeholder="1234 5678 9012 3456"
@@ -242,13 +246,13 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { useNuxtApp } from '#app'
 import { useCountry } from '~/composables/useCountry'
 import { useToast } from '~/composables/useToast'
 import { useOrganisation } from '~/composables/useOrganisation'
 import { ORGANISATION_MESSAGES } from '~/constants/messages.constants'
 import type { OrganisationCreditCard } from '~/services/api/wrappers/organisation-credit-card.api'
 import type { Organisation } from '~/types/organisation.types'
+import { organisationPaymentCardSchema } from '~/schemas/organisation.schema'
 
 interface Props {
     modelValue: boolean
@@ -263,9 +267,7 @@ const emit = defineEmits<{
     submit: []
 }>()
 
-const nuxtApp = useNuxtApp()
-const creditCardApi =
-    nuxtApp.$organisationCreditCardApi as import('~/services/api/wrappers/organisation-credit-card.api').OrganisationCreditCardApiService
+const creditCardApi = useOrganisationCreditCards()
 const { countryOptions, fetchCountries, fetchStates } = useCountry()
 const { successFromResponse, errorFromError } = useToast()
 const { fetchOrganisationById } = useOrganisation()
@@ -318,14 +320,16 @@ const creditCardData = ref({
 })
 
 const rules = {
-    required: (v: unknown) => !!v || 'This field is required',
-    billingCompany: (v: string) => {
+    required: (v: unknown): true | 'This field is required' => !!v || 'This field is required',
+    billingCompany: (
+        v: string
+    ): true | 'Company name must be at least 5 characters if provided' => {
         if (!v || !v.trim()) return true // Optional
         return v.trim().length >= 5 || 'Company name must be at least 5 characters if provided'
     },
 }
 
-const handleBillingCountryChange = async (countryId: string) => {
+const handleBillingCountryChange = async (countryId: string): Promise<void> => {
     billingCountryCode.value = countryId
     formData.value.billingCountryCode = countryId
     if (countryId) {
@@ -340,7 +344,7 @@ const handleBillingCountryChange = async (countryId: string) => {
     formData.value.billingStateCode = ''
 }
 
-const loadCreditCards = async () => {
+const loadCreditCards = async (): Promise<void> => {
     try {
         const response = await creditCardApi.refreshOrganisationCreditCards(props.organisationId)
         if (response.success && response.data) {
@@ -351,18 +355,10 @@ const loadCreditCards = async () => {
     }
 }
 
-const toggleCreditCardActive = async (cardId: number, isActive: boolean) => {
+const toggleCreditCardActive = async (cardId: number, isActive: boolean): Promise<void> => {
+    if (!isActive) return
     togglingCardId.value = cardId
     try {
-        // If activating, deactivate all other cards first
-        if (isActive) {
-            for (const card of existingCreditCards.value) {
-                if (card.id !== cardId && card.isActive) {
-                    await creditCardApi.toggleActive(props.organisationId, card.id, false)
-                }
-            }
-        }
-
         const response = await creditCardApi.toggleActive(props.organisationId, cardId, isActive)
         if (response.success) {
             successFromResponse(
@@ -381,7 +377,7 @@ const toggleCreditCardActive = async (cardId: number, isActive: boolean) => {
     }
 }
 
-const loadOrganisationBillingInfo = async () => {
+const loadOrganisationBillingInfo = async (): Promise<void> => {
     if (!props.organisationId) return
 
     try {
@@ -419,7 +415,7 @@ const loadOrganisationBillingInfo = async () => {
     }
 }
 
-const resetForm = () => {
+const resetForm = (): void => {
     formData.value = {
         billingFirstName: '',
         billingLastName: '',
@@ -445,9 +441,10 @@ const resetForm = () => {
     }
 }
 
-const handleSubmit = async () => {
+const handleSubmit = async (): Promise<void> => {
     const validation = await formRef.value?.validate()
-    if (!validation?.valid) return
+    const paymentData = { ...formData.value, ...creditCardData.value }
+    if (!validation?.valid || !organisationPaymentCardSchema.safeParse(paymentData).success) return
 
     loading.value = true
     try {

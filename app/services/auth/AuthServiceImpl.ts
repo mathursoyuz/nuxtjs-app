@@ -25,7 +25,7 @@ export class AuthServiceImpl implements AuthService {
         this.saveAuth(response, current)
         return response
     }
-    async logout(allSessions = false): Promise<void> {
+    async logout(allSessions: boolean = false): Promise<void> {
         const current = ++this.revision
         try {
             if (this.storageService.get<string>(AUTH_TOKEN_KEY))

@@ -5,7 +5,15 @@ import type { ProcurementOrder } from '~/types/order.types'
 
 const PROCUREMENT_ORDER_LOAD_ERROR = 'Failed to load procurement orders'
 
-export function useProcurementOrders() {
+export const useProcurementOrders = (): {
+    ordersForOrganisation: (organisationId: number) => ProcurementOrder[]
+    isLoadingOrganisation: (organisationId: number) => boolean
+    errorForOrganisation: (organisationId: number) => string | null
+    fetchProcurementOrders: (
+        organisationId: number,
+        forceRefresh?: boolean
+    ) => Promise<ProcurementOrder[]>
+} => {
     const nuxtApp = useNuxtApp()
     const procurementOrderStore = useProcurementOrderStore()
     const organisationProductApi =
@@ -16,10 +24,10 @@ export function useProcurementOrders() {
         throw new Error('OrganisationProductApiService is not available')
     }
 
-    async function fetchProcurementOrders(
+    const fetchProcurementOrders = async (
         organisationId: number,
-        forceRefresh = false
-    ): Promise<ProcurementOrder[]> {
+        forceRefresh: boolean = false
+    ): Promise<ProcurementOrder[]> => {
         procurementOrderStore.setLoading(organisationId, true)
         procurementOrderStore.setError(organisationId, null)
 

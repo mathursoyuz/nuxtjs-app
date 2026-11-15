@@ -17,7 +17,7 @@
                 <v-card>
                     <v-card-text>
                         <!-- Bulk Actions -->
-                        <div v-if="selectedItems.length > 0" class="mb-4">
+                        <div v-if="canWrite && selectedItems.length > 0" class="mb-4">
                             <v-alert type="info" density="compact">
                                 <div class="d-flex align-center justify-space-between">
                                     <span>
@@ -45,7 +45,7 @@
                             :items-length="totalItems"
                             :page="currentPage"
                             item-value="id"
-                            show-select
+                            :show-select="canWrite"
                             class="elevation-1"
                             @update:page="handlePageChange"
                             @update:items-per-page="handleItemsPerPageChange"
@@ -55,7 +55,7 @@
                                 <div v-if="hasMore && nextCursor" class="d-flex align-center pa-2">
                                     <v-chip color="info" size="small" class="mr-2">
                                         {{ customers.length }} items loaded
-                                        <span v-if="hasMore && nextCursor"> (more available)</span>
+                                        <span v-if="hasMore && nextCursor">(more available)</span>
                                     </v-chip>
                                 </div>
                             </template>
@@ -71,9 +71,13 @@
                             <template #item.syncStatus="{ item }">
                                 <v-chip
                                     size="small"
-                                    :color="item.localCustomer?.isSquareSynced ? 'success' : 'warning'"
+                                    :color="
+                                        item.localCustomer?.isSquareSynced ? 'success' : 'warning'
+                                    "
                                 >
-                                    {{ item.localCustomer?.isSquareSynced ? 'Synced' : 'Not Synced' }}
+                                    {{
+                                        item.localCustomer?.isSquareSynced ? 'Synced' : 'Not Synced'
+                                    }}
                                 </v-chip>
                             </template>
                             <template #item.created_at="{ item }">
@@ -85,6 +89,7 @@
                             <template #item.actions="{ item }">
                                 <div class="d-flex align-center gap-2">
                                     <v-btn
+                                        v-if="canWrite"
                                         icon="mdi-import"
                                         size="small"
                                         variant="text"
@@ -107,16 +112,21 @@
 import { ref, computed, onMounted } from 'vue'
 import { useToast } from '~/composables/useToast'
 import { useLoadingTask } from '~/composables/useLoadingTask'
+import { useSquareImport } from '~/composables/useSquareImport'
 import type { SquareCustomer } from '~/types/square-import.types'
 import type { SyncResult } from '~/types/square-import.types'
+import { SQUARE_SYNC_PERMISSIONS } from '~/constants/integration-permissions.constants'
+import { useAccessStore } from '~/stores/access.store'
 
 definePageMeta({
-    middleware: ['auth'],
+    middleware: ['auth', 'permission'],
+    access: { permission: SQUARE_SYNC_PERMISSIONS.READ },
 })
 
-const nuxtApp = useNuxtApp()
-const squareImportApi =
-    nuxtApp.$squareImportApi as import('~/services/api/wrappers/square-import.api').SquareImportApiService
+const access = useAccessStore()
+const canWrite = computed(() => access.can(SQUARE_SYNC_PERMISSIONS.WRITE))
+
+const { operations: squareImport } = useSquareImport<SquareCustomer>()
 
 const { success, error, warning, successFromResponse, errorFromError } = useToast()
 
@@ -177,10 +187,10 @@ const fetchCustomersPage = async (cursor?: string, append: boolean = false): Pro
     try {
         const task = useLoadingTask('fetch-square-customers')
         await task.execute(async () => {
-            const response = await squareImportApi.fetchCustomersWithCursor(cursor)
+            const response = await squareImport.fetchCustomersWithCursor(cursor)
             if (response.success && response.data) {
                 const pageCustomers = response.data.customers || []
-                
+
                 if (append) {
                     // Append new customers to existing list
                     customers.value = [...customers.value, ...pageCustomers]
@@ -188,10 +198,10 @@ const fetchCustomersPage = async (cursor?: string, append: boolean = false): Pro
                     // Replace customers (for refresh or first page)
                     customers.value = pageCustomers
                 }
-                
+
                 nextCursor.value = response.data.cursor
                 hasMore.value = response.data.hasMore
-                
+
                 // Update total count if provided by API
                 if (response.data.count !== undefined) {
                     totalCount.value = response.data.count
@@ -220,11 +230,11 @@ const fetchCustomersPage = async (cursor?: string, append: boolean = false): Pro
 const handlePageChange = async (page: number) => {
     const targetPage = page
     currentPage.value = targetPage
-    
+
     // Calculate how many items we need for this page
     const itemsNeeded = targetPage * itemsPerPage.value
     const itemsWeHave = customers.value.length
-    
+
     // If we need more items and have a cursor, keep fetching until we have enough
     while (itemsNeeded > itemsWeHave && nextCursor.value && hasMore.value) {
         await fetchCustomersPage(nextCursor.value, true) // Append to existing
@@ -233,7 +243,7 @@ const handlePageChange = async (page: number) => {
             break
         }
     }
-    
+
     // Update total items based on accumulated items
     if (hasMore.value && nextCursor.value) {
         // Show that there are more items available
@@ -271,13 +281,18 @@ const importSelectedCustomers = async () => {
         const task = useLoadingTask('import-square-customers')
         await task.execute(async () => {
             // Get selected customer objects from all accumulated customers
-            const selectedCustomers = customers.value.filter((c) => selectedItems.value.includes(c.id))
-            
-            const response = await squareImportApi.storeSelectedCustomers(selectedCustomers)
+            const selectedCustomers = customers.value.filter((c) =>
+                selectedItems.value.includes(c.id)
+            )
+
+            const response = await squareImport.storeSelectedCustomers(selectedCustomers)
             if (response.success && response.data) {
                 const result = response.data.result
-                const message = getImportResultMessage(result, `Successfully imported ${selectedItems.value.length} customer(s)`)
-                
+                const message = getImportResultMessage(
+                    result,
+                    `Successfully imported ${selectedItems.value.length} customer(s)`
+                )
+
                 if (result.errors.length > 0) {
                     warning(message)
                 } else {
@@ -303,7 +318,7 @@ const importSingleCustomer = async (customer: SquareCustomer) => {
     try {
         const task = useLoadingTask(`import-square-customer-${customer.id}`)
         await task.execute(async () => {
-            const response = await squareImportApi.storeSelectedCustomers([customer])
+            const response = await squareImport.storeSelectedCustomers([customer])
             if (response.success && response.data) {
                 const result = response.data.result
                 const successCount = result.created + result.updated

@@ -4,11 +4,15 @@
             <v-col cols="12">
                 <div class="d-flex align-center justify-space-between mb-4">
                     <h1 class="text-h4">
-                        {{ currentCustomer ? `${currentCustomer.firstName} ${currentCustomer.lastName}` : 'Customer Details' }}
+                        {{
+                            currentCustomer
+                                ? `${currentCustomer.firstName} ${currentCustomer.lastName}`
+                                : 'Customer Details'
+                        }}
                     </h1>
                     <div class="d-flex gap-2">
                         <v-btn
-                            v-if="access.can(CUSTOMER_PERMISSIONS.WRITE, organisationId)"
+                            v-if="access.can(CUSTOMER_PERMISSIONS.UPDATE, organisationId)"
                             color="primary"
                             prepend-icon="mdi-pencil"
                             @click="navigateTo(`/${organisationId}/customers/${customerId}/edit`)"
@@ -33,28 +37,49 @@
                                     <v-list-item>
                                         <v-list-item-title>Email</v-list-item-title>
                                         <v-list-item-subtitle>
-                                            <a :href="`mailto:${currentCustomer.email}`">{{ currentCustomer.email }}</a>
+                                            <a :href="`mailto:${currentCustomer.email}`">
+                                                {{ currentCustomer.email }}
+                                            </a>
                                         </v-list-item-subtitle>
                                     </v-list-item>
                                     <v-list-item>
                                         <v-list-item-title>Phone</v-list-item-title>
                                         <v-list-item-subtitle>
-                                            <a :href="`tel:${currentCustomer.phoneNumber}`">{{ currentCustomer.phoneNumber }}</a>
+                                            <a :href="`tel:${currentCustomer.phoneNumber}`">
+                                                {{ currentCustomer.phoneNumber }}
+                                            </a>
                                         </v-list-item-subtitle>
                                     </v-list-item>
                                     <v-list-item>
                                         <v-list-item-title>Status</v-list-item-title>
                                         <v-list-item-subtitle>
-                                            <v-chip :color="currentCustomer.isActive ? 'success' : 'error'" size="small">
-                                                {{ currentCustomer.isActive ? 'Active' : 'Inactive' }}
+                                            <v-chip
+                                                :color="
+                                                    currentCustomer.isActive ? 'success' : 'error'
+                                                "
+                                                size="small"
+                                            >
+                                                {{
+                                                    currentCustomer.isActive ? 'Active' : 'Inactive'
+                                                }}
                                             </v-chip>
                                         </v-list-item-subtitle>
                                     </v-list-item>
                                     <v-list-item>
                                         <v-list-item-title>App User</v-list-item-title>
                                         <v-list-item-subtitle>
-                                            <v-icon :color="currentCustomer.isAppUser ? 'primary' : 'grey'">
-                                                {{ currentCustomer.isAppUser ? 'mdi-check' : 'mdi-close' }}
+                                            <v-icon
+                                                :color="
+                                                    currentCustomer.isAppUser
+                                                        ? 'primary'
+                                                        : 'surface-variant'
+                                                "
+                                            >
+                                                {{
+                                                    currentCustomer.isAppUser
+                                                        ? 'mdi-check'
+                                                        : 'mdi-close'
+                                                }}
                                             </v-icon>
                                         </v-list-item-subtitle>
                                     </v-list-item>
@@ -67,27 +92,39 @@
                                 <v-list>
                                     <v-list-item>
                                         <v-list-item-title>Company</v-list-item-title>
-                                        <v-list-item-subtitle>{{ currentCustomer.billingCompany || 'N/A' }}</v-list-item-subtitle>
+                                        <v-list-item-subtitle>
+                                            {{ currentCustomer.billing.company || 'N/A' }}
+                                        </v-list-item-subtitle>
                                     </v-list-item>
                                     <v-list-item>
                                         <v-list-item-title>Address</v-list-item-title>
-                                        <v-list-item-subtitle>{{ currentCustomer.billingAddress }}</v-list-item-subtitle>
+                                        <v-list-item-subtitle>
+                                            {{ currentCustomer.billing.address }}
+                                        </v-list-item-subtitle>
                                     </v-list-item>
                                     <v-list-item>
                                         <v-list-item-title>City</v-list-item-title>
-                                        <v-list-item-subtitle>{{ currentCustomer.billingCity }}</v-list-item-subtitle>
+                                        <v-list-item-subtitle>
+                                            {{ currentCustomer.billing.city }}
+                                        </v-list-item-subtitle>
                                     </v-list-item>
                                     <v-list-item>
                                         <v-list-item-title>State</v-list-item-title>
-                                        <v-list-item-subtitle>{{ currentCustomer.billingStateCode }}</v-list-item-subtitle>
+                                        <v-list-item-subtitle>
+                                            {{ currentCustomer.billing.stateCode }}
+                                        </v-list-item-subtitle>
                                     </v-list-item>
                                     <v-list-item>
                                         <v-list-item-title>Postal Code</v-list-item-title>
-                                        <v-list-item-subtitle>{{ currentCustomer.billing.postalCode }}</v-list-item-subtitle>
+                                        <v-list-item-subtitle>
+                                            {{ currentCustomer.billing.postalCode }}
+                                        </v-list-item-subtitle>
                                     </v-list-item>
                                     <v-list-item>
                                         <v-list-item-title>Country</v-list-item-title>
-                                        <v-list-item-subtitle>{{ currentCustomer.billingCountryCode }}</v-list-item-subtitle>
+                                        <v-list-item-subtitle>
+                                            {{ currentCustomer.billing.countryCode }}
+                                        </v-list-item-subtitle>
                                     </v-list-item>
                                 </v-list>
                             </v-card-text>
@@ -95,19 +132,25 @@
 
                         <v-window-item value="shipping">
                             <v-card-text>
-                                <div v-if="currentCustomer.shipping && currentCustomer.shipping.length > 0">
+                                <div v-if="currentCustomer.shippingAddresses?.length">
                                     <v-list>
                                         <v-list-item
-                                            v-for="address in currentCustomer.shipping"
+                                            v-for="address in currentCustomer.shippingAddresses"
                                             :key="address.id"
                                             class="mb-2"
                                         >
-                                            <v-list-item-title>{{ address.firstName }} {{ address.lastName }}</v-list-item-title>
+                                            <v-list-item-title>
+                                                {{ address.firstName }} {{ address.lastName }}
+                                            </v-list-item-title>
                                             <v-list-item-subtitle>
-                                                {{ address.address }}, {{ address.city }}, {{ address.stateCode }} {{ address.postalCode }}
+                                                {{ address.address }}, {{ address.city }},
+                                                {{ address.stateCode }} {{ address.postalCode }}
                                             </v-list-item-subtitle>
                                             <template #append>
-                                                <v-chip :color="address.isActive ? 'success' : 'error'" size="small">
+                                                <v-chip
+                                                    :color="address.isActive ? 'success' : 'error'"
+                                                    size="small"
+                                                >
                                                     {{ address.isActive ? 'Active' : 'Inactive' }}
                                                 </v-chip>
                                             </template>
@@ -135,30 +178,30 @@
 <script setup lang="ts">
 import { CUSTOMER_PERMISSIONS } from '~/components/customers/customer.permissions'
 
-import { ref, computed } from 'vue';
-import { useRoute } from 'vue-router';
-import { useCustomer } from '~/composables/useCustomer';
+import { ref, computed } from 'vue'
+import { useRoute } from 'vue-router'
+import { useCustomer } from '~/composables/useCustomer'
 
 definePageMeta({
     middleware: ['auth', 'permission'],
     access: { permission: CUSTOMER_PERMISSIONS.READ },
-});
+})
 
-const route = useRoute();
-const access = useAccessStore();
-const organisationId = computed(() => Number(route.params.organisationId));
-const customerId = computed(() => Number(route.params.id));
+const route = useRoute()
+const access = useAccessStore()
+const organisationId = computed(() => Number(route.params.organisationId))
+const customerId = computed(() => Number(route.params.id))
 
-const { currentCustomer, fetchCustomerById } = useCustomer();
-const tab = ref('basic');
+const { currentCustomer, fetchCustomerById } = useCustomer()
+const tab = ref('basic')
 
 // Use useLazyAsyncData for initial data fetching
 const { pending: customerViewPending } = await useLazyAsyncData(
     'customer-view-initial',
     async () => {
-        await fetchCustomerById(organisationId.value, customerId.value);
+        await fetchCustomerById(customerId.value)
     }
-);
+)
 </script>
 
 <style scoped>

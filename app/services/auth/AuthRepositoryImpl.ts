@@ -22,7 +22,7 @@ export class AuthRepositoryImpl implements AuthRepository {
         if (!response.data) throw new Error('Invalid account response.')
         return response.data
     }
-    async logout(allSessions = false): Promise<void> {
+    async logout(allSessions: boolean = false): Promise<void> {
         await this.apiClient.post(allSessions ? AUTH_ENDPOINT.LOGOUT_ALL : AUTH_ENDPOINT.LOGOUT)
     }
 }

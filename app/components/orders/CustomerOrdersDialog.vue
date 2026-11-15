@@ -120,7 +120,6 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { useNuxtApp } from '#app'
 import { useToast } from '~/composables/useToast'
 import type { Customer } from '~/services/api/wrappers/customer.api'
 import type { CustomerSaleOrder } from '~/types/order.types'
@@ -132,8 +131,7 @@ import ConfirmDialog from '~/components/dialogs/ConfirmDialog.vue'
 
 const props = defineProps<{ modelValue: boolean; customer: Customer }>()
 const emit = defineEmits<{ 'update:modelValue': [value: boolean] }>()
-const nuxtApp = useNuxtApp()
-const orderApi = nuxtApp.$orderApi as import('~/services/api/wrappers/order.api').OrderApiService
+const orderApi = useOrders()
 const { successFromResponse, errorFromError } = useToast()
 const access = useAccessStore()
 const tab = ref<'all' | 'paid' | 'pending' | 'failed'>('all')
@@ -148,7 +146,7 @@ const cancelOrderTarget = ref<CustomerSaleOrder | null>(null)
 const showCancelConfirmation = ref(false)
 const cancelling = ref(false)
 const canWrite = computed(() =>
-    access.can(CUSTOMER_ORDER_PERMISSIONS.WRITE, props.customer.organisationId)
+    access.can(CUSTOMER_ORDER_PERMISSIONS.UPDATE, props.customer.organisationId)
 )
 
 const headers = [
@@ -172,66 +170,66 @@ const filteredOrders = computed(() => {
     return orders.value
 })
 
-function close(value: boolean): void {
+const close = (value: boolean): void => {
     emit('update:modelValue', value)
 }
-function money(value: number): string {
+const money = (value: number): string => {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value)
 }
-function formatStatus(value: string): string {
+const formatStatus = (value: string): string => {
     return value
         .replaceAll('_', ' ')
         .toLowerCase()
         .replace(/^./, (letter) => letter.toUpperCase())
 }
-function statusColor(status: string): string {
+const statusColor = (status: string): string => {
     if (status === 'PAID' || status === 'COMPLETED') return 'success'
     if (status === 'PAYMENT_FAILED') return 'error'
     if (status === 'CANCELLED') return 'error'
-    if (status === 'PARTIALLY_REFUNDED') return 'orange'
-    if (status === 'REFUNDED') return 'grey'
+    if (status === 'PARTIALLY_REFUNDED') return 'warning'
+    if (status === 'REFUNDED') return 'surface-variant'
     return 'warning'
 }
-function formatDate(value: string): string {
+const formatDate = (value: string): string => {
     return new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' }).format(
         new Date(value)
     )
 }
-function viewOrder(order: CustomerSaleOrder): void {
+const viewOrder = (order: CustomerSaleOrder): void => {
     selectedOrder.value = { ...order, orderType: 'CUSTOMER_SALE' }
     showDetails.value = true
 }
-function updateOrder(order: CommerceOrder): void {
+const updateOrder = (order: CommerceOrder): void => {
     if (order.orderType !== 'CUSTOMER_SALE') return
     orders.value = orders.value.map((candidate) => (candidate.id === order.id ? order : candidate))
     selectedOrder.value = order
 }
-function updateSaleOrder(order: CustomerSaleOrder): void {
+const updateSaleOrder = (order: CustomerSaleOrder): void => {
     updateOrder({ ...order, orderType: 'CUSTOMER_SALE' })
     refundOrder.value = order
 }
-function isCancellable(order: CustomerSaleOrder): boolean {
+const isCancellable = (order: CustomerSaleOrder): boolean => {
     return ['PENDING_PAYMENT', 'PAYMENT_FAILED'].includes(order.status)
 }
-function isDeliverable(order: CustomerSaleOrder): boolean {
+const isDeliverable = (order: CustomerSaleOrder): boolean => {
     return !order.completedAt && ['PAID', 'PARTIALLY_REFUNDED'].includes(order.status)
 }
-function isRefundable(order: CustomerSaleOrder): boolean {
+const isRefundable = (order: CustomerSaleOrder): boolean => {
     return ['PAID', 'COMPLETED', 'PARTIALLY_REFUNDED'].includes(order.status)
 }
-function requestRefund(order: CustomerSaleOrder): void {
+const requestRefund = (order: CustomerSaleOrder): void => {
     refundOrder.value = order
     showRefund.value = true
 }
-function requestCancel(order: CustomerSaleOrder): void {
+const requestCancel = (order: CustomerSaleOrder): void => {
     cancelOrderTarget.value = order
     showCancelConfirmation.value = true
 }
-function closeCancelConfirmation(): void {
+const closeCancelConfirmation = (): void => {
     showCancelConfirmation.value = false
     cancelOrderTarget.value = null
 }
-async function completeDelivery(order: CustomerSaleOrder): Promise<void> {
+const completeDelivery = async (order: CustomerSaleOrder): Promise<void> => {
     actionOrderId.value = order.id
     try {
         const response = await orderApi.completeCustomerOrder(order.id)
@@ -244,7 +242,7 @@ async function completeDelivery(order: CustomerSaleOrder): Promise<void> {
         actionOrderId.value = null
     }
 }
-async function cancelSaleOrder(): Promise<void> {
+const cancelSaleOrder = async (): Promise<void> => {
     const order = cancelOrderTarget.value
     if (!order) return
     cancelling.value = true
@@ -260,7 +258,7 @@ async function cancelSaleOrder(): Promise<void> {
         cancelling.value = false
     }
 }
-async function load(): Promise<void> {
+const load = async (): Promise<void> => {
     loading.value = true
     try {
         const response = await orderApi.getCustomerOrders({

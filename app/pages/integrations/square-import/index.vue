@@ -4,14 +4,20 @@
             <v-col cols="12">
                 <h1 class="text-h4 mb-4">Square Import</h1>
                 <p class="text-body-1 mb-6 text-grey">
-                    Import data from Square into your local database. Fetch data from Square, review it, and selectively import items.
+                    Import data from Square into your local database. Fetch data from Square, review
+                    it, and selectively import items.
                 </p>
 
                 <v-row>
                     <v-col v-for="entity in entities" :key="entity.route" cols="12" md="6" lg="4">
                         <v-card :to="entity.route" hover class="h-100">
                             <v-card-title class="d-flex align-center">
-                                <v-icon :icon="entity.icon" class="mr-3" size="32" :color="entity.color" />
+                                <v-icon
+                                    :icon="entity.icon"
+                                    class="mr-3"
+                                    size="32"
+                                    :color="entity.color"
+                                />
                                 <span>{{ entity.name }}</span>
                             </v-card-title>
                             <v-card-text>
@@ -32,9 +38,12 @@
 </template>
 
 <script setup lang="ts">
+import { SQUARE_SYNC_PERMISSIONS } from '~/constants/integration-permissions.constants'
+
 definePageMeta({
-    middleware: ['auth'],
-});
+    middleware: ['auth', 'permission'],
+    access: { permission: SQUARE_SYNC_PERMISSIONS.READ },
+})
 
 const entities = [
     {
@@ -79,5 +88,5 @@ const entities = [
         icon: 'mdi-tag-off',
         color: 'orange',
     },
-];
+]
 </script>

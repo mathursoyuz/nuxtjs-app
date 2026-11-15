@@ -1,4 +1,4 @@
-import type { CachedApiClient } from '../CachedApiClient'
+import HttpFactory from '@/repository/factory'
 import type { ApiResponse } from '~/types/api.types'
 import type { OrganisationCreditCard, CreateOrganisationCreditCardDTO } from '~/types/organisation-credit-card.types'
 
@@ -11,15 +11,16 @@ export type {
 /**
  * Organisation Credit Card API wrapper service
  */
-export class OrganisationCreditCardApiService {
-    constructor(private readonly cachedApi: CachedApiClient) {}
-
+export class OrganisationCreditCardApiService extends HttpFactory {
     async getAllOrganisationCreditCards(organisationId: number): Promise<ApiResponse<OrganisationCreditCard[]>> {
-        return this.cachedApi.get<OrganisationCreditCard[]>(
+        return await this.call<OrganisationCreditCard[]>(
+            'GET',
             `/organisations/${organisationId}/credit-card`,
             undefined,
-            `organisation-cc:organisation:${organisationId}`,
-            5 * 60 * 1000
+            {
+                cacheKey: `organisation-cc:organisation:${organisationId}`,
+                ttl: 5 * 60 * 1000,
+            }
         )
     }
 
@@ -27,11 +28,11 @@ export class OrganisationCreditCardApiService {
         organisationId: number,
         id: number
     ): Promise<ApiResponse<OrganisationCreditCard>> {
-        return this.cachedApi.get<OrganisationCreditCard>(
+        return await this.call<OrganisationCreditCard>(
+            'GET',
             `/organisations/${organisationId}/credit-card/${id}`,
             undefined,
-            `organisation-cc:${id}`,
-            5 * 60 * 1000
+            { cacheKey: `organisation-cc:${id}`, ttl: 5 * 60 * 1000 }
         )
     }
 
@@ -39,13 +40,12 @@ export class OrganisationCreditCardApiService {
         organisationId: number,
         data: CreateOrganisationCreditCardDTO
     ): Promise<ApiResponse<OrganisationCreditCard>> {
-        const response = await this.cachedApi.post<OrganisationCreditCard>(
+        return await this.call<OrganisationCreditCard, CreateOrganisationCreditCardDTO>(
+            'POST',
             `/organisations/${organisationId}/credit-card`,
             data,
-            undefined,
-            'organisation-cc:.*'
+            { invalidatePattern: 'organisation-cc:.*' }
         )
-        return response
     }
 
     async toggleActive(
@@ -53,23 +53,27 @@ export class OrganisationCreditCardApiService {
         id: number,
         isActive: boolean
     ): Promise<ApiResponse<OrganisationCreditCard>> {
-        const response = await this.cachedApi.patch<OrganisationCreditCard>(
+        const response = await this.call<OrganisationCreditCard, { isActive: boolean }>(
+            'PATCH',
             `/organisations/${organisationId}/credit-card/${id}`,
             { isActive },
-            undefined,
-            'organisation-cc:.*'
+            { invalidatePattern: 'organisation-cc:.*' }
         )
-        this.cachedApi.invalidate(`organisation-cc:${id}`)
+        this.invalidateCacheKey(`organisation-cc:${id}`)
         return response
     }
 
     async refreshOrganisationCreditCards(organisationId: number): Promise<ApiResponse<OrganisationCreditCard[]>> {
-        return this.cachedApi.get<OrganisationCreditCard[]>(
+        return await this.call<OrganisationCreditCard[]>(
+            'GET',
             `/organisations/${organisationId}/credit-card`,
             undefined,
-            `organisation-cc:organisation:${organisationId}`,
-            undefined,
-            true
+            {
+                cacheKey: `organisation-cc:organisation:${organisationId}`,
+                skipCache: true,
+            }
         )
     }
 }
+
+export default OrganisationCreditCardApiService

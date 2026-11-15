@@ -1,5 +1,6 @@
 export const ORGANISATION_PERMISSIONS = {
     READ: 'organisations.read',
-    WRITE: 'organisations.write',
+    CREATE: 'organisations.create',
+    UPDATE: 'organisations.update',
     DELETE: 'organisations.delete',
 } as const

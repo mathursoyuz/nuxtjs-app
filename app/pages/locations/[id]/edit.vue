@@ -25,29 +25,13 @@
                                     :rules="[rules.required]"
                                 />
 
-                                <FormField
-                                    v-model="formData.address"
-                                    label="Address"
-                                    type="text"
-                                />
+                                <FormField v-model="formData.address" label="Address" type="text" />
 
-                                <FormField
-                                    v-model="formData.city"
-                                    label="City"
-                                    type="text"
-                                />
+                                <FormField v-model="formData.city" label="City" type="text" />
 
-                                <FormField
-                                    v-model="formData.state"
-                                    label="State"
-                                    type="text"
-                                />
+                                <FormField v-model="formData.state" label="State" type="text" />
 
-                                <FormField
-                                    v-model="formData.country"
-                                    label="Country"
-                                    type="text"
-                                />
+                                <FormField v-model="formData.country" label="Country" type="text" />
 
                                 <FormField
                                     v-model="formData.phoneNumber"
@@ -55,17 +39,9 @@
                                     type="text"
                                 />
 
-                                <FormField
-                                    v-model="formData.lat"
-                                    label="Latitude"
-                                    type="text"
-                                />
+                                <FormField v-model="formData.lat" label="Latitude" type="text" />
 
-                                <FormField
-                                    v-model="formData.long"
-                                    label="Longitude"
-                                    type="text"
-                                />
+                                <FormField v-model="formData.long" label="Longitude" type="text" />
 
                                 <FormField
                                     v-model="formData.squareLocationId"
@@ -85,7 +61,12 @@
                                     <v-btn variant="outlined" @click="navigateTo('/locations')">
                                         Cancel
                                     </v-btn>
-                                    <v-btn color="primary" type="submit" :loading="loading" :disabled="!valid">
+                                    <v-btn
+                                        color="primary"
+                                        type="submit"
+                                        :loading="loading"
+                                        :disabled="!valid"
+                                    >
                                         Update Location
                                     </v-btn>
                                 </v-col>
@@ -103,27 +84,27 @@
 <script setup lang="ts">
 import { LOCATION_PERMISSIONS } from '~/components/locations/location.permissions'
 
-import { ref, onMounted, computed } from 'vue';
-import { useRoute } from 'vue-router';
-import { useLocation } from '~/composables/useLocation';
-import { useOrganisation } from '~/composables/useOrganisation';
-import FormField from '~/components/forms/FormField.vue';
-import { updateLocationSchema } from '~/schemas/location.schema';
-import type { UpdateLocationFormData } from '~/schemas/location.schema';
+import { ref, onMounted, computed } from 'vue'
+import { useRoute } from 'vue-router'
+import { useLocation } from '~/composables/useLocation'
+import { useOrganisation } from '~/composables/useOrganisation'
+import FormField from '~/components/forms/FormField.vue'
+import { updateLocationSchema } from '~/schemas/location.schema'
+import type { UpdateLocationFormData } from '~/schemas/location.schema'
 
 definePageMeta({
     middleware: ['auth', 'permission'],
-    access: { permission: LOCATION_PERMISSIONS.WRITE },
-});
+    access: { permission: LOCATION_PERMISSIONS.UPDATE },
+})
 
-const route = useRoute();
-const locationId = computed(() => Number(route.params.id));
+const route = useRoute()
+const locationId = computed(() => Number(route.params.id))
 
-const { currentLocation, loading, fetchLocationById, updateLocation } = useLocation();
-const { organisations, fetchOrganisations } = useOrganisation();
+const { currentLocation, loading, fetchLocationById, updateLocation } = useLocation()
+const { organisations, fetchOrganisations } = useOrganisation()
 
-const formRef = ref();
-const valid = ref(false);
+const formRef = ref()
+const valid = ref(false)
 
 const formData = ref<UpdateLocationFormData>({
     organisationId: 0,
@@ -137,41 +118,39 @@ const formData = ref<UpdateLocationFormData>({
     long: undefined,
     squareLocationId: undefined,
     isActive: true,
-});
+})
 
 const organisationOptions = computed(() => {
     return organisations.value.map((c) => ({
         title: c.name,
         value: c.id,
-    }));
-});
+    }))
+})
 
 const rules = {
-    required: (v: unknown) => !!v || 'This field is required',
-};
+    required: (v: unknown): true | 'This field is required' => !!v || 'This field is required',
+}
 
-const handleSubmit = async () => {
-    if (!formRef.value?.validate()) return;
+const handleSubmit = async (): Promise<void> => {
+    const validation = await formRef.value?.validate()
+    if (!validation?.valid) return
 
     try {
         const submitData = {
             ...formData.value,
             organisationId: Number(formData.value.organisationId),
-        };
-        updateLocationSchema.parse(submitData);
-        await updateLocation(locationId.value, submitData);
-        navigateTo('/locations');
+        }
+        updateLocationSchema.parse(submitData)
+        await updateLocation(locationId.value, submitData)
+        navigateTo('/locations')
     } catch (error) {
-        console.error('Validation or update error:', error);
+        console.error('Validation or update error:', error)
     }
-};
+}
 
 onMounted(async () => {
-    await Promise.all([
-        fetchOrganisations(),
-        fetchLocationById(locationId.value),
-    ]);
-    
+    await Promise.all([fetchOrganisations(), fetchLocationById(locationId.value)])
+
     if (currentLocation.value) {
         formData.value = {
             organisationId: currentLocation.value.organisationId,
@@ -185,9 +164,9 @@ onMounted(async () => {
             long: currentLocation.value.long || undefined,
             squareLocationId: currentLocation.value.squareLocationId || undefined,
             isActive: currentLocation.value.isActive,
-        };
+        }
     }
-});
+})
 </script>
 
 <style scoped>

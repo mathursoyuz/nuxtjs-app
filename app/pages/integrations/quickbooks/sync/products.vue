@@ -11,7 +11,9 @@
                                 <v-card>
                                     <v-card-title>Import from QuickBooks</v-card-title>
                                     <v-card-text>
-                                        <p class="text-body-2 mb-4">Import products from QuickBooks to local database</p>
+                                        <p class="text-body-2 mb-4">
+                                            Import products from QuickBooks to local database
+                                        </p>
                                         <v-btn
                                             color="primary"
                                             prepend-icon="mdi-download"
@@ -28,7 +30,9 @@
                                 <v-card>
                                     <v-card-title>Sync to QuickBooks</v-card-title>
                                     <v-card-text>
-                                        <p class="text-body-2 mb-4">Sync local products to QuickBooks</p>
+                                        <p class="text-body-2 mb-4">
+                                            Sync local products to QuickBooks
+                                        </p>
                                         <v-btn
                                             color="secondary"
                                             prepend-icon="mdi-upload"
@@ -46,7 +50,11 @@
                             {{ syncStatus.products.error }}
                         </v-alert>
 
-                        <v-alert v-if="syncStatus.products.status === 'success'" type="success" class="mt-4">
+                        <v-alert
+                            v-if="syncStatus.products.status === 'success'"
+                            type="success"
+                            class="mt-4"
+                        >
                             Sync completed successfully!
                         </v-alert>
                     </v-card-text>
@@ -57,31 +65,31 @@
 </template>
 
 <script setup lang="ts">
-import { SYSTEM_ROLE } from '~/constants/access.constants'
+import { QUICKBOOKS_PERMISSIONS } from '~/constants/integration-permissions.constants'
 
-import { ref } from 'vue';
-import { useQuickbooks } from '~/composables/useQuickbooks';
+import { ref } from 'vue'
+import { useQuickbooks } from '~/composables/useQuickbooks'
 
 definePageMeta({
-    middleware: ['auth', 'role'],
-    roles: [SYSTEM_ROLE.PLATFORM_ADMIN],
-});
+    middleware: ['auth', 'permission'],
+    access: { permission: QUICKBOOKS_PERMISSIONS.WRITE },
+})
 
-const { importProducts, batchSyncProductsToQB, isProductSyncing, syncStatus } = useQuickbooks();
+const { importProducts, batchSyncProductsToQB, isProductSyncing, syncStatus } = useQuickbooks()
 
 const handleImport = async () => {
     try {
-        await importProducts();
+        await importProducts()
     } catch (error) {
-        console.error('Import error:', error);
+        console.error('Import error:', error)
     }
-};
+}
 
 const handleBatchSync = async () => {
     try {
-        await batchSyncProductsToQB();
+        await batchSyncProductsToQB()
     } catch (error) {
-        console.error('Batch sync error:', error);
+        console.error('Batch sync error:', error)
     }
-};
+}
 </script>

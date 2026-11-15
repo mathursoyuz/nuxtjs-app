@@ -74,9 +74,9 @@ export const FILE_UPLOAD = {
 } as const
 
 export const FILE_UPLOAD_MESSAGES = {
-    MAX_SIZE: (filename: string) =>
+    MAX_SIZE: (filename: string): string =>
         `${filename} is too large. Maximum size is ${FILE_UPLOAD.MAX_SIZE_MB}MB.`,
-    INVALID_TYPE: (filename: string) => `${filename} must be a JPEG, PNG, or WebP image.`,
+    INVALID_TYPE: (filename: string): string => `${filename} must be a JPEG, PNG, or WebP image.`,
     MAX_GALLERY_FILES: `A gallery can contain at most ${FILE_UPLOAD.MAX_GALLERY_FILES} images.`,
 } as const
 

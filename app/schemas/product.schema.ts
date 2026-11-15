@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { SCHEMA_FIELD_LIMITS as LIMIT } from '~/constants/schema-field-limits.constants'
 import { inventoryDraftBalanceSchema } from '~/schemas/inventory.schema'
 
 export const bundleComponentSchema = z.object({
@@ -9,12 +10,12 @@ export const bundleComponentSchema = z.object({
 
 export const productVariantSchema = z.object({
     id: z.number().int().positive().optional(),
-    sku: z.string().trim().min(1, 'SKU is required').max(100),
+    sku: z.string().trim().min(1, 'SKU is required').max(LIMIT.PRODUCT_SKU),
     price: z.coerce.number().min(0),
     cog: z.coerce.number().min(0),
     stockManaged: z.boolean(),
-    color: z.string().max(50).default(''),
-    size: z.string().max(50).default(''),
+    color: z.string().max(LIMIT.PRODUCT_OPTION).default(''),
+    size: z.string().max(LIMIT.PRODUCT_OPTION).default(''),
     attributes: z.record(z.string(), z.string()).default({}),
     inventory: z.array(inventoryDraftBalanceSchema).default([]),
     isDefault: z.boolean(),
@@ -23,8 +24,8 @@ export const productVariantSchema = z.object({
 })
 
 const productSchema = z.object({
-    slug: z.string().trim().min(1, 'Slug is required').max(255),
-    name: z.string().trim().min(1, 'Product name is required').max(255),
+    slug: z.string().trim().min(1, 'Slug is required').max(LIMIT.PRODUCT_SLUG),
+    name: z.string().trim().min(1, 'Product name is required').max(LIMIT.PRODUCT_NAME),
     description: z.string().nullable(),
     isFeatured: z.boolean(),
     isActive: z.boolean(),

@@ -44,7 +44,7 @@
                     >
                         <template #no-data>
                             <div class="text-center py-8">
-                                <v-icon size="64" color="grey-lighten-1">
+                                <v-icon size="64" color="on-surface-variant">
                                     mdi-package-variant-closed
                                 </v-icon>
                                 <p class="text-h6 mt-4 text-medium-emphasis">No products found</p>
@@ -230,7 +230,6 @@ import { computed, ref, watch, onMounted } from 'vue'
 import { useAccessStore } from '~/stores/access.store'
 const access = useAccessStore()
 let productRequest = 0
-import { useNuxtApp } from '#app'
 import DataTable from '~/components/data-table/DataTable.vue'
 import AddOrganisationProductDialog from '~/components/organisation-products/AddOrganisationProductDialog.vue'
 import EditOrganisationProductDialog from '~/components/organisation-products/EditOrganisationProductDialog.vue'
@@ -239,7 +238,6 @@ import OrganisationInventoryManagementDialog from '~/components/inventory/Organi
 import { useToast } from '~/composables/useToast'
 import { getFullImageUrl } from '~/utils/image.util'
 import type { OrganisationProduct } from '~/types/organisation-product.types'
-import type { InventoryApiService } from '~/services/api/wrappers/inventory.api'
 import type { InventoryLocation } from '~/types/inventory.types'
 
 interface Props {
@@ -254,10 +252,8 @@ const emit = defineEmits<{
     'update:modelValue': [value: boolean]
 }>()
 
-const nuxtApp = useNuxtApp()
-const organisationProductApi =
-    nuxtApp.$organisationProductApi as import('~/services/api/wrappers/organisation-product.api').OrganisationProductApiService
-const inventoryApi = nuxtApp.$inventoryApi as InventoryApiService
+const organisationProductApi = useOrganisationProducts()
+const { fetchInventoryLocations } = useInventory()
 
 const loading = ref(false)
 const organisationProducts = ref<OrganisationProduct[]>([])
@@ -270,7 +266,7 @@ const showInventory = ref(false)
 const selectedInventoryProduct = ref<OrganisationProduct | null>(null)
 const selectedInventoryVariant = ref<OrganisationProduct['variants'][number] | null>(null)
 const canWrite = computed(() =>
-    access.can(ORGANISATION_PRODUCT_PERMISSIONS.WRITE, props.organisationId)
+    access.can(ORGANISATION_PRODUCT_PERMISSIONS.UPDATE, props.organisationId)
 )
 const canDelete = computed(() =>
     access.can(ORGANISATION_PRODUCT_PERMISSIONS.DELETE, props.organisationId)
@@ -288,7 +284,7 @@ const headers = [
     { title: 'Actions', key: 'actions', sortable: false },
 ]
 
-function locationName(locationId: number): string {
+const locationName = (locationId: number): string => {
     return locations.value.find((location) => location.id === locationId)?.name ?? `#${locationId}`
 }
 
@@ -315,7 +311,7 @@ const openInventory = (
     showInventory.value = true
 }
 
-const fetchOrganisationProducts = async () => {
+const fetchOrganisationProducts = async (): Promise<void> => {
     const current = ++productRequest
     organisationProducts.value = []
     locations.value = []
@@ -328,11 +324,11 @@ const fetchOrganisationProducts = async () => {
         const [response, locationResponse] = await Promise.all([
             organisationProductApi.getAllOrganisationProducts(props.organisationId),
             canManageInventory.value
-                ? inventoryApi.getInventoryLocations(props.organisationId)
-                : Promise.resolve({ data: [] as InventoryLocation[] }),
+                ? fetchInventoryLocations(props.organisationId)
+                : Promise.resolve([] as InventoryLocation[]),
         ])
         if (current !== productRequest) return
-        locations.value = locationResponse.data ?? []
+        locations.value = locationResponse
         if (response.success && response.data) {
             organisationProducts.value = response.data
         } else {

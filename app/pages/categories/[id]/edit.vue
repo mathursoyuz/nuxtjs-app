@@ -108,7 +108,7 @@ import type { UpdateCategoryFormData } from '~/schemas/category.schema'
 
 definePageMeta({
     middleware: ['auth', 'permission'],
-    access: { permission: CATEGORY_PERMISSIONS.WRITE },
+    access: { permission: CATEGORY_PERMISSIONS.UPDATE },
 })
 
 const route = useRoute()
@@ -123,7 +123,7 @@ const {
     categories,
     fetchCategories,
 } = useCategory()
-const { successFromResponse, errorFromError } = useToast()
+const { errorFromError } = useToast()
 const loadingStore = useLoadingStore()
 
 const formRef = ref()
@@ -131,7 +131,7 @@ const valid = ref(false)
 const imageFile = ref<File | null>(null)
 
 const formData = ref<UpdateCategoryFormData>({
-    parentId: 0,
+    parentId: null,
     name: '',
     slug: '',
     description: null,
@@ -141,7 +141,7 @@ const formData = ref<UpdateCategoryFormData>({
 
 const parentCategoryOptions = computed(() => {
     return [
-        { title: 'Root (No Parent)', value: 0 },
+        { title: 'Root (No Parent)', value: null },
         ...categories.value
             .filter((c) => c.id !== categoryId.value)
             .map((c) => ({
@@ -152,11 +152,12 @@ const parentCategoryOptions = computed(() => {
 })
 
 const rules = {
-    required: (v: unknown) => !!v || 'This field is required',
+    required: (v: unknown): true | 'This field is required' => !!v || 'This field is required',
 }
 
-const handleSubmit = async () => {
-    if (!formRef.value?.validate()) return
+const handleSubmit = async (): Promise<void> => {
+    const validation = await formRef.value?.validate()
+    if (!validation?.valid) return
 
     const taskId = `update-category-${categoryId.value}`
     loadingStore.startTask(taskId, 'Updating category...')
@@ -169,10 +170,6 @@ const handleSubmit = async () => {
             await uploadImage(categoryId.value, imageFile.value)
         }
 
-        successFromResponse(
-            { success: true, message: '', data: null },
-            CATEGORY_MESSAGES.UPDATE_SUCCESS
-        )
         navigateTo('/categories')
     } catch (err) {
         console.error('Validation or update error:', err)

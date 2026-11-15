@@ -14,9 +14,9 @@
                 @close="emit('update:modelValue', false)"
             >
                 <template #actions>
-                    <template v-if="access.can(PRODUCT_PERMISSIONS.WRITE)">
+                    <template v-if="access.can(PRODUCT_PERMISSIONS.UPDATE)">
                         <v-btn
-                            color="white"
+                            color="on-primary"
                             variant="outlined"
                             prepend-icon="mdi-pencil"
                             :disabled="!product"
@@ -27,7 +27,7 @@
                     </template>
                     <template v-if="access.can(PRODUCT_PERMISSIONS.DELETE)">
                         <v-btn
-                            color="white"
+                            color="on-primary"
                             variant="outlined"
                             prepend-icon="mdi-delete"
                             :disabled="!product"
@@ -354,6 +354,20 @@
             </v-card-actions>
         </v-card>
     </v-dialog>
+
+    <ConfirmDialog
+        v-model="deleteConfirmOpen"
+        title="Delete Product"
+        :message="`Are you sure you want to delete ${product?.name ?? 'this product'}?`"
+        confirm-text="Delete"
+        cancel-text="Cancel"
+        confirm-color="error"
+        :loading="deleting"
+        entity-label="Product"
+        :entity-name="product?.name"
+        @cancel="deleteConfirmOpen = false"
+        @confirm="confirmRemove"
+    />
 </template>
 
 <script setup lang="ts">
@@ -366,6 +380,7 @@ import { useCategory } from '~/composables/useCategory'
 import { useLocation } from '~/composables/useLocation'
 import { useProduct } from '~/composables/useProduct'
 import { getFullImageUrl } from '~/utils/image.util'
+import ConfirmDialog from '~/components/dialogs/ConfirmDialog.vue'
 
 interface Props {
     modelValue: boolean
@@ -382,6 +397,8 @@ const emit = defineEmits<{
 const { products, currentProduct, loading, fetchProductById, deleteProduct } = useProduct()
 const { categories } = useCategory()
 const tab = ref('overview')
+const deleteConfirmOpen = ref(false)
+const deleting = ref(false)
 const product = computed(() =>
     currentProduct.value?.id === props.productId ? currentProduct.value : null
 )
@@ -396,27 +413,27 @@ const categoryLabels = computed(() => {
     return labels.join(', ') || '—'
 })
 
-function typeColor(type: string): string {
+const typeColor = (type: string): string => {
     if (type === 'bundle') return 'success'
     if (type === 'variable') return 'secondary'
     return 'primary'
 }
 
-function money(value: number): string {
+const money = (value: number): string => {
     return new Intl.NumberFormat('en-US', {
         style: 'currency',
         currency: 'USD',
     }).format(value)
 }
 
-function formatDate(value: string): string {
+const formatDate = (value: string): string => {
     return new Intl.DateTimeFormat('en-US', {
         dateStyle: 'medium',
         timeStyle: 'short',
     }).format(new Date(value))
 }
 
-function componentVariantLabel(variantId: number): string {
+const componentVariantLabel = (variantId: number): string => {
     for (const candidateProduct of products.value) {
         const variant = candidateProduct.variants.find((candidate) => candidate.id === variantId)
         if (variant) return `${candidateProduct.name} — ${variant.sku}`
@@ -424,16 +441,26 @@ function componentVariantLabel(variantId: number): string {
     return `Variant #${variantId}`
 }
 
-function edit(): void {
+const edit = (): void => {
     if (props.productId) emit('edit', props.productId)
 }
 
-async function remove(): Promise<void> {
+const remove = async (): Promise<void> => {
     if (!props.productId || !product.value) return
-    if (!window.confirm(`Are you sure you want to delete ${product.value.name}?`)) return
-    await deleteProduct(props.productId)
-    emit('deleted')
-    emit('update:modelValue', false)
+    deleteConfirmOpen.value = true
+}
+
+const confirmRemove = async (): Promise<void> => {
+    if (!props.productId || !product.value || deleting.value) return
+    deleting.value = true
+    try {
+        await deleteProduct(props.productId)
+        deleteConfirmOpen.value = false
+        emit('deleted')
+        emit('update:modelValue', false)
+    } finally {
+        deleting.value = false
+    }
 }
 
 watch(

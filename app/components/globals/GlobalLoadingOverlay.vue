@@ -50,7 +50,7 @@ const loadingMessage = computed(() => loadingStore.loadingMessage);
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
+    background: rgb(var(--v-theme-on-surface) / 0.5);
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
 }
@@ -63,14 +63,14 @@ const loadingMessage = computed(() => loadingStore.loadingMessage);
     align-items: center;
     justify-content: center;
     padding: 32px;
-    background: rgba(255, 255, 255, 0.95);
+    background: rgb(var(--v-theme-on-primary) / 0.95);
     border-radius: 16px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 8px 32px rgb(var(--v-theme-on-surface) / 0.2);
     min-width: 200px;
 }
 
 .loading-message {
-    color: #9b2335;
+    color: rgb(var(--v-theme-primary));
     font-weight: 500;
     text-align: center;
 }

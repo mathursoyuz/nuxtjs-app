@@ -32,6 +32,7 @@
                         v-model="lines"
                         v-model:valid="itemsValid"
                         :organisation-id="order.organisationId"
+                        :order-id="order.id"
                         :currency="order.currency"
                         :reserved-lines="reservedLines"
                         :reservations-active="order.status === 'PENDING_PAYMENT'"
@@ -207,6 +208,7 @@
         v-if="customer"
         v-model="showAddCard"
         :customer="customer"
+        :order-id="order.id"
         @added="handleCardAdded"
     />
     <ManageShippingAddressesDialog
@@ -214,22 +216,23 @@
         v-model="showManageShipping"
         :customer="customer"
         :organisation-id="order.organisationId"
+        :order-id="order.id"
+        order-context
         @submit="handleShippingChanged"
     />
 </template>
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { useNuxtApp } from '#app'
 import ManageShippingAddressesDialog from '~/components/customers/ManageShippingAddressesDialog.vue'
 import OrderAddCreditCardDialog from '~/components/orders/OrderAddCreditCardDialog.vue'
 import OrderAddressSummary from '~/components/orders/OrderAddressSummary.vue'
 import OrderBillingAddressDialog from '~/components/orders/OrderBillingAddressDialog.vue'
 import OrderShippingAddressDialog from '~/components/orders/OrderShippingAddressDialog.vue'
 import PendingOrderItemsEditor from '~/components/orders/PendingOrderItemsEditor.vue'
-import { useCustomerCreditCards } from '~/composables/useCustomerCreditCards'
 import { useToast } from '~/composables/useToast'
 import type { Customer } from '~/services/api/wrappers/customer.api'
+import type { CustomerCreditCard } from '~/services/api/wrappers/customer-credit-card.api'
 import type {
     CustomerOrderAddress,
     CustomerOrderDraftLine,
@@ -242,10 +245,7 @@ const emit = defineEmits<{
     saved: [order: CustomerSaleOrder]
     charged: [order: CustomerSaleOrder]
 }>()
-const nuxtApp = useNuxtApp()
-const orderApi = nuxtApp.$orderApi as import('~/services/api/wrappers/order.api').OrderApiService
-const customerApi =
-    nuxtApp.$customerApi as import('~/services/api/wrappers/customer.api').CustomerApiService
+const orderApi = useOrders()
 const { successFromResponse, errorFromError } = useToast()
 
 const customer = ref<Customer | null>(null)
@@ -266,7 +266,7 @@ const showBilling = ref(false)
 const showShipping = ref(false)
 const showAddCard = ref(false)
 const showManageShipping = ref(false)
-const { cards, fetchCards } = useCustomerCreditCards(() => props.order.customerId)
+const cards = ref<CustomerCreditCard[]>([])
 let initializationRevision = 0
 const editorRevision = ref(0)
 
@@ -304,31 +304,33 @@ const money = (value: number): string =>
         value
     )
 
-function close(value: boolean): void {
+const close = (value: boolean): void => {
     if (busy.value) return
     emit('update:modelValue', value)
 }
 
-function resetChildDialogs(): void {
+const resetChildDialogs = (): void => {
     showBilling.value = false
     showShipping.value = false
     showAddCard.value = false
     showManageShipping.value = false
 }
 
-function selectShipping(payload: { id: number | null; address: CustomerOrderAddress }): void {
+const selectShipping = (payload: { id: number | null; address: CustomerOrderAddress }): void => {
     shippingAddressId.value = payload.id
     shipping.value = payload.address
 }
 
-async function reloadCustomer(): Promise<void> {
-    const response = await customerApi.getCustomerById(props.order.customerId)
-    if (!response.data) throw new Error(response.message || 'Customer details are unavailable')
+const reloadCustomer = async (): Promise<void> => {
+    const response = await orderApi.getPendingCustomerOrderCustomer(props.order.id)
+    if (!response.data) throw new Error('Customer details were not returned')
     customer.value = response.data
 }
 
-async function reloadCards(selectActive = false): Promise<void> {
-    const loaded = await fetchCards()
+const reloadCards = async (selectActive: boolean = false): Promise<void> => {
+    const response = await orderApi.getPendingCustomerOrderCards(props.order.id)
+    const loaded = response.data ?? []
+    cards.value = loaded
     const selectedStillExists = loaded.some((card) => card.id === selectedCardId.value)
     if (selectActive || !selectedStillExists) {
         selectedCardId.value =
@@ -340,7 +342,7 @@ async function reloadCards(selectActive = false): Promise<void> {
     }
 }
 
-async function handleCardAdded(): Promise<void> {
+const handleCardAdded = async (): Promise<void> => {
     try {
         await Promise.all([reloadCustomer(), reloadCards(true)])
         if (customer.value) {
@@ -362,7 +364,7 @@ async function handleCardAdded(): Promise<void> {
     }
 }
 
-async function handleShippingChanged(): Promise<void> {
+const handleShippingChanged = async (): Promise<void> => {
     try {
         await reloadCustomer()
     } catch (error) {
@@ -373,7 +375,7 @@ async function handleShippingChanged(): Promise<void> {
     }
 }
 
-async function initialize(): Promise<void> {
+const initialize = async (): Promise<void> => {
     const currentRevision = ++initializationRevision
     initializing.value = true
     initializationError.value = ''
@@ -409,7 +411,7 @@ async function initialize(): Promise<void> {
     }
 }
 
-async function save(chargeAfterSave: boolean): Promise<void> {
+const save = async (chargeAfterSave: boolean): Promise<void> => {
     if (!canSave.value || busy.value || selectedCardId.value === null) return
     const busyState = chargeAfterSave ? savingAndCharging : saving
     busyState.value = true

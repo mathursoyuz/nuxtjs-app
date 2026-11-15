@@ -41,7 +41,6 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import { useNuxtApp } from '#app'
 import { useToast } from '~/composables/useToast'
 import type { Customer } from '~/services/api/wrappers/customer.api'
 
@@ -57,9 +56,7 @@ const emit = defineEmits<{
     'update:modelValue': [customer: Customer | null]
 }>()
 
-const nuxtApp = useNuxtApp()
-const customerApi =
-    nuxtApp.$customerApi as import('~/services/api/wrappers/customer.api').CustomerApiService
+const { searchCustomerOrderCustomers, getCustomerOrderCustomer } = useOrders()
 const { errorFromError } = useToast()
 
 const searchText = ref('')
@@ -75,7 +72,7 @@ const noDataText = computed(() => {
     return loading.value ? 'Searching customers…' : 'No matching customers'
 })
 
-function toOption(customer: Customer): CustomerOption {
+const toOption = (customer: Customer): CustomerOption => {
     return {
         title: `${customer.firstName} ${customer.lastName}`.trim(),
         value: customer.id,
@@ -84,16 +81,16 @@ function toOption(customer: Customer): CustomerOption {
     }
 }
 
-async function searchCustomers(query: string): Promise<void> {
+const searchCustomers = async (query: string): Promise<void> => {
     const currentRevision = ++requestRevision
     loading.value = true
     try {
-        const response = await customerApi.getAllCustomers(
-            props.organisationId ?? null,
-            1,
-            20,
-            query
-        )
+        const response = await searchCustomerOrderCustomers({
+            ...(props.organisationId ? { organisationId: props.organisationId } : {}),
+            page: 1,
+            limit: 20,
+            search: query,
+        })
         if (currentRevision !== requestRevision) return
         options.value = (response.data?.customers ?? [])
             .filter((customer) => customer.isActive)
@@ -107,15 +104,16 @@ async function searchCustomers(query: string): Promise<void> {
     }
 }
 
-async function selectCustomer(option: CustomerOption | null): Promise<void> {
+const selectCustomer = async (option: CustomerOption | null): Promise<void> => {
     if (!option) {
         emit('update:modelValue', null)
         return
     }
     loading.value = true
     try {
-        const response = await customerApi.getCustomerById(option.value)
-        emit('update:modelValue', response.data ?? option.customer)
+        const response = await getCustomerOrderCustomer(option.value)
+        if (!response.data) throw new Error('Customer details were not returned')
+        emit('update:modelValue', response.data)
     } catch (error) {
         selectedOption.value = null
         errorFromError(error, 'Failed to load customer details')

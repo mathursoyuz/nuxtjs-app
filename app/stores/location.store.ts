@@ -18,42 +18,42 @@ export const useLocationStore = defineStore('location', () => {
         () => (id: number) => locations.value.find((location) => location.id === id)
     )
 
-    function setLocations(value: Location[]): void {
+    const setLocations = (value: Location[]): void => {
         locations.value = value
     }
 
-    function setCurrentLocation(value: Location | null): void {
+    const setCurrentLocation = (value: Location | null): void => {
         currentLocation.value = value
     }
 
-    function addLocation(location: Location): void {
+    const addLocation = (location: Location): void => {
         locations.value.push(location)
     }
 
-    function updateLocation(location: Location): void {
+    const updateLocation = (location: Location): void => {
         const index = locations.value.findIndex((item) => item.id === location.id)
         if (index >= 0) locations.value[index] = location
         if (currentLocation.value?.id === location.id) currentLocation.value = location
     }
 
-    function removeLocation(id: number): void {
+    const removeLocation = (id: number): void => {
         locations.value = locations.value.filter((location) => location.id !== id)
         if (currentLocation.value?.id === id) currentLocation.value = null
     }
 
-    function setLoading(value: boolean): void {
+    const setLoading = (value: boolean): void => {
         loading.value = value
     }
 
-    function setError(value: string | null): void {
+    const setError = (value: string | null): void => {
         error.value = value
     }
 
-    function clearError(): void {
+    const clearError = (): void => {
         error.value = null
     }
 
-    function resetForOrganisationContext(): void {
+    const resetForOrganisationContext = (): void => {
         locations.value = []
         currentLocation.value = null
         loading.value = false

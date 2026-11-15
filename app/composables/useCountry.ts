@@ -1,113 +1,135 @@
-import { computed, ref } from 'vue';
-import { useNuxtApp } from '#app';
-import type { Country, State, PhoneCountryCode } from '~/services/api/wrappers/country.api';
+import { computed, ref } from 'vue'
+import { useNuxtApp } from '#app'
+import type { Country, State, PhoneCountryCode } from '~/services/api/wrappers/country.api'
 
-export function useCountry() {
-    const nuxtApp = useNuxtApp();
-    const countryApi = nuxtApp.$countryApi as import('~/services/api/wrappers/country.api').CountryApiService;
+export const useCountry = (): {
+    countries: globalThis.ComputedRef<{ id: string; name: string }[]>
+    states: globalThis.ComputedRef<Record<string, State[]>>
+    phoneCountryCodes: globalThis.ComputedRef<
+        { code: string; dialCode: string; name: string; flag: string }[]
+    >
+    loading: globalThis.ComputedRef<boolean>
+    error: globalThis.ComputedRef<string | null>
+    countryOptions: globalThis.ComputedRef<{ title: string; value: string }[]>
+    phoneCountryCodeOptions: globalThis.ComputedRef<
+        { label: string; code: string; dialCode: string; name: string; flag: string }[]
+    >
+    fetchCountries: () => Promise<Country[]>
+    fetchStates: (countryId: string) => Promise<State[]>
+    fetchPhoneCountryCodes: () => Promise<PhoneCountryCode[]>
+    getStateOptions: (
+        countryId: string
+    ) => globalThis.ComputedRef<{ title: string; value: string }[]>
+} => {
+    const nuxtApp = useNuxtApp()
+    const countryApi =
+        nuxtApp.$countryApi as import('~/services/api/wrappers/country.api').CountryApiService
 
     if (!countryApi) {
-        throw new Error('CountryApiService not available');
+        throw new Error('CountryApiService not available')
     }
 
-    const countries = ref<Country[]>([]);
-    const states = ref<Record<string, State[]>>({});
-    const phoneCountryCodes = ref<PhoneCountryCode[]>([]);
-    const loading = ref(false);
-    const error = ref<string | null>(null);
+    const countries = ref<Country[]>([])
+    const states = ref<Record<string, State[]>>({})
+    const phoneCountryCodes = ref<PhoneCountryCode[]>([])
+    const loading = ref(false)
+    const error = ref<string | null>(null)
 
     const fetchCountries = async (): Promise<Country[]> => {
-        loading.value = true;
-        error.value = null;
+        loading.value = true
+        error.value = null
 
         try {
-            const response = await countryApi.getCountries();
+            const response = await countryApi.getCountries()
             if (response.success && response.data) {
-                countries.value = response.data;
-                return response.data;
+                countries.value = response.data
+                return response.data
             }
-            throw new Error(response.message || 'Failed to fetch countries');
+            throw new Error(response.message || 'Failed to fetch countries')
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : 'Failed to fetch countries';
-            error.value = errorMessage;
-            throw err;
+            const errorMessage = err instanceof Error ? err.message : 'Failed to fetch countries'
+            error.value = errorMessage
+            throw err
         } finally {
-            loading.value = false;
+            loading.value = false
         }
-    };
+    }
 
     const fetchStates = async (countryId: string): Promise<State[]> => {
         // Check cache first
         if (states.value[countryId]) {
-            return states.value[countryId];
+            return states.value[countryId]
         }
 
-        loading.value = true;
-        error.value = null;
+        loading.value = true
+        error.value = null
 
         try {
-            const response = await countryApi.getStatesByCountry(countryId);
+            const response = await countryApi.getStatesByCountry(countryId)
             if (response.success && response.data) {
-                states.value[countryId] = response.data;
-                return response.data;
+                states.value[countryId] = response.data
+                return response.data
             }
-            throw new Error(response.message || 'Failed to fetch states');
+            throw new Error(response.message || 'Failed to fetch states')
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : 'Failed to fetch states';
-            error.value = errorMessage;
-            throw err;
+            const errorMessage = err instanceof Error ? err.message : 'Failed to fetch states'
+            error.value = errorMessage
+            throw err
         } finally {
-            loading.value = false;
+            loading.value = false
         }
-    };
+    }
 
     const fetchPhoneCountryCodes = async (): Promise<PhoneCountryCode[]> => {
         if (phoneCountryCodes.value.length > 0) {
-            return phoneCountryCodes.value;
+            return phoneCountryCodes.value
         }
 
-        loading.value = true;
-        error.value = null;
+        loading.value = true
+        error.value = null
 
         try {
-            const response = await countryApi.getPhoneCountryCodes();
+            const response = await countryApi.getPhoneCountryCodes()
             if (response.success && response.data) {
-                phoneCountryCodes.value = response.data;
-                return response.data;
+                phoneCountryCodes.value = response.data
+                return response.data
             }
-            throw new Error(response.message || 'Failed to fetch phone country codes');
+            throw new Error(response.message || 'Failed to fetch phone country codes')
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : 'Failed to fetch phone country codes';
-            error.value = errorMessage;
-            throw err;
+            const errorMessage =
+                err instanceof Error ? err.message : 'Failed to fetch phone country codes'
+            error.value = errorMessage
+            throw err
         } finally {
-            loading.value = false;
+            loading.value = false
         }
-    };
+    }
 
     const getCountryOptions = computed(() => {
         return countries.value.map((c) => ({
             title: c.name,
             value: c.id,
-        }));
-    });
+        }))
+    })
 
-    const getStateOptions = (countryId: string) => {
+    const getStateOptions = (
+        countryId: string
+    ): globalThis.ComputedRef<{ title: string; value: string }[]> => {
         return computed(() => {
-            const countryStates = states.value[countryId] || [];
+            const countryStates = states.value[countryId] || []
             return countryStates.map((s) => ({
                 title: s.name,
                 value: s.id,
-            }));
-        });
-    };
+            }))
+        })
+    }
 
     const getPhoneCountryCodeOptions = computed(() => {
         return phoneCountryCodes.value.map((c) => ({
             ...c,
             label: `${c.flag} ${c.name} (${c.dialCode})`,
-        }));
-    });
+        }))
+    })
 
     return {
         countries: computed(() => countries.value),
@@ -121,5 +143,5 @@ export function useCountry() {
         fetchStates,
         fetchPhoneCountryCodes,
         getStateOptions,
-    };
+    }
 }

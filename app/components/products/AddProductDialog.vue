@@ -207,9 +207,9 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-    categories: () => [],
-    locations: () => [],
-    availableProducts: () => [],
+    categories: (): never[] => [],
+    locations: (): never[] => [],
+    availableProducts: (): never[] => [],
 })
 
 const emit = defineEmits<{
@@ -225,6 +225,38 @@ const canManageInventory = computed(
 )
 const { saveProduct, validateAvailability, saving } = useProductForm()
 const toast = useToast()
+
+const emptyImageFiles = (): ImageFiles => ({
+    thumbnail: null,
+    gallery: [],
+    removeExistingThumbnail: false,
+    removedExistingGallery: [],
+})
+
+const emptyVariant = (isDefault: boolean = false): ProductVariantFormData => ({
+    sku: '',
+    price: 0,
+    cog: 0,
+    stockManaged: true,
+    color: '',
+    size: '',
+    attributes: {},
+    inventory: [],
+    isDefault,
+    isActive: true,
+    bundleComponents: [],
+})
+
+const emptyProduct = (): CreateProductFormData => ({
+    slug: '',
+    name: '',
+    description: null,
+    isFeatured: false,
+    isActive: true,
+    categories: [],
+    variants: [emptyVariant(true)],
+})
+
 const productImages = ref<ImageFiles>(emptyImageFiles())
 const variantImages = ref<ImageFiles[]>([emptyImageFiles()])
 const slugWasEdited = ref(false)
@@ -253,44 +285,7 @@ const {
     update: updateVariantAt,
 } = useFieldArray<ProductVariantFormData>('variants')
 
-function emptyImageFiles(): ImageFiles {
-    return {
-        thumbnail: null,
-        gallery: [],
-        removeExistingThumbnail: false,
-        removedExistingGallery: [],
-    }
-}
-
-function emptyVariant(isDefault = false): ProductVariantFormData {
-    return {
-        sku: '',
-        price: 0,
-        cog: 0,
-        stockManaged: true,
-        color: '',
-        size: '',
-        attributes: {},
-        inventory: [],
-        isDefault,
-        isActive: true,
-        bundleComponents: [],
-    }
-}
-
-function emptyProduct(): CreateProductFormData {
-    return {
-        slug: '',
-        name: '',
-        description: null,
-        isFeatured: false,
-        isActive: true,
-        categories: [],
-        variants: [emptyVariant(true)],
-    }
-}
-
-function resetDialog(): void {
+const resetDialog = (): void => {
     resetForm({ values: emptyProduct(), errors: {}, touched: {} })
     productImages.value = emptyImageFiles()
     variantImages.value = [emptyImageFiles()]
@@ -299,17 +294,17 @@ function resetDialog(): void {
     inventoryVariantIndex.value = null
 }
 
-function setName(name: string): void {
+const setName = (name: string): void => {
     setFieldValue('name', name)
     if (!slugWasEdited.value) setFieldValue('slug', toSlug(name))
 }
 
-function setSlug(slug: string): void {
+const setSlug = (slug: string): void => {
     slugWasEdited.value = true
     setFieldValue('slug', toSlug(slug))
 }
 
-function toSlug(value: string): string {
+const toSlug = (value: string): string => {
     return value
         .toLowerCase()
         .trim()
@@ -317,19 +312,19 @@ function toSlug(value: string): string {
         .replace(/^-|-$/g, '')
 }
 
-function toNumberArray(value: unknown): number[] {
+const toNumberArray = (value: unknown): number[] => {
     return Array.isArray(value) ? value.map(Number).filter(Number.isFinite) : []
 }
 
-function updateProductImages(patch: Partial<ImageFiles>): void {
+const updateProductImages = (patch: Partial<ImageFiles>): void => {
     productImages.value = { ...productImages.value, ...patch }
 }
 
-function updateProductThumbnail(thumbnail: File | null): void {
+const updateProductThumbnail = (thumbnail: File | null): void => {
     updateProductImages({ thumbnail })
 }
 
-function updateVariant(index: number, variant: ProductVariantFormData): void {
+const updateVariant = (index: number, variant: ProductVariantFormData): void => {
     updateVariantAt(index, variant)
 }
 
@@ -339,30 +334,30 @@ const selectedInventoryVariant = computed(() =>
         : (values.variants[inventoryVariantIndex.value] ?? null)
 )
 
-function openInventory(index: number): void {
+const openInventory = (index: number): void => {
     inventoryVariantIndex.value = index
     inventoryDialogOpen.value = true
 }
 
-function updateSelectedInventory(inventory: InventoryDraftBalance[]): void {
+const updateSelectedInventory = (inventory: InventoryDraftBalance[]): void => {
     if (inventoryVariantIndex.value === null) return
     const current = values.variants[inventoryVariantIndex.value]
     if (!current) return
     updateVariantAt(inventoryVariantIndex.value, { ...current, inventory })
 }
 
-function updateVariantImages(index: number, images: ImageFiles): void {
+const updateVariantImages = (index: number, images: ImageFiles): void => {
     variantImages.value = variantImages.value.map((current, currentIndex) =>
         currentIndex === index ? images : current
     )
 }
 
-function addVariant(): void {
+const addVariant = (): void => {
     appendVariant(emptyVariant(false))
     variantImages.value = [...variantImages.value, emptyImageFiles()]
 }
 
-function removeVariant(index: number): void {
+const removeVariant = (index: number): void => {
     if (values.variants.length === 1) return
     const removedWasDefault = values.variants[index]?.isDefault ?? false
     removeVariantAt(index)
@@ -372,7 +367,7 @@ function removeVariant(index: number): void {
     variantImages.value = variantImages.value.filter((_, currentIndex) => currentIndex !== index)
 }
 
-function makeDefault(index: number): void {
+const makeDefault = (index: number): void => {
     values.variants.forEach((variant, currentIndex) => {
         updateVariantAt(currentIndex, {
             ...variant,
@@ -403,12 +398,12 @@ const submitForm = handleSubmit(async (data) => {
     }
 })
 
-function save(isActive: boolean): void {
+const save = (isActive: boolean): void => {
     setFieldValue('isActive', isActive)
     void submitForm()
 }
 
-function close(): void {
+const close = (): void => {
     inventoryDialogOpen.value = false
     inventoryVariantIndex.value = null
     emit('update:modelValue', false)

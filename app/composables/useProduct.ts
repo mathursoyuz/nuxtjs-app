@@ -5,7 +5,274 @@ import { useToast } from '~/composables/useToast'
 import { PRODUCT_MESSAGES } from '~/constants/messages.constants'
 import type { Product, CreateProductDTO, UpdateProductDTO } from '~/types/product.types'
 
-export function useProduct() {
+export const useProduct = (): {
+    products: globalThis.ComputedRef<
+        {
+            id: number
+            slug: string
+            name: string
+            thumbnail: string | null
+            description: string | null
+            isFeatured: boolean
+            isActive: boolean
+            isDeleted: boolean
+            categories: number[]
+            gallery: string[]
+            variants: {
+                id: number
+                productId: number
+                sku: string
+                price: number
+                cog: number
+                stockManaged: boolean
+                color: string
+                size: string
+                thumbnail: string | null
+                attributes: Record<string, string>
+                isDefault: boolean
+                isActive: boolean
+                isDeleted: boolean
+                sortOrder: number
+                gallery: string[]
+                bundleComponents: {
+                    id?: number | undefined
+                    bundleVariantId?: number | undefined
+                    componentVariantId: number
+                    quantity: number
+                    sortOrder: number
+                }[]
+                integrations: {
+                    provider: string
+                    externalId: string | null
+                    isSynced: boolean
+                    syncErrorReason: string | null
+                    lastSyncedAt: string | null
+                    inventorySyncCounter: number
+                }[]
+                createdAt: string
+                updatedAt: string
+            }[]
+            createdAt: string
+            updatedAt: string
+            defaultVariantId: number
+            sku: string
+            price: number
+            cog: number
+            stockManaged: boolean
+            type: import('~/types/product.types').DerivedProductType
+            children: number[]
+            squareVariationId: string | null
+            isSquareSynced: boolean
+            qbProductId: string | null
+            isQbSynced: boolean
+            qbSyncErrorReason: string | null
+            qbLastSyncedAt: string | null
+        }[]
+    >
+    currentProduct: globalThis.ComputedRef<{
+        id: number
+        slug: string
+        name: string
+        thumbnail: string | null
+        description: string | null
+        isFeatured: boolean
+        isActive: boolean
+        isDeleted: boolean
+        categories: number[]
+        gallery: string[]
+        variants: {
+            id: number
+            productId: number
+            sku: string
+            price: number
+            cog: number
+            stockManaged: boolean
+            color: string
+            size: string
+            thumbnail: string | null
+            attributes: Record<string, string>
+            isDefault: boolean
+            isActive: boolean
+            isDeleted: boolean
+            sortOrder: number
+            gallery: string[]
+            bundleComponents: {
+                id?: number | undefined
+                bundleVariantId?: number | undefined
+                componentVariantId: number
+                quantity: number
+                sortOrder: number
+            }[]
+            integrations: {
+                provider: string
+                externalId: string | null
+                isSynced: boolean
+                syncErrorReason: string | null
+                lastSyncedAt: string | null
+                inventorySyncCounter: number
+            }[]
+            createdAt: string
+            updatedAt: string
+        }[]
+        createdAt: string
+        updatedAt: string
+        defaultVariantId: number
+        sku: string
+        price: number
+        cog: number
+        stockManaged: boolean
+        type: import('~/types/product.types').DerivedProductType
+        children: number[]
+        squareVariationId: string | null
+        isSquareSynced: boolean
+        qbProductId: string | null
+        isQbSynced: boolean
+        qbSyncErrorReason: string | null
+        qbLastSyncedAt: string | null
+    } | null>
+    loading: globalThis.ComputedRef<boolean>
+    error: globalThis.ComputedRef<string | null>
+    activeProducts: globalThis.ComputedRef<
+        {
+            id: number
+            slug: string
+            name: string
+            thumbnail: string | null
+            description: string | null
+            isFeatured: boolean
+            isActive: boolean
+            isDeleted: boolean
+            categories: number[]
+            gallery: string[]
+            variants: {
+                id: number
+                productId: number
+                sku: string
+                price: number
+                cog: number
+                stockManaged: boolean
+                color: string
+                size: string
+                thumbnail: string | null
+                attributes: Record<string, string>
+                isDefault: boolean
+                isActive: boolean
+                isDeleted: boolean
+                sortOrder: number
+                gallery: string[]
+                bundleComponents: {
+                    id?: number | undefined
+                    bundleVariantId?: number | undefined
+                    componentVariantId: number
+                    quantity: number
+                    sortOrder: number
+                }[]
+                integrations: {
+                    provider: string
+                    externalId: string | null
+                    isSynced: boolean
+                    syncErrorReason: string | null
+                    lastSyncedAt: string | null
+                    inventorySyncCounter: number
+                }[]
+                createdAt: string
+                updatedAt: string
+            }[]
+            createdAt: string
+            updatedAt: string
+            defaultVariantId: number
+            sku: string
+            price: number
+            cog: number
+            stockManaged: boolean
+            type: import('~/types/product.types').DerivedProductType
+            children: number[]
+            squareVariationId: string | null
+            isSquareSynced: boolean
+            qbProductId: string | null
+            isQbSynced: boolean
+            qbSyncErrorReason: string | null
+            qbLastSyncedAt: string | null
+        }[]
+    >
+    featuredProducts: globalThis.ComputedRef<
+        {
+            id: number
+            slug: string
+            name: string
+            thumbnail: string | null
+            description: string | null
+            isFeatured: boolean
+            isActive: boolean
+            isDeleted: boolean
+            categories: number[]
+            gallery: string[]
+            variants: {
+                id: number
+                productId: number
+                sku: string
+                price: number
+                cog: number
+                stockManaged: boolean
+                color: string
+                size: string
+                thumbnail: string | null
+                attributes: Record<string, string>
+                isDefault: boolean
+                isActive: boolean
+                isDeleted: boolean
+                sortOrder: number
+                gallery: string[]
+                bundleComponents: {
+                    id?: number | undefined
+                    bundleVariantId?: number | undefined
+                    componentVariantId: number
+                    quantity: number
+                    sortOrder: number
+                }[]
+                integrations: {
+                    provider: string
+                    externalId: string | null
+                    isSynced: boolean
+                    syncErrorReason: string | null
+                    lastSyncedAt: string | null
+                    inventorySyncCounter: number
+                }[]
+                createdAt: string
+                updatedAt: string
+            }[]
+            createdAt: string
+            updatedAt: string
+            defaultVariantId: number
+            sku: string
+            price: number
+            cog: number
+            stockManaged: boolean
+            type: import('~/types/product.types').DerivedProductType
+            children: number[]
+            squareVariationId: string | null
+            isSquareSynced: boolean
+            qbProductId: string | null
+            isQbSynced: boolean
+            qbSyncErrorReason: string | null
+            qbLastSyncedAt: string | null
+        }[]
+    >
+    fetchProducts: () => Promise<Product[]>
+    fetchProductById: (id: number) => Promise<Product>
+    checkSku: (sku: string, variantId?: number) => Promise<boolean>
+    createProduct: (data: CreateProductDTO) => Promise<Product>
+    updateProduct: (id: number, data: UpdateProductDTO) => Promise<Product>
+    deleteProduct: (id: number) => Promise<void>
+    toggleActive: (id: number, isActive: boolean) => Promise<void>
+    syncProductToQB: (productId: number) => Promise<{ created: boolean; qbId: string }>
+    importAllProductsFromSquare: () => Promise<{
+        created: number
+        updated: number
+        skipped: number
+        errors: Array<{ item: string; error: string }>
+    }>
+} => {
     const nuxtApp = useNuxtApp()
     const productStore = useProductStore()
     const productApi =

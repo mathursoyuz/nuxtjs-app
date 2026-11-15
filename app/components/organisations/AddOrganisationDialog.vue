@@ -368,13 +368,17 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { useNuxtApp } from '#app'
+import { useQuickbooks } from '~/composables/useQuickbooks'
 
 import ImageUpload from '~/components/forms/ImageUpload.vue'
 import { useCountry } from '~/composables/useCountry'
 import { useToast } from '~/composables/useToast'
 import { useOrganisation } from '~/composables/useOrganisation'
 import { ORGANISATION_MESSAGES } from '~/constants/messages.constants'
+import {
+    organisationBasicSchema,
+    organisationPaymentCardSchema,
+} from '~/schemas/organisation.schema'
 
 interface Props {
     modelValue: boolean
@@ -387,13 +391,9 @@ const emit = defineEmits<{
     submit: []
 }>()
 
-const nuxtApp = useNuxtApp()
-const organisationApi =
-    nuxtApp.$organisationApi as import('~/services/api/wrappers/organisation.api').OrganisationApiService
-const creditCardApi =
-    nuxtApp.$organisationCreditCardApi as import('~/services/api/wrappers/organisation-credit-card.api').OrganisationCreditCardApiService
-const quickbooksApi =
-    nuxtApp.$quickbooksApi as import('~/services/api/wrappers/quickbooks.api').QuickBooksApiService
+const organisationApi = useOrganisationManagement()
+const creditCardApi = useOrganisationCreditCards()
+const { operations: quickbooks } = useQuickbooks()
 const { countryOptions, fetchCountries, fetchStates } = useCountry()
 const { successFromResponse, errorFromError, warning } = useToast()
 const { uploadLogo } = useOrganisation()
@@ -441,7 +441,6 @@ const formData = ref({
     name: '',
     email: '',
     websiteUrl: '',
-    password: 'admin',
     logo: '',
     shippingCost: 0,
     referralCode: null as string | null,
@@ -469,25 +468,30 @@ const creditCardData = ref({
 })
 
 const rules = {
-    required: (v: unknown) => !!v || 'This field is required',
-    email: (v: string) => {
+    required: (v: unknown): true | 'This field is required' => !!v || 'This field is required',
+    email: (v: string): true | 'Email is required' | 'Must be a valid email address' => {
         if (!v) return 'Email is required'
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
         return emailRegex.test(v) || 'Must be a valid email address'
     },
-    emailUnique: () =>
+    emailUnique: (): true | 'This email is already in use' =>
         emailUniqueError.value === null ||
         emailUniqueError.value === '' ||
         'This email is already in use',
-    min: (min: number) => (v: number) => v >= min || `Value must be at least ${min}`,
+    min:
+        (min: number): ((v: number) => string | true) =>
+        (v: number) =>
+            v >= min || `Value must be at least ${min}`,
     // Billing company: optional, but if entered, min 5 chars
-    billingCompany: (v: string) => {
+    billingCompany: (
+        v: string
+    ): true | 'Company name must be at least 5 characters if provided' => {
         if (!v || !v.trim()) return true // Optional
         return v.trim().length >= 5 || 'Company name must be at least 5 characters if provided'
     },
 }
 
-const handleEmailBlur = async () => {
+const handleEmailBlur = async (): Promise<void> => {
     if (!formData.value.email || !rules.email(formData.value.email)) {
         emailUniqueError.value = null
         return
@@ -516,7 +520,7 @@ const handleEmailBlur = async () => {
     }
 }
 
-const handleBillingCountryChange = async (countryId: string) => {
+const handleBillingCountryChange = async (countryId: string): Promise<void> => {
     billingCountryCode.value = countryId
     formData.value.billingCountryCode = countryId
     if (countryId) {
@@ -531,12 +535,11 @@ const handleBillingCountryChange = async (countryId: string) => {
     formData.value.billingStateCode = ''
 }
 
-const resetForm = () => {
+const resetForm = (): void => {
     formData.value = {
         name: '',
         email: '',
         websiteUrl: '',
-        password: 'admin',
         logo: '',
         shippingCost: 0,
         referralCode: null,
@@ -577,10 +580,13 @@ const resetForm = () => {
     }
 }
 
-const handleSubmitBasic = async () => {
-    if (!basicFormRef.value?.validate()) {
-        return
+const handleSubmitBasic = async (): Promise<void> => {
+    const formValidation = await basicFormRef.value?.validate()
+    const basicData = {
+        ...formData.value,
+        shippingCost: Number(formData.value.shippingCost) || 0,
     }
+    if (!formValidation?.valid || !organisationBasicSchema.safeParse(basicData).success) return
 
     loading.value = true
     try {
@@ -619,10 +625,15 @@ const handleSubmitBasic = async () => {
     }
 }
 
-const handleSubmitBilling = async () => {
-    if (!billingFormRef.value?.validate() || !createdOrganisationId.value) {
+const handleSubmitBilling = async (): Promise<void> => {
+    const formValidation = await billingFormRef.value?.validate()
+    const paymentData = { ...formData.value, ...creditCardData.value }
+    if (
+        !formValidation?.valid ||
+        !organisationPaymentCardSchema.safeParse(paymentData).success ||
+        !createdOrganisationId.value
+    )
         return
-    }
 
     loading.value = true
     try {
@@ -669,10 +680,10 @@ watch(
     }
 )
 
-const loadQuickbooksCompanies = async () => {
+const loadQuickbooksCompanies = async (): Promise<void> => {
     loadingCompanies.value = true
     try {
-        const response = await quickbooksApi.getCompanies()
+        const response = await quickbooks.getCompanies()
         if (response.success && response.data) {
             quickbooksCompanies.value = response.data
         }

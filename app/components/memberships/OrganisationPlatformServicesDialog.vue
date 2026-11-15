@@ -172,7 +172,14 @@
         :memberships="services"
         :subscriptions="subscriptions"
         :cards="cards"
+        :can-add-payment-method="canAddPaymentMethod"
         @saved="refresh"
+        @add-payment-method="addPaymentCardOpen = true"
+    />
+    <AddOrganisationCreditCardDialog
+        v-model="addPaymentCardOpen"
+        :organisation-id="organisationId"
+        @submit="paymentCardAdded"
     />
     <ReviewOrganisationMembershipPricingDialog
         v-model="reviewOpen"
@@ -200,6 +207,9 @@ import { useToast } from '~/composables/useToast'
 import { formatMembershipMoney } from '~/utils/membership.util'
 import type { Membership, MembershipAction, MembershipSubscription } from '~/types/membership.types'
 import type { OrganisationCreditCard } from '~/types/organisation-credit-card.types'
+import AddOrganisationCreditCardDialog from '~/components/organisations/AddOrganisationCreditCardDialog.vue'
+import { ORGANISATION_CREDIT_CARD_PERMISSIONS } from '~/components/organisations/organisation-credit-card.permissions'
+import { useAccessStore } from '~/stores/access.store'
 
 const props = defineProps<{
     modelValue: boolean
@@ -209,6 +219,7 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ 'update:modelValue': [value: boolean] }>()
 const manager = useMemberships()
+const access = useAccessStore()
 const { errorFromError } = useToast()
 const loading = ref(false)
 const services = ref<Membership[]>([])
@@ -219,6 +230,10 @@ const selectedAction = ref<MembershipAction | null>(null)
 const batchOpen = ref(false)
 const reviewOpen = ref(false)
 const historyOpen = ref(false)
+const addPaymentCardOpen = ref(false)
+const canAddPaymentMethod = computed(() =>
+    access.can(ORGANISATION_CREDIT_CARD_PERMISSIONS.CREATE, props.organisationId)
+)
 const headers = [
     { title: 'Platform service', key: 'membershipName' },
     { title: 'Service group', key: 'membershipGroupName' },
@@ -258,6 +273,10 @@ const refresh = async (): Promise<void> => {
     } finally {
         loading.value = false
     }
+}
+const paymentCardAdded = async (): Promise<void> => {
+    addPaymentCardOpen.value = false
+    await refresh()
 }
 const openBatch = (): void => {
     batchOpen.value = true

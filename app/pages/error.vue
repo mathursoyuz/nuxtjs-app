@@ -12,18 +12,18 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
-import { useRoute } from 'vue-router';
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 
 definePageMeta({
     layout: 'default',
     public: true,
-});
+})
 
-const route = useRoute();
-const errorMessage = computed(() => route.query.message as string | undefined);
+const route = useRoute()
+const errorMessage = computed(() => route.query.message as string | undefined)
 
-const goHome = () => {
-    navigateTo('/');
-};
+const goHome = (): void => {
+    navigateTo('/')
+}
 </script>

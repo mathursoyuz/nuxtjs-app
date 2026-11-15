@@ -25,29 +25,13 @@
                                     :rules="[rules.required]"
                                 />
 
-                                <FormField
-                                    v-model="formData.address"
-                                    label="Address"
-                                    type="text"
-                                />
+                                <FormField v-model="formData.address" label="Address" type="text" />
 
-                                <FormField
-                                    v-model="formData.city"
-                                    label="City"
-                                    type="text"
-                                />
+                                <FormField v-model="formData.city" label="City" type="text" />
 
-                                <FormField
-                                    v-model="formData.state"
-                                    label="State"
-                                    type="text"
-                                />
+                                <FormField v-model="formData.state" label="State" type="text" />
 
-                                <FormField
-                                    v-model="formData.country"
-                                    label="Country"
-                                    type="text"
-                                />
+                                <FormField v-model="formData.country" label="Country" type="text" />
 
                                 <FormField
                                     v-model="formData.phoneNumber"
@@ -55,17 +39,9 @@
                                     type="text"
                                 />
 
-                                <FormField
-                                    v-model="formData.lat"
-                                    label="Latitude"
-                                    type="text"
-                                />
+                                <FormField v-model="formData.lat" label="Latitude" type="text" />
 
-                                <FormField
-                                    v-model="formData.long"
-                                    label="Longitude"
-                                    type="text"
-                                />
+                                <FormField v-model="formData.long" label="Longitude" type="text" />
 
                                 <FormField
                                     v-model="formData.squareLocationId"
@@ -85,7 +61,12 @@
                                     <v-btn variant="outlined" @click="navigateTo('/locations')">
                                         Cancel
                                     </v-btn>
-                                    <v-btn color="primary" type="submit" :loading="loading" :disabled="!valid">
+                                    <v-btn
+                                        color="primary"
+                                        type="submit"
+                                        :loading="loading"
+                                        :disabled="!valid"
+                                    >
                                         Create Location
                                     </v-btn>
                                 </v-col>
@@ -101,23 +82,23 @@
 <script setup lang="ts">
 import { LOCATION_PERMISSIONS } from '~/components/locations/location.permissions'
 
-import { ref, onMounted, computed } from 'vue';
-import { useLocation } from '~/composables/useLocation';
-import { useOrganisation } from '~/composables/useOrganisation';
-import FormField from '~/components/forms/FormField.vue';
-import { createLocationSchema } from '~/schemas/location.schema';
-import type { CreateLocationFormData } from '~/schemas/location.schema';
+import { ref, onMounted, computed } from 'vue'
+import { useLocation } from '~/composables/useLocation'
+import { useOrganisation } from '~/composables/useOrganisation'
+import FormField from '~/components/forms/FormField.vue'
+import { createLocationSchema } from '~/schemas/location.schema'
+import type { CreateLocationFormData } from '~/schemas/location.schema'
 
 definePageMeta({
     middleware: ['auth', 'permission'],
-    access: { permission: LOCATION_PERMISSIONS.WRITE },
-});
+    access: { permission: LOCATION_PERMISSIONS.CREATE },
+})
 
-const { createLocation, loading } = useLocation();
-const { organisations, fetchOrganisations } = useOrganisation();
+const { createLocation, loading } = useLocation()
+const { organisations, fetchOrganisations } = useOrganisation()
 
-const formRef = ref();
-const valid = ref(false);
+const formRef = ref()
+const valid = ref(false)
 
 const formData = ref<CreateLocationFormData>({
     organisationId: 0,
@@ -131,38 +112,39 @@ const formData = ref<CreateLocationFormData>({
     long: undefined,
     squareLocationId: undefined,
     isActive: true,
-});
+})
 
 const organisationOptions = computed(() => {
     return organisations.value.map((c) => ({
         title: c.name,
         value: c.id,
-    }));
-});
+    }))
+})
 
 const rules = {
-    required: (v: unknown) => !!v || 'This field is required',
-};
+    required: (v: unknown): true | 'This field is required' => !!v || 'This field is required',
+}
 
-const handleSubmit = async () => {
-    if (!formRef.value?.validate()) return;
+const handleSubmit = async (): Promise<void> => {
+    const validation = await formRef.value?.validate()
+    if (!validation?.valid) return
 
     try {
         const submitData = {
             ...formData.value,
             organisationId: Number(formData.value.organisationId),
-        };
-        createLocationSchema.parse(submitData);
-        await createLocation(submitData);
-        navigateTo('/locations');
+        }
+        createLocationSchema.parse(submitData)
+        await createLocation(submitData)
+        navigateTo('/locations')
     } catch (error) {
-        console.error('Validation or creation error:', error);
+        console.error('Validation or creation error:', error)
     }
-};
+}
 
 onMounted(async () => {
-    await fetchOrganisations();
-});
+    await fetchOrganisations()
+})
 </script>
 
 <style scoped>

@@ -10,7 +10,19 @@ export interface ProductAvailabilityErrors {
     variants: Record<number, string>
 }
 
-export function useProductForm() {
+export const useProductForm = (): {
+    saving: globalThis.Ref<boolean, boolean>
+    saveProduct: (
+        data: CreateProductDTO,
+        productImages: ImageFiles,
+        variantImages: ImageFiles[],
+        productId?: number
+    ) => Promise<Product>
+    validateAvailability: (
+        data: CreateProductDTO,
+        productId?: number
+    ) => Promise<ProductAvailabilityErrors>
+} => {
     const nuxtApp = useNuxtApp()
     const productStore = useProductStore()
     const productApi =
@@ -18,10 +30,10 @@ export function useProductForm() {
     const productFormService = new ProductFormService(productApi)
     const saving = ref(false)
 
-    async function validateAvailability(
+    const validateAvailability = async (
         data: CreateProductDTO,
         productId?: number
-    ): Promise<ProductAvailabilityErrors> {
+    ): Promise<ProductAvailabilityErrors> => {
         const existingProduct = productId
             ? productStore.currentProduct?.id === productId
                 ? productStore.currentProduct
@@ -52,12 +64,12 @@ export function useProductForm() {
         return errors
     }
 
-    async function saveProduct(
+    const saveProduct = async (
         data: CreateProductDTO,
         productImages: ImageFiles,
         variantImages: ImageFiles[],
         productId?: number
-    ): Promise<Product> {
+    ): Promise<Product> => {
         saving.value = true
         try {
             const product = productId

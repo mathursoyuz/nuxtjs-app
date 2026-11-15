@@ -32,7 +32,7 @@
                         </div>
 
                         <!-- Bulk Actions -->
-                        <div v-if="selectedProducts.length > 0" class="mb-4">
+                        <div v-if="canWrite && selectedProducts.length > 0" class="mb-4">
                             <v-alert type="info" density="compact">
                                 {{ selectedProducts.length }} item(s) selected
                                 <template #append>
@@ -56,46 +56,47 @@
                             :headers="headers"
                             :items="filteredProducts"
                             :loading="loading"
-                            :selectable="true"
-                            :show-select="true"
+                            :selectable="canWrite"
+                            :show-select="canWrite"
                             item-value="Id"
                             class="elevation-1"
                             @update:model-value="handleSelectionChange"
                         >
-                    <template #item.Active="{ item }">
-                        <v-chip :color="item.Active ? 'green' : 'red'" size="small">
-                            {{ item.Active ? 'Active' : 'Inactive' }}
-                        </v-chip>
-                    </template>
-                    <template #item.localProductId="{ item }">
-                        <span v-if="item.localProduct?.id" class="text-body-2">
-                            {{ item.localProduct.id }}
-                        </span>
-                        <span v-else class="text-grey text-body-2">—</span>
-                    </template>
-                    <template #item.syncStatus="{ item }">
-                        <v-chip
-                            v-if="item.localProduct"
-                            :color="item.localProduct.isQbSynced ? 'success' : 'warning'"
-                            size="small"
-                        >
-                            {{ item.localProduct.isQbSynced ? 'Synced' : 'Not Synced' }}
-                        </v-chip>
-                        <v-chip v-else color="grey" size="small">Not Mapped</v-chip>
-                    </template>
-                    <template #item.importActions="{ item }">
-                        <v-btn
-                            color="primary"
-                            size="small"
-                            variant="text"
-                            prepend-icon="mdi-download"
-                            :loading="importingProductId === item.Id"
-                            :disabled="importing && importingProductId !== item.Id"
-                            @click="importSingleProduct(item)"
-                        >
-                            Import
-                        </v-btn>
-                    </template>
+                            <template #item.Active="{ item }">
+                                <v-chip :color="item.Active ? 'green' : 'red'" size="small">
+                                    {{ item.Active ? 'Active' : 'Inactive' }}
+                                </v-chip>
+                            </template>
+                            <template #item.localProductId="{ item }">
+                                <span v-if="item.localProduct?.id" class="text-body-2">
+                                    {{ item.localProduct.id }}
+                                </span>
+                                <span v-else class="text-grey text-body-2">—</span>
+                            </template>
+                            <template #item.syncStatus="{ item }">
+                                <v-chip
+                                    v-if="item.localProduct"
+                                    :color="item.localProduct.isQbSynced ? 'success' : 'warning'"
+                                    size="small"
+                                >
+                                    {{ item.localProduct.isQbSynced ? 'Synced' : 'Not Synced' }}
+                                </v-chip>
+                                <v-chip v-else color="grey" size="small">Not Mapped</v-chip>
+                            </template>
+                            <template #item.importActions="{ item }">
+                                <v-btn
+                                    v-if="canWrite"
+                                    color="primary"
+                                    size="small"
+                                    variant="text"
+                                    prepend-icon="mdi-download"
+                                    :loading="importingProductId === item.Id"
+                                    :disabled="importing && importingProductId !== item.Id"
+                                    @click="importSingleProduct(item)"
+                                >
+                                    Import
+                                </v-btn>
+                            </template>
                         </v-data-table>
                     </v-card-text>
                 </v-card>
@@ -105,21 +106,25 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useNuxtApp } from '#app'
+import { computed, ref, onMounted } from 'vue'
+import { useQuickbooks } from '~/composables/useQuickbooks'
 import { useLoadingTask } from '~/composables/useLoadingTask'
 import { useToast } from '~/composables/useToast'
 import { INTEGRATION_MESSAGES } from '~/constants/messages.constants'
 import type { QuickBooksProduct } from '~/services/api/wrappers/quickbooks.api'
+import { QUICKBOOKS_PERMISSIONS } from '~/constants/integration-permissions.constants'
+import { useAccessStore } from '~/stores/access.store'
 
 definePageMeta({
-    middleware: ['auth'],
+    middleware: ['auth', 'permission'],
+    access: { permission: QUICKBOOKS_PERMISSIONS.READ },
 })
 
-const nuxtApp = useNuxtApp()
+const access = useAccessStore()
+const canWrite = computed(() => access.can(QUICKBOOKS_PERMISSIONS.WRITE))
+
 const { successFromResponse, errorFromError, error } = useToast()
-const quickbooksApi =
-    nuxtApp.$quickbooksApi as import('~/services/api/wrappers/quickbooks.api').QuickBooksApiService
+const { operations: quickbooks } = useQuickbooks()
 
 const products = ref<QuickBooksProduct[]>([])
 const loading = ref(false)
@@ -158,14 +163,16 @@ const filteredProducts = computed(() => {
 const handleSelectionChange = (selected: unknown[]) => {
     // Ensure we have full product objects, not just IDs
     const selectedIds = selected as (string | QuickBooksProduct)[]
-    selectedProducts.value = selectedIds.map((item) => {
-        // If item is already a full object, return it
-        if (typeof item === 'object' && item !== null && 'Id' in item) {
-            return item as QuickBooksProduct
-        }
-        // Otherwise, find the full product object by ID
-        return products.value.find((p) => p.Id === item) as QuickBooksProduct
-    }).filter((p): p is QuickBooksProduct => p !== undefined)
+    selectedProducts.value = selectedIds
+        .map((item) => {
+            // If item is already a full object, return it
+            if (typeof item === 'object' && item !== null && 'Id' in item) {
+                return item as QuickBooksProduct
+            }
+            // Otherwise, find the full product object by ID
+            return products.value.find((p) => p.Id === item) as QuickBooksProduct
+        })
+        .filter((p): p is QuickBooksProduct => p !== undefined)
 }
 
 const importSelectedProducts = async () => {
@@ -178,7 +185,9 @@ const importSelectedProducts = async () => {
     try {
         const task = useLoadingTask('import-qb-products')
         await task.execute(async () => {
-            const response = await quickbooksApi.storeSelectedProductsToLocal(selectedProducts.value)
+            const response = await quickbooks.storeSelectedProductsToLocal(
+                selectedProducts.value
+            )
             successFromResponse(
                 response,
                 `Successfully imported ${selectedProducts.value.length} product(s) from QuickBooks`
@@ -199,7 +208,7 @@ const importSingleProduct = async (product: QuickBooksProduct) => {
     try {
         const task = useLoadingTask(`import-qb-product-${product.Id}`)
         await task.execute(async () => {
-            const response = await quickbooksApi.storeSelectedProductsToLocal([product])
+            const response = await quickbooks.storeSelectedProductsToLocal([product])
             successFromResponse(
                 response,
                 `Product "${product.Name}" imported from QuickBooks successfully`
@@ -218,7 +227,7 @@ const fetchProducts = async () => {
     try {
         const task = useLoadingTask('load-qb-products')
         await task.execute(async () => {
-            const response = await quickbooksApi.fetchProductsFromQB()
+            const response = await quickbooks.fetchProductsFromQB()
             if (response.success && response.data) {
                 products.value = response.data
             } else {

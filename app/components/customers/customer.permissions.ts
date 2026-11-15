@@ -1,5 +1,6 @@
 export const CUSTOMER_PERMISSIONS = {
     READ: 'customers.read',
-    WRITE: 'customers.write',
+    CREATE: 'customers.create',
+    UPDATE: 'customers.update',
     DELETE: 'customers.delete',
 } as const

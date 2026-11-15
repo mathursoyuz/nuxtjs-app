@@ -26,7 +26,7 @@ export class CachedApiClient {
         config?: RequestConfig,
         cacheKey?: string,
         ttl?: number,
-        skipCache = false
+        skipCache: boolean = false
     ): Promise<ApiResponse<T>> {
         const revision = this.contextRevision
         const key = cacheKey || this.generateCacheKey('GET', url, config?.params)

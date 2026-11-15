@@ -17,7 +17,7 @@
             >
                 <template #actions>
                     <v-btn
-                        color="white"
+                        color="on-primary"
                         variant="outlined"
                         :loading="isSubmitting"
                         @click="handleSubmitForm"
@@ -117,47 +117,7 @@
                                 </v-col>
 
                                 <v-col cols="12" md="6">
-                                    <div class="text-body-2 font-weight-medium mb-2">
-                                        Avatar Image
-                                    </div>
-                                    <div
-                                        v-if="!avatarPreview"
-                                        class="upload-zone upload-zone-small d-flex flex-column align-center justify-center pa-4"
-                                        @click="triggerAvatarInput"
-                                        @dragover.prevent
-                                        @drop.prevent="handleAvatarDrop"
-                                    >
-                                        <v-icon size="32" color="primary" class="mb-2">
-                                            mdi-cloud-upload
-                                        </v-icon>
-                                        <div class="text-body-2 text-center">
-                                            Drop Avatar here to upload
-                                        </div>
-                                        <input
-                                            ref="avatarInput"
-                                            type="file"
-                                            accept="image/*"
-                                            style="display: none"
-                                            @change="handleAvatarChange"
-                                        />
-                                    </div>
-                                    <div v-else class="avatar-preview-container">
-                                        <v-img
-                                            :src="avatarPreview"
-                                            max-height="150"
-                                            max-width="150"
-                                            contain
-                                            class="rounded mb-2"
-                                        />
-                                        <v-btn
-                                            variant="text"
-                                            color="error"
-                                            size="small"
-                                            @click="removeAvatar"
-                                        >
-                                            Remove
-                                        </v-btn>
-                                    </div>
+                                    <CustomersCustomerAvatarPicker v-model="avatarFile" />
                                 </v-col>
 
                                 <v-col cols="12" md="6">
@@ -331,396 +291,19 @@
                         </v-card-text>
                     </v-card>
 
-                    <!-- Billing Details Section -->
-                    <v-card class="mb-4" elevation="0" variant="outlined">
-                        <v-card-title class="text-h6">Billing Details</v-card-title>
-                        <v-card-text>
-                            <v-row>
-                                <v-col cols="12" md="6">
-                                    <Field
-                                        v-slot="{ field, errorMessage }"
-                                        name="billingCompany"
-                                        validate-on-blur
-                                    >
-                                        <v-text-field
-                                            :model-value="field.value"
-                                            @update:model-value="field.onChange"
-                                            label="Company"
-                                            variant="outlined"
-                                            density="compact"
-                                            :error-messages="errorMessage"
-                                            hide-details="auto"
-                                            @blur="field.onBlur"
-                                        />
-                                    </Field>
-                                </v-col>
-                                <v-col cols="12">
-                                    <Field
-                                        v-slot="{ field, errorMessage }"
-                                        name="billingAddress"
-                                        validate-on-blur
-                                    >
-                                        <v-text-field
-                                            :model-value="field.value"
-                                            @update:model-value="field.onChange"
-                                            label="Address *"
-                                            variant="outlined"
-                                            density="compact"
-                                            :error-messages="errorMessage"
-                                            hide-details="auto"
-                                            @blur="field.onBlur"
-                                        />
-                                    </Field>
-                                </v-col>
-                                <v-col cols="12" md="4">
-                                    <Field
-                                        v-slot="{ field, errorMessage }"
-                                        name="billingCity"
-                                        validate-on-blur
-                                    >
-                                        <v-text-field
-                                            :model-value="field.value"
-                                            @update:model-value="field.onChange"
-                                            label="City *"
-                                            variant="outlined"
-                                            density="compact"
-                                            :error-messages="errorMessage"
-                                            hide-details="auto"
-                                            @blur="field.onBlur"
-                                        />
-                                    </Field>
-                                </v-col>
-                                <v-col cols="12" md="4">
-                                    <Field
-                                        v-slot="{ field, errorMessage }"
-                                        name="billingStateCode"
-                                        validate-on-blur
-                                    >
-                                        <v-select
-                                            :model-value="field.value"
-                                            @update:model-value="field.onChange"
-                                            :items="billingStateOptions"
-                                            item-title="title"
-                                            item-value="value"
-                                            label="State *"
-                                            variant="outlined"
-                                            density="compact"
-                                            :error-messages="errorMessage"
-                                            hide-details="auto"
-                                            @blur="field.onBlur"
-                                        />
-                                    </Field>
-                                </v-col>
-                                <v-col cols="12" md="4">
-                                    <Field
-                                        v-slot="{ field, errorMessage }"
-                                        name="billingPostalCode"
-                                        validate-on-blur
-                                    >
-                                        <v-text-field
-                                            :model-value="field.value"
-                                            @update:model-value="field.onChange"
-                                            label="Postal Code *"
-                                            variant="outlined"
-                                            density="compact"
-                                            :error-messages="errorMessage"
-                                            hide-details="auto"
-                                            @blur="field.onBlur"
-                                        />
-                                    </Field>
-                                </v-col>
-                                <v-col cols="12" md="6">
-                                    <Field
-                                        v-slot="{ field, errorMessage }"
-                                        name="billingCountryCode"
-                                        validate-on-blur
-                                    >
-                                        <v-select
-                                            :model-value="field.value"
-                                            @update:model-value="
-                                                (val) =>
-                                                    handleBillingCountryChange(field.onChange, val)
-                                            "
-                                            :items="countryOptions"
-                                            item-title="title"
-                                            item-value="value"
-                                            label="Country *"
-                                            variant="outlined"
-                                            density="compact"
-                                            :error-messages="errorMessage"
-                                            hide-details="auto"
-                                            @blur="field.onBlur"
-                                        />
-                                    </Field>
-                                </v-col>
-                            </v-row>
-                        </v-card-text>
-                    </v-card>
-
-                    <!-- Shipping Addresses Section -->
-                    <v-card class="mb-4" elevation="0" variant="outlined">
-                        <v-card-text>
-                            <v-switch
-                                v-model="copyBillingToShipping"
-                                label="Same as billing address"
-                                hide-details
-                                density="compact"
-                                color="primary"
-                                class="mb-4"
-                                @update:model-value="handleCopyBillingToShipping"
-                            />
-
-                            <!-- First Shipping Address (bound to form fields) -->
-                            <v-card variant="outlined" class="pa-4 mb-4">
-                                <div class="text-subtitle-1 mb-4">Shipping Address 1</div>
-                                <v-row>
-                                    <v-col cols="12" md="6">
-                                        <Field
-                                            v-slot="{ field, errorMessage }"
-                                            name="shippingFirstName"
-                                            validate-on-blur
-                                        >
-                                            <v-text-field
-                                                :model-value="field.value"
-                                                @update:model-value="field.onChange"
-                                                label="First Name *"
-                                                variant="outlined"
-                                                density="compact"
-                                                :error-messages="errorMessage"
-                                                hide-details="auto"
-                                                @blur="field.onBlur"
-                                            />
-                                        </Field>
-                                    </v-col>
-                                    <v-col cols="12" md="6">
-                                        <Field
-                                            v-slot="{ field, errorMessage }"
-                                            name="shippingLastName"
-                                            validate-on-blur
-                                        >
-                                            <v-text-field
-                                                :model-value="field.value"
-                                                @update:model-value="field.onChange"
-                                                label="Last Name *"
-                                                variant="outlined"
-                                                density="compact"
-                                                :error-messages="errorMessage"
-                                                hide-details="auto"
-                                                @blur="field.onBlur"
-                                            />
-                                        </Field>
-                                    </v-col>
-                                    <v-col cols="12" md="6">
-                                        <Field
-                                            v-slot="{ field, errorMessage }"
-                                            name="shippingCompany"
-                                            validate-on-blur
-                                        >
-                                            <v-text-field
-                                                :model-value="field.value"
-                                                @update:model-value="field.onChange"
-                                                label="Company"
-                                                variant="outlined"
-                                                density="compact"
-                                                :error-messages="errorMessage"
-                                                hide-details="auto"
-                                                @blur="field.onBlur"
-                                            />
-                                        </Field>
-                                    </v-col>
-                                    <v-col cols="12">
-                                        <Field
-                                            v-slot="{ field, errorMessage }"
-                                            name="shippingAddress"
-                                            validate-on-blur
-                                        >
-                                            <v-text-field
-                                                :model-value="field.value"
-                                                @update:model-value="field.onChange"
-                                                label="Address *"
-                                                variant="outlined"
-                                                density="compact"
-                                                :error-messages="errorMessage"
-                                                hide-details="auto"
-                                                @blur="field.onBlur"
-                                            />
-                                        </Field>
-                                    </v-col>
-                                    <v-col cols="12" md="4">
-                                        <Field
-                                            v-slot="{ field, errorMessage }"
-                                            name="shippingCity"
-                                            validate-on-blur
-                                        >
-                                            <v-text-field
-                                                :model-value="field.value"
-                                                @update:model-value="field.onChange"
-                                                label="City *"
-                                                variant="outlined"
-                                                density="compact"
-                                                :error-messages="errorMessage"
-                                                hide-details="auto"
-                                                @blur="field.onBlur"
-                                            />
-                                        </Field>
-                                    </v-col>
-                                    <v-col cols="12" md="4">
-                                        <Field
-                                            v-slot="{ field, errorMessage }"
-                                            name="shippingStateCode"
-                                            validate-on-blur
-                                        >
-                                            <v-select
-                                                :model-value="field.value"
-                                                @update:model-value="field.onChange"
-                                                :items="shippingStateOptions"
-                                                item-title="title"
-                                                item-value="value"
-                                                label="State *"
-                                                variant="outlined"
-                                                density="compact"
-                                                :error-messages="errorMessage"
-                                                hide-details="auto"
-                                                @blur="field.onBlur"
-                                            />
-                                        </Field>
-                                    </v-col>
-                                    <v-col cols="12" md="4">
-                                        <Field
-                                            v-slot="{ field, errorMessage }"
-                                            name="shippingPostalCode"
-                                            validate-on-blur
-                                        >
-                                            <v-text-field
-                                                :model-value="field.value"
-                                                @update:model-value="field.onChange"
-                                                label="Postal Code *"
-                                                variant="outlined"
-                                                density="compact"
-                                                :error-messages="errorMessage"
-                                                hide-details="auto"
-                                                @blur="field.onBlur"
-                                            />
-                                        </Field>
-                                    </v-col>
-                                    <v-col cols="12" md="6">
-                                        <Field
-                                            v-slot="{ field, errorMessage }"
-                                            name="shippingCountryCode"
-                                            validate-on-blur
-                                        >
-                                            <v-select
-                                                :model-value="field.value"
-                                                @update:model-value="
-                                                    (val) =>
-                                                        handleShippingCountryChange(
-                                                            field.onChange,
-                                                            val
-                                                        )
-                                                "
-                                                :items="countryOptions"
-                                                item-title="title"
-                                                item-value="value"
-                                                label="Country *"
-                                                variant="outlined"
-                                                density="compact"
-                                                :error-messages="errorMessage"
-                                                hide-details="auto"
-                                                @blur="field.onBlur"
-                                            />
-                                        </Field>
-                                    </v-col>
-                                </v-row>
-                            </v-card>
-                        </v-card-text>
-                    </v-card>
-
-                    <!-- Credit Card Details Section -->
-                    <v-card class="mb-4" elevation="0" variant="outlined">
-                        <v-card-title class="text-h6">Credit Card Details</v-card-title>
-                        <v-card-text>
-                            <v-row>
-                                <v-col cols="12" md="6">
-                                    <Field
-                                        v-slot="{ field, errorMessage }"
-                                        name="creditCard.cardNumber"
-                                        validate-on-blur
-                                    >
-                                        <v-text-field
-                                            :model-value="field.value"
-                                            @update:model-value="field.onChange"
-                                            label="Card Number"
-                                            variant="outlined"
-                                            density="compact"
-                                            :error-messages="errorMessage"
-                                            hide-details="auto"
-                                            @blur="field.onBlur"
-                                        />
-                                    </Field>
-                                </v-col>
-                                <v-col cols="12" md="2">
-                                    <Field
-                                        v-slot="{ field, errorMessage }"
-                                        name="creditCard.expMonth"
-                                        validate-on-blur
-                                    >
-                                        <v-select
-                                            :model-value="field.value"
-                                            @update:model-value="field.onChange"
-                                            label="Exp Month"
-                                            :items="monthOptions"
-                                            variant="outlined"
-                                            density="compact"
-                                            item-title="title"
-                                            item-value="value"
-                                            :error-messages="errorMessage"
-                                            hide-details="auto"
-                                            @blur="field.onBlur"
-                                        />
-                                    </Field>
-                                </v-col>
-                                <v-col cols="12" md="2">
-                                    <Field
-                                        v-slot="{ field, errorMessage }"
-                                        name="creditCard.expYear"
-                                        validate-on-blur
-                                    >
-                                        <v-select
-                                            :model-value="field.value"
-                                            @update:model-value="field.onChange"
-                                            label="Exp Year"
-                                            :items="yearOptions"
-                                            variant="outlined"
-                                            density="compact"
-                                            item-title="title"
-                                            item-value="value"
-                                            :error-messages="errorMessage"
-                                            hide-details="auto"
-                                            @blur="field.onBlur"
-                                        />
-                                    </Field>
-                                </v-col>
-                                <v-col cols="12" md="2">
-                                    <Field
-                                        v-slot="{ field, errorMessage }"
-                                        name="creditCard.cvc"
-                                        validate-on-blur
-                                    >
-                                        <v-text-field
-                                            :model-value="field.value"
-                                            @update:model-value="field.onChange"
-                                            label="CVC"
-                                            variant="outlined"
-                                            density="compact"
-                                            :error-messages="errorMessage"
-                                            hide-details="auto"
-                                            @blur="field.onBlur"
-                                        />
-                                    </Field>
-                                </v-col>
-                            </v-row>
-                        </v-card-text>
-                    </v-card>
+                    <CustomersAddCustomerBillingFields
+                        :country-options="countryOptions"
+                        :billing-state-options="billingStateOptions"
+                        @country-change="handleBillingCountryChange"
+                    />
+                    <CustomersAddCustomerShippingFields
+                        :country-options="countryOptions"
+                        :shipping-state-options="shippingStateOptions"
+                        :copy-billing-to-shipping="copyBillingToShipping"
+                        @country-change="handleShippingCountryChange"
+                        @update:copy-billing-to-shipping="handleCopyBillingToShipping"
+                    />
+                    <CustomersAddCustomerCreditCardFields />
                 </v-form>
             </v-card-text>
         </v-card>
@@ -757,8 +340,8 @@ const emit = defineEmits<{
     submit: []
 }>()
 
-const { createCustomer, uploadImage, checkEmailExists } = useCustomer()
-const { fetchLocations } = useLocation()
+const { createCustomer, stageCreateAvatar, getCreateFormData, checkCreateEmailExists } =
+    useCustomer()
 const {
     countries,
     phoneCountryCodes,
@@ -768,39 +351,17 @@ const {
     fetchPhoneCountryCodes,
     fetchStates,
 } = useCountry()
-const { successFromResponse, errorFromError, warning, error, success } = useToast()
-const createdCustomerId = ref<number | null>(null)
-const { addCard } = useCustomerCreditCards(() => createdCustomerId.value)
+const { errorFromError, success } = useToast()
 
 const formRef = ref()
 const copyBillingToShipping = ref(false)
 const checkingEmail = ref(false)
 
-// Month options (1-12)
-const monthOptions = Array.from({ length: 12 }, (_, i) => {
-    const month = i + 1
-    return {
-        title: month.toString().padStart(2, '0'),
-        value: month.toString().padStart(2, '0'),
-    }
-})
-
-// Year options (current year to next 15 years)
-const currentYear = new Date().getFullYear()
-const yearOptions = Array.from({ length: 16 }, (_, i) => {
-    const year = currentYear + i
-    return {
-        title: year.toString(),
-        value: year.toString(),
-    }
-})
 const selectedOrganisationId = ref<number>(
     props.organisationId && props.organisationId > 0
         ? props.organisationId
         : DEFAULT_ORGANISATION_ID
 )
-const avatarInput = ref<HTMLInputElement | null>(null)
-const avatarPreview = ref<string | null>(null)
 const avatarFile = ref<File | null>(null)
 let locationRequestId = 0
 const formLocations = ref<Array<{ id: number; name: string }>>([])
@@ -896,14 +457,10 @@ const locationOptions = computed(() => {
 })
 
 // Country and state options
-const billingCountryCode = ref<string>('')
-const shippingCountryCode = ref<string>('')
 const billingStateOptions = ref<Array<{ title: string; value: string | number }>>([])
 const shippingStateOptions = ref<Array<{ title: string; value: string | number }>>([])
 
-const handleBillingCountryChange = async (onChange: (value: any) => void, countryId: string) => {
-    billingCountryCode.value = countryId
-    onChange(countryId)
+const handleBillingCountryChange = async (countryId: string): Promise<void> => {
     if (countryId) {
         const states = await fetchStates(countryId)
         billingStateOptions.value = states.map((s) => ({
@@ -915,9 +472,7 @@ const handleBillingCountryChange = async (onChange: (value: any) => void, countr
     }
 }
 
-const handleShippingCountryChange = async (onChange: (value: any) => void, countryId: string) => {
-    shippingCountryCode.value = countryId
-    onChange(countryId)
+const handleShippingCountryChange = async (countryId: string): Promise<void> => {
     if (countryId) {
         const states = await fetchStates(countryId)
         shippingStateOptions.value = states.map((s) => ({
@@ -929,7 +484,8 @@ const handleShippingCountryChange = async (onChange: (value: any) => void, count
     }
 }
 
-const handleCopyBillingToShipping = (copy: boolean | null) => {
+const handleCopyBillingToShipping = (copy: boolean | null): void => {
+    copyBillingToShipping.value = Boolean(copy)
     if (copy) {
         setFieldValue('shippingFirstName', values.firstName || '')
         setFieldValue('shippingLastName', values.lastName || '')
@@ -943,12 +499,12 @@ const handleCopyBillingToShipping = (copy: boolean | null) => {
 }
 
 // Phone number handlers
-const handleCountryCodeChange = (countryCode: string) => {
+const handleCountryCodeChange = (countryCode: string): void => {
     selectedCountryCode.value = countryCode
     updatePhoneNumberField()
 }
 
-const handlePhoneNumberChange = (value: string) => {
+const handlePhoneNumberChange = (value: string): void => {
     // Always try to auto-detect country code if phone country codes are loaded
     if (value && value.trim().length > 0 && phoneCountryCodes.value.length > 0) {
         // Try to parse and detect country code
@@ -967,7 +523,7 @@ const handlePhoneNumberChange = (value: string) => {
     updatePhoneNumberField()
 }
 
-const updatePhoneNumberField = () => {
+const updatePhoneNumberField = (): void => {
     const fullPhoneNumber = buildInternationalPhoneNumber(
         selectedCountryCode.value,
         phoneNumberValue.value,
@@ -977,7 +533,10 @@ const updatePhoneNumberField = () => {
 }
 
 // Email validation on blur
-const handleEmailBlur = async (field: { value?: string; onBlur: (e: Event) => void }) => {
+const handleEmailBlur = async (field: {
+    value?: string
+    onBlur: (e: Event) => void
+}): Promise<void> => {
     // Create a synthetic event or call onBlur with the actual event
     const syntheticEvent = new Event('blur') as Event
     field.onBlur(syntheticEvent)
@@ -997,7 +556,7 @@ const handleEmailBlur = async (field: { value?: string; onBlur: (e: Event) => vo
 
     checkingEmail.value = true
     try {
-        const available = await checkEmailExists(email, undefined, selectedOrganisationId.value)
+        const available = await checkCreateEmailExists(selectedOrganisationId.value, email)
         if (!available) {
             setErrors({ email: 'Email already exists. Please use a different email.' })
         }
@@ -1023,52 +582,15 @@ const submitForm = handleSubmit(async (formValues) => {
     try {
         const loadingTask = useLoadingTask('create-customer')
         await loadingTask.execute(async () => {
-            // Remove credit card from customer data - it will be added separately if provided
-            const { creditCard, ...customerDataWithoutCc } = formValues
+            const stagedAvatar = avatarFile.value
+                ? await stageCreateAvatar(selectedOrganisationId.value, avatarFile.value)
+                : null
             const customerData: CreateCustomerFormData = {
-                ...customerDataWithoutCc,
-                creditCard: null, // Don't send credit card in customer creation
+                ...formValues,
+                avatar: stagedAvatar,
+                creditCard: hasAnyCreditCardField.value ? formValues.creditCard : null,
             }
-            const createdCustomer = await createCustomer(customerData)
-            createdCustomerId.value = createdCustomer.id
-
-            // Upload avatar image if one was selected
-            if (avatarFile.value && createdCustomer.id) {
-                try {
-                    await uploadImage(createdCustomer.id, avatarFile.value)
-                } catch (uploadError) {
-                    console.error('Error uploading avatar:', uploadError)
-                    // Don't fail the entire operation if image upload fails
-                    warning(CUSTOMER_MESSAGES.AVATAR_UPLOAD_FAILED)
-                }
-            }
-
-            // Optionally add credit card if provided
-            if (hasAnyCreditCardField.value && creditCard && createdCustomer.id) {
-                try {
-                    const ccData = {
-                        firstName: formValues.firstName,
-                        lastName: formValues.lastName,
-                        company: formValues.billingCompany || undefined,
-                        address: formValues.billingAddress,
-                        city: formValues.billingCity,
-                        stateCode: formValues.billingStateCode,
-                        postalCode: formValues.billingPostalCode,
-                        countryCode: formValues.billingCountryCode,
-                        phoneNumber: formValues.phoneNumber || undefined,
-                        cardNumber: creditCard.cardNumber,
-                        expMonth: creditCard.expMonth,
-                        expYear: creditCard.expYear,
-                        cvc: creditCard.cvc,
-                        isActive: creditCard.isActive ?? true,
-                    }
-                    await addCard(ccData)
-                } catch (ccError) {
-                    console.error('Error adding credit card:', ccError)
-                    // Don't fail the entire operation if credit card addition fails
-                    warning('Customer created successfully, but credit card could not be added.')
-                }
-            }
+            await createCustomer(customerData)
 
             success(CUSTOMER_MESSAGES.CREATE_SUCCESS)
             emit('update:modelValue', false)
@@ -1076,11 +598,9 @@ const submitForm = handleSubmit(async (formValues) => {
             resetForm({ values: initialValues, errors: {}, touched: {} })
             copyBillingToShipping.value = false
             avatarFile.value = null
-            avatarPreview.value = null
             // Reset phone number fields
             selectedCountryCode.value = 'US'
             phoneNumberValue.value = ''
-            createdCustomerId.value = null
         })
     } catch (error) {
         console.error('Error creating customer:', error)
@@ -1088,7 +608,7 @@ const submitForm = handleSubmit(async (formValues) => {
     }
 })
 
-const handleSubmitForm = async () => {
+const handleSubmitForm = async (): Promise<void> => {
     // Mark all fields as touched to ensure errors are shown
     const allFields = Object.keys(initialValues)
     const touchedFields = allFields.reduce(
@@ -1113,7 +633,7 @@ const { pending: addCustomerDataPending } = await useLazyAsyncData(
         const initialOrganisationId = selectedOrganisationId.value || DEFAULT_ORGANISATION_ID
         selectedOrganisationId.value = initialOrganisationId
         setFieldValue('organisationId', initialOrganisationId)
-        const availableLocations = await fetchLocations(initialOrganisationId)
+        const { locations: availableLocations } = await getCreateFormData(initialOrganisationId)
         formLocations.value = availableLocations
         const firstLocationId = availableLocations[0]?.id
         if (firstLocationId) {
@@ -1132,7 +652,7 @@ watch(
             const requestId = ++locationRequestId
             const loadingTask = useLoadingTask('fetch-locations')
             await loadingTask.execute(async () => {
-                const availableLocations = await fetchLocations(newOrganisationId)
+                const { locations: availableLocations } = await getCreateFormData(newOrganisationId)
                 if (requestId !== locationRequestId) return
                 formLocations.value = availableLocations
                 const firstLocationId = availableLocations[0]?.id ?? 0
@@ -1143,79 +663,9 @@ watch(
     }
 )
 
-// Avatar upload handlers
-const triggerAvatarInput = () => {
-    avatarInput.value?.click()
-}
-
-const handleAvatarChange = (event: Event) => {
-    const target = event.target as HTMLInputElement
-    const file = target.files?.[0]
-    if (!file) return
-
-    if (file.size > 2 * 1024 * 1024) {
-        error(CUSTOMER_MESSAGES.FILE_SIZE_ERROR)
-        return
-    }
-
-    if (!file.type.startsWith('image/')) {
-        error(CUSTOMER_MESSAGES.FILE_TYPE_ERROR)
-        return
-    }
-
-    avatarFile.value = file
-    const reader = new FileReader()
-    reader.onload = (e) => {
-        avatarPreview.value = e.target?.result as string
-    }
-    reader.readAsDataURL(file)
-    target.value = ''
-}
-
-const handleAvatarDrop = (event: DragEvent) => {
-    const file = event.dataTransfer?.files[0]
-    if (!file) return
-
-    const fakeEvent = {
-        target: {
-            files: [file],
-        },
-    } as unknown as Event
-    handleAvatarChange(fakeEvent)
-}
-
-const removeAvatar = () => {
-    avatarFile.value = null
-    avatarPreview.value = null
-    if (avatarInput.value) {
-        avatarInput.value.value = ''
-    }
-}
 </script>
 
 <style scoped>
-.upload-zone {
-    border: 2px dashed rgba(155, 35, 53, 0.4);
-    border-radius: 8px;
-    background-color: rgba(155, 35, 53, 0.02);
-    cursor: pointer;
-    transition: all 0.2s ease;
-    min-height: 150px;
-}
-
-.upload-zone:hover {
-    border-color: rgba(155, 35, 53, 0.8);
-    background-color: rgba(155, 35, 53, 0.05);
-}
-
-.upload-zone-small {
-    min-height: 150px;
-}
-
-.avatar-preview-container {
-    text-align: center;
-}
-
 .gap-2 {
     gap: 8px;
 }

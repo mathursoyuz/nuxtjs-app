@@ -114,11 +114,11 @@ const isValid = computed(
         /^\S+@\S+\.\S+$/.test(draft.email)
 )
 
-function close(value: boolean): void {
+const close = (value: boolean): void => {
     emit('update:modelValue', value)
 }
 
-function save(): void {
+const save = (): void => {
     if (!isValid.value) return
     emit('save', { ...draft })
     close(false)

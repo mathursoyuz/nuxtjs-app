@@ -190,6 +190,7 @@
                                             label="Card Number *"
                                             inputmode="numeric"
                                             autocomplete="cc-number"
+                                            maxlength="19"
                                             variant="outlined"
                                             density="compact"
                                             :disabled="hasReachedLimit"
@@ -273,6 +274,12 @@ import { computed, ref, watch } from 'vue'
 import { Field, useForm } from 'vee-validate'
 import { toTypedSchema } from '@vee-validate/zod'
 import { z } from 'zod'
+import {
+    isFuturePaymentCardExpiry,
+    optionalCompanySchema,
+    paymentAddressFieldSchemas,
+    paymentCardFieldSchemas,
+} from '~/schemas/payment-card.schema'
 import { useCountry } from '~/composables/useCountry'
 import { useCustomer } from '~/composables/useCustomer'
 import { useCustomerCreditCards } from '~/composables/useCustomerCreditCards'
@@ -283,23 +290,20 @@ import type { Customer } from '~/services/api/wrappers/customer.api'
 
 const MAX_CREDIT_CARDS = CUSTOMER_LIMITS.CREDIT_CARDS
 
-const optionalCompanySchema = z.preprocess(
-    (value) => (value === '' ? undefined : value),
-    z.string().min(2).max(100).optional()
-)
-
-const creditCardFormSchema = z.object({
-    company: optionalCompanySchema,
-    address: z.string().trim().min(5).max(150),
-    city: z.string().trim().min(2).max(50),
-    stateCode: z.string().trim().min(1).max(10),
-    postalCode: z.string().trim().min(3).max(10),
-    countryCode: z.string().trim().min(2).max(5),
-    cardNumber: z.string().regex(/^\d{13,18}$/, 'Enter a valid card number'),
-    expMonth: z.string().regex(/^(0[1-9]|1[0-2])$/, 'Select an expiry month'),
-    expYear: z.string().regex(/^\d{4}$/, 'Select an expiry year'),
-    cvc: z.string().regex(/^\d{3,4}$/, 'Enter a valid CVC'),
-})
+const creditCardFormSchema = z
+    .object({
+        company: optionalCompanySchema,
+        address: paymentAddressFieldSchemas.address,
+        city: paymentAddressFieldSchemas.city,
+        stateCode: paymentAddressFieldSchemas.stateCode,
+        postalCode: paymentAddressFieldSchemas.postalCode,
+        countryCode: paymentAddressFieldSchemas.countryCode,
+        ...paymentCardFieldSchemas,
+    })
+    .refine((data) => isFuturePaymentCardExpiry(data.expMonth, data.expYear), {
+        path: ['expYear'],
+        message: 'The card has expired',
+    })
 
 type CreditCardForm = z.infer<typeof creditCardFormSchema>
 
@@ -357,7 +361,7 @@ const { handleSubmit, errors, resetForm, setFieldValue } = useForm<CreditCardFor
     initialValues,
 })
 
-async function loadStates(countryCode: string): Promise<void> {
+const loadStates = async (countryCode: string): Promise<void> => {
     if (!countryCode) {
         stateOptions.value = []
         return
@@ -366,16 +370,16 @@ async function loadStates(countryCode: string): Promise<void> {
     stateOptions.value = states.map((state) => ({ title: state.name, value: state.id }))
 }
 
-async function changeCountry(
+const changeCountry = async (
     onChange: (value: string) => void,
     countryCode: string
-): Promise<void> {
+): Promise<void> => {
     onChange(countryCode)
     setFieldValue('stateCode', '')
     await loadStates(countryCode)
 }
 
-async function loadDialogData(): Promise<void> {
+const loadDialogData = async (): Promise<void> => {
     if (!props.customer) return
     const [, , fullCustomer] = await Promise.all([
         fetchCountries(),
@@ -399,7 +403,7 @@ async function loadDialogData(): Promise<void> {
     })
 }
 
-async function activate(cardId: number, shouldActivate: boolean): Promise<void> {
+const activate = async (cardId: number, shouldActivate: boolean): Promise<void> => {
     if (!shouldActivate) return
     activatingCardId.value = cardId
     try {
@@ -445,7 +449,7 @@ const submitForm = handleSubmit(async (values) => {
     }
 })
 
-function closeDialog(): void {
+const closeDialog = (): void => {
     emit('update:modelValue', false)
 }
 

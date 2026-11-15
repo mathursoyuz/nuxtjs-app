@@ -47,7 +47,7 @@
             >
                 <template #item.user="{ item }">
                     <div class="d-flex align-center ga-3 py-3">
-                        <v-avatar size="36" color="grey-lighten-3">
+                        <v-avatar size="36" color="surface-variant">
                             <span class="text-caption font-weight-medium">
                                 {{ initials(item) }}
                             </span>
@@ -78,7 +78,7 @@
                 </template>
                 <template #item.isActive="{ item }">
                     <v-chip
-                        :color="item.isActive ? 'success' : 'grey'"
+                        :color="item.isActive ? 'success' : 'surface-variant'"
                         size="small"
                         variant="tonal"
                     >
@@ -129,9 +129,17 @@
             </v-data-table>
         </v-card>
 
-        <UserDialog
-            v-if="organisationId && userDialog"
-            :key="`${organisationId}:${editingUserId ?? 'new'}`"
+        <CreateUserDialog
+            v-if="organisationId && userDialog && editingUserId === undefined"
+            :key="`${organisationId}:new`"
+            v-model="userDialog"
+            :organisation-id="organisationId"
+            :context-name="contextName"
+            @saved="reload"
+        />
+        <EditUserDialog
+            v-if="organisationId && userDialog && editingUserId !== undefined"
+            :key="`${organisationId}:${editingUserId}`"
             v-model="userDialog"
             :organisation-id="organisationId"
             :context-name="contextName"
@@ -208,10 +216,10 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useAccessStore } from '~/stores/access.store'
 import { useFilterStore } from '~/stores/filter.store'
 import { useAuthStore } from '~/stores/auth.store'
-import type { AccessApiService } from '~/services/api/wrappers/access.api'
 import { SYSTEM_ROLE_LABELS } from '~/types/access.types'
 import type { ManagedUser, SystemRole, UserManagementOptions } from '~/types/access.types'
-import UserDialog from '~/components/access/UserDialog.vue'
+import CreateUserDialog from '~/components/access/CreateUserDialog.vue'
+import EditUserDialog from '~/components/access/EditUserDialog.vue'
 import ConfirmDialog from '~/components/dialogs/ConfirmDialog.vue'
 import PageFilters from '~/components/filters/PageFilters.vue'
 
@@ -227,7 +235,7 @@ definePageMeta({
 const access = useAccessStore()
 const filters = useFilterStore()
 const auth = useAuthStore()
-const api = useNuxtApp().$accessApi as AccessApiService
+const api = useAccessManagement()
 const toast = useToast()
 const organisationId = computed(() => access.actingOrganisationId)
 const filterOrganisationId = computed(() =>
@@ -247,13 +255,13 @@ const contextName = computed(() =>
           ? 'Platform users'
           : (access.actingContext?.organisationName ?? 'Organisation users')
 )
-const canCreate = computed(() => !isOverview.value && access.can(USER_PERMISSIONS.WRITE))
-const canUpdate = computed(() => !isOverview.value && access.can(USER_PERMISSIONS.WRITE))
-const canChangeStatus = computed(() => !isOverview.value && access.can(USER_PERMISSIONS.WRITE))
+const canCreate = computed(() => !isOverview.value && access.can(USER_PERMISSIONS.CREATE))
+const canUpdate = computed(() => !isOverview.value && access.can(USER_PERMISSIONS.UPDATE))
+const canChangeStatus = computed(() => !isOverview.value && access.can(USER_PERMISSIONS.UPDATE))
 const canChangeSystemRole = computed(
     () =>
         !isOverview.value &&
-        access.can(USER_PERMISSIONS.WRITE) &&
+        access.can(USER_PERMISSIONS.UPDATE) &&
         (managementOptions.value?.systemRoles.length ?? 0) > 1
 )
 const managementOptions = ref<UserManagementOptions | null>(null)
@@ -302,10 +310,10 @@ const systemRoleOptions = computed(() => {
         : [SYSTEM_ROLE.ORGANISATION_OWNER, SYSTEM_ROLE.ORGANISATION_TEAM_USER]
     return codes.map((value) => ({ title: SYSTEM_ROLE_LABELS[value], value }))
 })
-function initials(user: ManagedUser) {
+const initials = (user: ManagedUser): string => {
     return `${user.firstName[0] ?? ''}${user.lastName[0] ?? ''}`.toUpperCase()
 }
-function message(cause: unknown) {
+const message = (cause: unknown): string => {
     const value = cause as {
         response?: { data?: { message?: string | string[] } }
         message?: string
@@ -315,7 +323,7 @@ function message(cause: unknown) {
         ? text.join(' ')
         : text || value?.message || 'Unable to complete this action.'
 }
-function clear() {
+const clear = (): void => {
     revision++
     users.value = []
     error.value = ''
@@ -325,7 +333,7 @@ function clear() {
     statusTarget.value = systemTarget.value = null
     managementOptions.value = null
 }
-async function load() {
+const load = async (): Promise<void> => {
     const current = ++revision
     const id = organisationId.value
     users.value = []
@@ -358,25 +366,25 @@ async function load() {
         if (current === revision) loading.value = false
     }
 }
-async function reload() {
+const reload = async (): Promise<void> => {
     userDialog.value = false
     await access.refresh()
     await load()
 }
-function createUser() {
+const createUser = (): void => {
     editingUserId.value = undefined
     userDialog.value = true
 }
-function editUser(user: ManagedUser) {
+const editUser = (user: ManagedUser): void => {
     editingUserId.value = user.id
     userDialog.value = true
 }
-function editSystemRole(user: ManagedUser) {
+const editSystemRole = (user: ManagedUser): void => {
     systemTarget.value = user
     nextSystemRole.value = user.systemRole
     dialogError.value = ''
 }
-async function changeStatus() {
+const changeStatus = async (): Promise<void> => {
     const user = statusTarget.value
     const id = organisationId.value
     if (
@@ -405,7 +413,7 @@ async function changeStatus() {
         if (current === revision || !statusTarget.value) saving.value = false
     }
 }
-async function changeSystemRole() {
+const changeSystemRole = async (): Promise<void> => {
     const target = systemTarget.value
     if (!target || saving.value || !canChangeSystemRole.value || target.id === auth.userId) return
     const current = revision

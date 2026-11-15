@@ -1,239 +1,285 @@
-import { computed } from 'vue';
-import { useNuxtApp } from '#app';
-import { useQuickBooksStore } from '~/stores/quickbooks.store';
+import { computed } from 'vue'
+import { useNuxtApp } from '#app'
+import { useQuickBooksStore } from '~/stores/quickbooks.store'
+import type { QuickBooksApiService } from '~/services/api/wrappers/quickbooks.api'
 
-export function useQuickbooks() {
-    const nuxtApp = useNuxtApp();
-    const quickbooksStore = useQuickBooksStore();
-    const quickbooksApi = nuxtApp.$quickbooksApi as import('~/services/api/wrappers/quickbooks.api').QuickBooksApiService;
+export const useQuickbooks = () => {
+    const nuxtApp = useNuxtApp()
+    const quickbooksStore = useQuickBooksStore()
+    const quickbooksApi =
+        nuxtApp.$quickbooksApi as import('~/services/api/wrappers/quickbooks.api').QuickBooksApiService
 
     if (!quickbooksApi) {
-        throw new Error('QuickBooksApiService not available');
+        throw new Error('QuickBooksApiService not available')
     }
 
     const initiateAuth = () => {
-        const authUrl = quickbooksApi.getAuthUrl();
-        window.location.href = authUrl;
-    };
+        const authUrl = quickbooksApi.getAuthUrl()
+        window.location.href = authUrl
+    }
 
     const handleAuthCallback = async (code: string, realmId: string) => {
-        quickbooksStore.setLoading(true);
-        quickbooksStore.clearError();
+        quickbooksStore.setLoading(true)
+        quickbooksStore.clearError()
 
         try {
-            const response = await quickbooksApi.handleAuthCallback(code, realmId);
+            const response = await quickbooksApi.handleAuthCallback(code, realmId)
             if (response.success && response.data) {
-                quickbooksStore.setConnected(true);
-                return response.data;
+                quickbooksStore.setConnected(true)
+                return response.data
             }
-            throw new Error(response.message || 'Failed to authenticate');
+            throw new Error(response.message || 'Failed to authenticate')
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : 'Failed to authenticate';
-            quickbooksStore.setError(errorMessage);
-            throw error;
+            const errorMessage = error instanceof Error ? error.message : 'Failed to authenticate'
+            quickbooksStore.setError(errorMessage)
+            throw error
         } finally {
-            quickbooksStore.setLoading(false);
+            quickbooksStore.setLoading(false)
         }
-    };
+    }
 
     const refreshToken = async (slug: string) => {
-        quickbooksStore.setLoading(true);
-        quickbooksStore.clearError();
+        quickbooksStore.setLoading(true)
+        quickbooksStore.clearError()
 
         try {
-            const response = await quickbooksApi.refreshToken(slug);
+            const response = await quickbooksApi.refreshToken(slug)
             if (response.success) {
-                return response.data;
+                return response.data
             }
-            throw new Error(response.message || 'Failed to refresh token');
+            throw new Error(response.message || 'Failed to refresh token')
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : 'Failed to refresh token';
-            quickbooksStore.setError(errorMessage);
-            throw error;
+            const errorMessage = error instanceof Error ? error.message : 'Failed to refresh token'
+            quickbooksStore.setError(errorMessage)
+            throw error
         } finally {
-            quickbooksStore.setLoading(false);
+            quickbooksStore.setLoading(false)
         }
-    };
+    }
 
     const importCategories = async () => {
-        quickbooksStore.setSyncStatus('categories', 'syncing');
-        quickbooksStore.clearError();
+        quickbooksStore.setSyncStatus('categories', 'syncing')
+        quickbooksStore.clearError()
 
         try {
-            const response = await quickbooksApi.importCategories();
+            const response = await quickbooksApi.importCategories()
             if (response.success) {
-                quickbooksStore.setSyncStatus('categories', 'success');
-                return response.data;
+                quickbooksStore.setSyncStatus('categories', 'success')
+                return response.data
             }
-            throw new Error(response.message || 'Failed to import categories');
+            throw new Error(response.message || 'Failed to import categories')
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : 'Failed to import categories';
-            quickbooksStore.setSyncStatus('categories', 'error', errorMessage);
-            throw error;
+            const errorMessage =
+                error instanceof Error ? error.message : 'Failed to import categories'
+            quickbooksStore.setSyncStatus('categories', 'error', errorMessage)
+            throw error
         }
-    };
+    }
 
     const syncCategoryToQB = async (categoryId: number) => {
-        quickbooksStore.setSyncStatus('categories', 'syncing');
-        quickbooksStore.clearError();
+        quickbooksStore.setSyncStatus('categories', 'syncing')
+        quickbooksStore.clearError()
 
         try {
-            const response = await quickbooksApi.syncCategoryToQB(categoryId);
+            const response = await quickbooksApi.syncCategoryToQB(categoryId)
             if (response.success) {
-                quickbooksStore.setSyncStatus('categories', 'success');
-                return response.data;
+                quickbooksStore.setSyncStatus('categories', 'success')
+                return response.data
             }
-            throw new Error(response.message || 'Failed to sync category');
+            throw new Error(response.message || 'Failed to sync category')
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : 'Failed to sync category';
-            quickbooksStore.setSyncStatus('categories', 'error', errorMessage);
-            throw error;
+            const errorMessage = error instanceof Error ? error.message : 'Failed to sync category'
+            quickbooksStore.setSyncStatus('categories', 'error', errorMessage)
+            throw error
         }
-    };
+    }
 
     const batchSyncCategoriesToQB = async () => {
-        quickbooksStore.setSyncStatus('categories', 'syncing');
-        quickbooksStore.clearError();
+        quickbooksStore.setSyncStatus('categories', 'syncing')
+        quickbooksStore.clearError()
 
         try {
-            const response = await quickbooksApi.batchSyncCategoriesToQB();
+            const response = await quickbooksApi.batchSyncCategoriesToQB()
             if (response.success) {
-                quickbooksStore.setSyncStatus('categories', 'success');
-                return response.data;
+                quickbooksStore.setSyncStatus('categories', 'success')
+                return response.data
             }
-            throw new Error(response.message || 'Failed to batch sync categories');
+            throw new Error(response.message || 'Failed to batch sync categories')
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : 'Failed to batch sync categories';
-            quickbooksStore.setSyncStatus('categories', 'error', errorMessage);
-            throw error;
+            const errorMessage =
+                error instanceof Error ? error.message : 'Failed to batch sync categories'
+            quickbooksStore.setSyncStatus('categories', 'error', errorMessage)
+            throw error
         }
-    };
+    }
 
     const importProducts = async () => {
-        quickbooksStore.setSyncStatus('products', 'syncing');
-        quickbooksStore.clearError();
+        quickbooksStore.setSyncStatus('products', 'syncing')
+        quickbooksStore.clearError()
 
         try {
-            const response = await quickbooksApi.importProducts();
+            const response = await quickbooksApi.importProducts()
             if (response.success) {
-                quickbooksStore.setSyncStatus('products', 'success');
-                return response.data;
+                quickbooksStore.setSyncStatus('products', 'success')
+                return response.data
             }
-            throw new Error(response.message || 'Failed to import products');
+            throw new Error(response.message || 'Failed to import products')
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : 'Failed to import products';
-            quickbooksStore.setSyncStatus('products', 'error', errorMessage);
-            throw error;
+            const errorMessage =
+                error instanceof Error ? error.message : 'Failed to import products'
+            quickbooksStore.setSyncStatus('products', 'error', errorMessage)
+            throw error
         }
-    };
+    }
 
     const syncProductToQB = async (productId: number) => {
-        quickbooksStore.setSyncStatus('products', 'syncing');
-        quickbooksStore.clearError();
+        quickbooksStore.setSyncStatus('products', 'syncing')
+        quickbooksStore.clearError()
 
         try {
-            const response = await quickbooksApi.syncProductToQB(productId);
+            const response = await quickbooksApi.syncProductToQB(productId)
             if (response.success) {
-                quickbooksStore.setSyncStatus('products', 'success');
-                return response.data;
+                quickbooksStore.setSyncStatus('products', 'success')
+                return response.data
             }
-            throw new Error(response.message || 'Failed to sync product');
+            throw new Error(response.message || 'Failed to sync product')
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : 'Failed to sync product';
-            quickbooksStore.setSyncStatus('products', 'error', errorMessage);
-            throw error;
+            const errorMessage = error instanceof Error ? error.message : 'Failed to sync product'
+            quickbooksStore.setSyncStatus('products', 'error', errorMessage)
+            throw error
         }
-    };
+    }
 
     const batchSyncProductsToQB = async () => {
-        quickbooksStore.setSyncStatus('products', 'syncing');
-        quickbooksStore.clearError();
+        quickbooksStore.setSyncStatus('products', 'syncing')
+        quickbooksStore.clearError()
 
         try {
-            const response = await quickbooksApi.batchSyncProductsToQB();
+            const response = await quickbooksApi.batchSyncProductsToQB()
             if (response.success) {
-                quickbooksStore.setSyncStatus('products', 'success');
-                return response.data;
+                quickbooksStore.setSyncStatus('products', 'success')
+                return response.data
             }
-            throw new Error(response.message || 'Failed to batch sync products');
+            throw new Error(response.message || 'Failed to batch sync products')
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : 'Failed to batch sync products';
-            quickbooksStore.setSyncStatus('products', 'error', errorMessage);
-            throw error;
+            const errorMessage =
+                error instanceof Error ? error.message : 'Failed to batch sync products'
+            quickbooksStore.setSyncStatus('products', 'error', errorMessage)
+            throw error
         }
-    };
+    }
 
     const importCustomers = async () => {
-        quickbooksStore.setSyncStatus('customers', 'syncing');
-        quickbooksStore.clearError();
+        quickbooksStore.setSyncStatus('customers', 'syncing')
+        quickbooksStore.clearError()
 
         try {
-            const response = await quickbooksApi.importCustomers();
+            const response = await quickbooksApi.importCustomers()
             if (response.success) {
-                quickbooksStore.setSyncStatus('customers', 'success');
-                return response.data;
+                quickbooksStore.setSyncStatus('customers', 'success')
+                return response.data
             }
-            throw new Error(response.message || 'Failed to import customers');
+            throw new Error(response.message || 'Failed to import customers')
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : 'Failed to import customers';
-            quickbooksStore.setSyncStatus('customers', 'error', errorMessage);
-            throw error;
+            const errorMessage =
+                error instanceof Error ? error.message : 'Failed to import customers'
+            quickbooksStore.setSyncStatus('customers', 'error', errorMessage)
+            throw error
         }
-    };
+    }
 
     const syncCustomerToQB = async (customerId: number) => {
-        quickbooksStore.setSyncStatus('customers', 'syncing');
-        quickbooksStore.clearError();
+        quickbooksStore.setSyncStatus('customers', 'syncing')
+        quickbooksStore.clearError()
 
         try {
-            const response = await quickbooksApi.syncCustomerToQB(customerId);
+            const response = await quickbooksApi.syncCustomerToQB(customerId)
             if (response.success) {
-                quickbooksStore.setSyncStatus('customers', 'success');
-                return response.data;
+                quickbooksStore.setSyncStatus('customers', 'success')
+                return response.data
             }
-            throw new Error(response.message || 'Failed to sync customer');
+            throw new Error(response.message || 'Failed to sync customer')
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : 'Failed to sync customer';
-            quickbooksStore.setSyncStatus('customers', 'error', errorMessage);
-            throw error;
+            const errorMessage = error instanceof Error ? error.message : 'Failed to sync customer'
+            quickbooksStore.setSyncStatus('customers', 'error', errorMessage)
+            throw error
         }
-    };
+    }
 
     const batchSyncCustomersToQB = async () => {
-        quickbooksStore.setSyncStatus('customers', 'syncing');
-        quickbooksStore.clearError();
+        quickbooksStore.setSyncStatus('customers', 'syncing')
+        quickbooksStore.clearError()
 
         try {
-            const response = await quickbooksApi.batchSyncCustomersToQB();
+            const response = await quickbooksApi.batchSyncCustomersToQB()
             if (response.success) {
-                quickbooksStore.setSyncStatus('customers', 'success');
-                return response.data;
+                quickbooksStore.setSyncStatus('customers', 'success')
+                return response.data
             }
-            throw new Error(response.message || 'Failed to batch sync customers');
+            throw new Error(response.message || 'Failed to batch sync customers')
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : 'Failed to batch sync customers';
-            quickbooksStore.setSyncStatus('customers', 'error', errorMessage);
-            throw error;
+            const errorMessage =
+                error instanceof Error ? error.message : 'Failed to batch sync customers'
+            quickbooksStore.setSyncStatus('customers', 'error', errorMessage)
+            throw error
         }
-    };
+    }
 
     const importTransactions = async (type?: string) => {
-        quickbooksStore.setSyncStatus('transactions', 'syncing');
-        quickbooksStore.clearError();
+        quickbooksStore.setSyncStatus('transactions', 'syncing')
+        quickbooksStore.clearError()
 
         try {
-            const response = await quickbooksApi.importTransactions(type);
+            const response = await quickbooksApi.importTransactions(type)
             if (response.success) {
-                quickbooksStore.setSyncStatus('transactions', 'success');
-                return response.data;
+                quickbooksStore.setSyncStatus('transactions', 'success')
+                return response.data
             }
-            throw new Error(response.message || 'Failed to import transactions');
+            throw new Error(response.message || 'Failed to import transactions')
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : 'Failed to import transactions';
-            quickbooksStore.setSyncStatus('transactions', 'error', errorMessage);
-            throw error;
+            const errorMessage =
+                error instanceof Error ? error.message : 'Failed to import transactions'
+            quickbooksStore.setSyncStatus('transactions', 'error', errorMessage)
+            throw error
         }
-    };
+    }
+
+    const operations = {
+        getCategories: (
+            ...args: Parameters<QuickBooksApiService['getCategories']>
+        ): ReturnType<QuickBooksApiService['getCategories']> =>
+            quickbooksApi.getCategories(...args),
+        getCustomers: (
+            ...args: Parameters<QuickBooksApiService['getCustomers']>
+        ): ReturnType<QuickBooksApiService['getCustomers']> => quickbooksApi.getCustomers(...args),
+        getTransactions: (
+            ...args: Parameters<QuickBooksApiService['getTransactions']>
+        ): ReturnType<QuickBooksApiService['getTransactions']> =>
+            quickbooksApi.getTransactions(...args),
+        importCategories: (
+            ...args: Parameters<QuickBooksApiService['importCategories']>
+        ): ReturnType<QuickBooksApiService['importCategories']> =>
+            quickbooksApi.importCategories(...args),
+        importCustomers: (
+            ...args: Parameters<QuickBooksApiService['importCustomers']>
+        ): ReturnType<QuickBooksApiService['importCustomers']> =>
+            quickbooksApi.importCustomers(...args),
+        importTransactions: (
+            ...args: Parameters<QuickBooksApiService['importTransactions']>
+        ): ReturnType<QuickBooksApiService['importTransactions']> =>
+            quickbooksApi.importTransactions(...args),
+        fetchProductsFromQB: (
+            ...args: Parameters<QuickBooksApiService['fetchProductsFromQB']>
+        ): ReturnType<QuickBooksApiService['fetchProductsFromQB']> =>
+            quickbooksApi.fetchProductsFromQB(...args),
+        storeSelectedProductsToLocal: (
+            ...args: Parameters<QuickBooksApiService['storeSelectedProductsToLocal']>
+        ): ReturnType<QuickBooksApiService['storeSelectedProductsToLocal']> =>
+            quickbooksApi.storeSelectedProductsToLocal(...args),
+        getCompanies: (
+            ...args: Parameters<QuickBooksApiService['getCompanies']>
+        ): ReturnType<QuickBooksApiService['getCompanies']> => quickbooksApi.getCompanies(...args),
+    }
 
     return {
         isConnected: computed(() => quickbooksStore.isConnected),
@@ -257,5 +303,6 @@ export function useQuickbooks() {
         syncCustomerToQB,
         batchSyncCustomersToQB,
         importTransactions,
-    };
+        operations,
+    }
 }

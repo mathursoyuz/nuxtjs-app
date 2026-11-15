@@ -119,36 +119,36 @@ const showDetails = ref(false)
 const canWriteSelectedOrder = computed(
     () =>
         selectedOrder.value !== null &&
-        access.can(PROCUREMENT_ORDER_PERMISSIONS.WRITE, selectedOrder.value.organisationId)
+        access.can(PROCUREMENT_ORDER_PERMISSIONS.UPDATE, selectedOrder.value.organisationId)
 )
 
-function viewOrder(order: ProcurementOrder): void {
+const viewOrder = (order: ProcurementOrder): void => {
     selectedOrder.value = { ...order, orderType: 'PROCUREMENT' }
     showDetails.value = true
 }
 
-function updateSelectedOrder(order: CommerceOrder): void {
+const updateSelectedOrder = (order: CommerceOrder): void => {
     if (order.orderType !== 'PROCUREMENT') return
     selectedOrder.value = order
     emit('updated', order)
 }
 
-function formatStatus(value: string): string {
+const formatStatus = (value: string): string => {
     return value.replaceAll('_', ' ').toLowerCase()
 }
 
-function statusColor(status: string): string {
+const statusColor = (status: string): string => {
     if (status === 'PAID' || status === 'COMPLETED') return 'success'
     if (status === 'PAYMENT_FAILED') return 'error'
     if (status === 'PENDING_PAYMENT') return 'warning'
     return 'info'
 }
 
-function money(value: number, currency: string): string {
+const money = (value: number, currency: string): string => {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(value)
 }
 
-function formatDate(value: string): string {
+const formatDate = (value: string): string => {
     return new Intl.DateTimeFormat('en-US', {
         dateStyle: 'medium',
         timeStyle: 'short',

@@ -195,7 +195,7 @@ const confirmPasswordRules = [
     (v: string) => v === formData.password || 'Passwords do not match',
 ]
 
-async function handleRegister() {
+const handleRegister = async (): Promise<void> => {
     if (!formRef.value) {
         return
     }
@@ -281,7 +281,11 @@ async function handleRegister() {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, #fdfbfb 0%, #f8f9fa 100%);
+    background: linear-gradient(
+        135deg,
+        rgb(var(--v-theme-background)) 0%,
+        rgb(var(--v-theme-background)) 100%
+    );
     padding: 20px;
 }
 
@@ -290,14 +294,18 @@ async function handleRegister() {
     grid-template-columns: 1fr 1fr;
     max-width: 1200px;
     width: 100%;
-    background: white;
+    background: rgb(var(--v-theme-surface));
     border-radius: 24px;
     overflow: hidden;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 20px 60px rgb(var(--v-theme-on-surface) / 0.1);
 }
 
 .wine-animation-section {
-    background: linear-gradient(135deg, #9b2335 0%, #be3455 100%);
+    background: linear-gradient(
+        135deg,
+        rgb(var(--v-theme-primary)) 0%,
+        rgb(var(--v-theme-accent)) 100%
+    );
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -308,7 +316,7 @@ async function handleRegister() {
 }
 
 .wine-text {
-    color: white;
+    color: rgb(var(--v-theme-on-primary));
     text-align: center;
     margin-top: 40px;
     z-index: 2;
@@ -329,10 +337,10 @@ async function handleRegister() {
     transform: translateX(-50%);
     width: 120px;
     height: 200px;
-    border: 3px solid rgba(255, 255, 255, 0.3);
+    border: 3px solid rgb(var(--v-theme-on-primary) / 0.3);
     border-top: none;
     border-radius: 0 0 60px 60px;
-    background: rgba(255, 255, 255, 0.05);
+    background: rgb(var(--v-theme-on-primary) / 0.05);
     overflow: hidden;
 }
 
@@ -343,7 +351,11 @@ async function handleRegister() {
     left: 0;
     width: 100%;
     height: 0%;
-    background: linear-gradient(to top, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.4) 100%);
+    background: linear-gradient(
+        to top,
+        rgb(var(--v-theme-on-primary) / 0.2) 0%,
+        rgb(var(--v-theme-on-primary) / 0.4) 100%
+    );
     border-radius: 0 0 60px 60px;
     animation: fillWine 3s ease-in-out infinite;
 }
@@ -378,7 +390,7 @@ async function handleRegister() {
     bottom: 0;
     width: 8px;
     height: 8px;
-    background: rgba(255, 255, 255, 0.6);
+    background: rgb(var(--v-theme-on-primary) / 0.6);
     border-radius: 50%;
     animation: bubbleRise 3s ease-in-out infinite;
 }
@@ -443,8 +455,8 @@ async function handleRegister() {
     transform: translateX(-50%);
     width: 40px;
     height: 100px;
-    background: rgba(255, 255, 255, 0.1);
-    border: 2px solid rgba(255, 255, 255, 0.3);
+    background: rgb(var(--v-theme-on-primary) / 0.1);
+    border: 2px solid rgb(var(--v-theme-on-primary) / 0.3);
     border-radius: 8px 8px 4px 4px;
 }
 
@@ -456,8 +468,8 @@ async function handleRegister() {
     transform: translateX(-50%);
     width: 20px;
     height: 15px;
-    background: rgba(255, 255, 255, 0.1);
-    border: 2px solid rgba(255, 255, 255, 0.3);
+    background: rgb(var(--v-theme-on-primary) / 0.1);
+    border: 2px solid rgb(var(--v-theme-on-primary) / 0.3);
     border-radius: 2px;
 }
 
@@ -471,8 +483,8 @@ async function handleRegister() {
     height: 60px;
     background: linear-gradient(
         to bottom,
-        rgba(255, 255, 255, 0.8) 0%,
-        rgba(255, 255, 255, 0.4) 100%
+        rgb(var(--v-theme-on-primary) / 0.8) 0%,
+        rgb(var(--v-theme-on-primary) / 0.4) 100%
     );
     border-radius: 2px;
     animation: pourWine 3s ease-in-out infinite;

@@ -1,12 +1,20 @@
-import { computed } from 'vue';
-import { useLoadingStore } from '~/stores/loading.store';
+import { computed } from 'vue'
+import { useLoadingStore } from '~/stores/loading.store'
 
 /**
  * Composable for task-based loading
  * Wraps operations in loading tasks for automatic spinner management
  */
-export function useLoadingTask(taskId: string, message?: string) {
-    const loadingStore = useLoadingStore();
+export const useLoadingTask = (
+    taskId: string,
+    message?: string
+): {
+    execute: <T>(operation: () => Promise<T>) => Promise<T>
+    start: (customMessage?: string) => void
+    stop: () => void
+    isActive: globalThis.ComputedRef<boolean>
+} => {
+    const loadingStore = useLoadingStore()
 
     /**
      * Execute an operation with loading state management
@@ -14,37 +22,37 @@ export function useLoadingTask(taskId: string, message?: string) {
      * @returns Promise that resolves when operation completes
      */
     const execute = async <T>(operation: () => Promise<T>): Promise<T> => {
-        loadingStore.startTask(taskId, message);
+        loadingStore.startTask(taskId, message)
         try {
-            return await operation();
+            return await operation()
         } finally {
-            loadingStore.stopTask(taskId);
+            loadingStore.stopTask(taskId)
         }
-    };
+    }
 
     /**
      * Start the loading task manually
      */
-    const start = (customMessage?: string) => {
-        loadingStore.startTask(taskId, customMessage || message);
-    };
+    const start = (customMessage?: string): void => {
+        loadingStore.startTask(taskId, customMessage || message)
+    }
 
     /**
      * Stop the loading task manually
      */
-    const stop = () => {
-        loadingStore.stopTask(taskId);
-    };
+    const stop = (): void => {
+        loadingStore.stopTask(taskId)
+    }
 
     /**
      * Check if this task is currently active
      */
-    const isActive = computed(() => loadingStore.isTaskActive(taskId));
+    const isActive = computed(() => loadingStore.isTaskActive(taskId))
 
     return {
         execute,
         start,
         stop,
         isActive,
-    };
+    }
 }

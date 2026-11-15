@@ -6,15 +6,15 @@
 </template>
 
 <script setup lang="ts">
-import GlobalLoadingOverlay from '~/components/globals/GlobalLoadingOverlay.vue';
+import GlobalLoadingOverlay from '~/components/globals/GlobalLoadingOverlay.vue'
 
 // Suppress vee-validate-zod description warnings for nested array schemas
 // These warnings are harmless and don't affect functionality - they occur because
 // vee-validate-zod has trouble extracting descriptions from nested array schemas
-if (process.organisation) {
-    const originalWarn = console.warn;
+if (import.meta.dev) {
+    const originalWarn = console.warn
     console.warn = (...args: unknown[]) => {
-        const message = args[0];
+        const message = args[0]
         if (
             typeof message === 'string' &&
             message.includes('Failed to describe path') &&
@@ -22,10 +22,10 @@ if (process.organisation) {
             message.includes('on the schema, returning a default description')
         ) {
             // Suppress these specific warnings
-            return;
+            return
         }
-        originalWarn.apply(console, args);
-    };
+        originalWarn.apply(console, args)
+    }
 }
 </script>
 
@@ -198,19 +198,19 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-    background: rgba(155, 35, 53, 0.3);
+    background: rgb(var(--v-theme-primary) / 0.3);
     border-radius: 4px;
     transition: background 0.2s ease;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: rgba(155, 35, 53, 0.5);
+    background: rgb(var(--v-theme-primary) / 0.5);
 }
 
 /* Firefox scrollbar */
 * {
     scrollbar-width: thin;
-    scrollbar-color: rgba(155, 35, 53, 0.3) transparent;
+    scrollbar-color: rgb(var(--v-theme-primary) / 0.3) transparent;
 }
 
 /* Smooth scrolling for all scrollable elements */
@@ -236,13 +236,12 @@ body {
 
 /* Focus ring styling - Wine */
 *:focus-visible {
-    outline: 2px solid rgba(155, 35, 53, 0.5);
+    outline: 2px solid rgb(var(--v-theme-primary) / 0.5);
     outline-offset: 2px;
 }
 
 /* Selection color - Wine */
 ::selection {
-    background: rgba(155, 35, 53, 0.2);
+    background: rgb(var(--v-theme-primary) / 0.2);
 }
 </style>
-

@@ -4,7 +4,12 @@
             <v-col cols="12">
                 <div class="d-flex align-center justify-space-between mb-4">
                     <h1 class="text-h4">Square Import - Vendors</h1>
-                    <v-btn color="primary" prepend-icon="mdi-download" :loading="loading" @click="fetchData">
+                    <v-btn
+                        color="primary"
+                        prepend-icon="mdi-download"
+                        :loading="loading"
+                        @click="fetchData"
+                    >
                         Fetch from Square
                     </v-btn>
                 </div>
@@ -14,7 +19,7 @@
                         <div v-if="fetchedData.data.length > 0" class="mb-4">
                             <div class="d-flex align-center justify-space-between mb-2">
                                 <v-chip color="info" size="small">
-                                    Total: {{ fetchedData.pagination.totalFetched }} vendors
+                                    Total: {{ fetchedData.data.length }} vendors
                                 </v-chip>
                                 <div>
                                     <v-btn
@@ -25,17 +30,13 @@
                                     >
                                         Clear Selection
                                     </v-btn>
-                                    <v-btn
-                                        size="small"
-                                        variant="text"
-                                        @click="selectAll"
-                                    >
+                                    <v-btn size="small" variant="text" @click="selectAll">
                                         {{ allSelected ? 'Deselect All' : 'Select All' }}
                                     </v-btn>
                                 </div>
                             </div>
 
-                            <div v-if="hasSelectedItems" class="mb-4">
+                            <div v-if="canWrite && hasSelectedItems" class="mb-4">
                                 <v-alert type="info" density="compact" class="mb-2">
                                     {{ selectedItems.length }} vendor(s) selected
                                 </v-alert>
@@ -56,11 +57,12 @@
                             :items="fetchedData.data"
                             :loading="loading"
                             item-value="id"
-                            show-select
+                            :show-select="canWrite"
                             class="elevation-1"
                         >
                             <template #item.actions="{ item }">
                                 <v-btn
+                                    v-if="canWrite"
                                     size="small"
                                     color="primary"
                                     variant="text"
@@ -73,9 +75,14 @@
                             </template>
                         </v-data-table>
 
-                        <div v-if="fetchedData.data.length === 0 && !loading" class="text-center py-8">
+                        <div
+                            v-if="fetchedData.data.length === 0 && !loading"
+                            class="text-center py-8"
+                        >
                             <v-icon size="64" color="grey">mdi-database-off</v-icon>
-                            <p class="text-grey mt-4">No data fetched yet. Click "Fetch from Square" to load vendors.</p>
+                            <p class="text-grey mt-4">
+                                No data fetched yet. Click "Fetch from Square" to load vendors.
+                            </p>
                         </div>
                     </v-card-text>
                 </v-card>
@@ -85,15 +92,22 @@
 </template>
 
 <script setup lang="ts">
-import { useSquareImport } from '~/composables/useSquareImport';
-import { useToast } from '~/composables/useToast';
-import { VENDOR_MESSAGES } from '~/constants/messages.constants';
-import { useApiMessage } from '~/composables/useApiMessage';
-import type { SquareVendor } from '~/types/square-import.types';
+import { computed } from 'vue'
+import { useSquareImport } from '~/composables/useSquareImport'
+import { useToast } from '~/composables/useToast'
+import { VENDOR_MESSAGES } from '~/constants/messages.constants'
+import { useApiMessage } from '~/composables/useApiMessage'
+import type { SquareVendor } from '~/types/square-import.types'
+import { SQUARE_SYNC_PERMISSIONS } from '~/constants/integration-permissions.constants'
+import { useAccessStore } from '~/stores/access.store'
 
 definePageMeta({
-    middleware: ['auth'],
-});
+    middleware: ['auth', 'permission'],
+    access: { permission: SQUARE_SYNC_PERMISSIONS.READ },
+})
+
+const access = useAccessStore()
+const canWrite = computed(() => access.can(SQUARE_SYNC_PERMISSIONS.WRITE))
 
 const {
     loading,
@@ -104,11 +118,11 @@ const {
     allSelected,
     selectAll,
     clearSelection,
-    squareImportApi,
-} = useSquareImport<SquareVendor>();
+    operations: squareImport,
+} = useSquareImport<SquareVendor>()
 
-const { successFromResponse, errorFromError, success, error, warning } = useToast();
-const { getImportResultMessage } = useApiMessage();
+const { successFromResponse, errorFromError, success, error, warning } = useToast()
+const { getImportResultMessage } = useApiMessage()
 
 const headers = [
     { title: 'ID', key: 'id', sortable: true },
@@ -116,72 +130,74 @@ const headers = [
     { title: 'Created At', key: 'created_at', sortable: true },
     { title: 'Updated At', key: 'updated_at', sortable: true },
     { title: 'Actions', key: 'actions', sortable: false },
-];
+]
 
 const fetchData = async () => {
-    loading.value = true;
+    loading.value = true
     try {
-        const response = await squareImportApi.searchVendors();
+        const response = await squareImport.searchVendors()
         if (response.success && response.data) {
-            fetchedData.value = response.data;
-            successFromResponse(response, VENDOR_MESSAGES.FETCH_SUCCESS);
+            fetchedData.value = { data: response.data }
+            successFromResponse(response, VENDOR_MESSAGES.FETCH_SUCCESS)
         } else {
-            errorFromError(response, VENDOR_MESSAGES.FETCH_ERROR);
+            errorFromError(response, VENDOR_MESSAGES.FETCH_ERROR)
         }
     } catch (err) {
-        console.error('Error fetching vendors:', err);
-        errorFromError(err, VENDOR_MESSAGES.FETCH_ERROR);
+        console.error('Error fetching vendors:', err)
+        errorFromError(err, VENDOR_MESSAGES.FETCH_ERROR)
     } finally {
-        loading.value = false;
+        loading.value = false
     }
-};
+}
 
 const bulkImport = async () => {
-    if (selectedItems.value.length === 0) return;
+    if (selectedItems.value.length === 0) return
 
-    importing.value = true;
+    importing.value = true
     try {
-        const response = await squareImportApi.importVendors(selectedItems.value as SquareVendor[]);
+        const selectedVendors = fetchedData.value.data.filter((item) =>
+            selectedItems.value.includes(item.id)
+        )
+        const response = await squareImport.importVendors(selectedVendors)
         if (response.success && response.data) {
-            const result = response.data;
-            const message = getImportResultMessage(result, VENDOR_MESSAGES.IMPORT_SQUARE_SUCCESS);
+            const result = response.data.result
+            const message = getImportResultMessage(result, VENDOR_MESSAGES.IMPORT_SQUARE_SUCCESS)
             if (result.errors.length > 0) {
-                warning(message);
+                warning(message)
             } else {
-                success(message);
+                success(message)
             }
             if (result.errors.length > 0) {
-                console.error('Import errors:', result.errors);
+                console.error('Import errors:', result.errors)
             }
-            clearSelection();
-            await fetchData();
+            clearSelection()
+            await fetchData()
         } else {
-            errorFromError(response, VENDOR_MESSAGES.IMPORT_SQUARE_ERROR);
+            errorFromError(response, VENDOR_MESSAGES.IMPORT_SQUARE_ERROR)
         }
     } catch (err) {
-        console.error('Error importing vendors:', err);
-        errorFromError(err, VENDOR_MESSAGES.IMPORT_SQUARE_ERROR);
+        console.error('Error importing vendors:', err)
+        errorFromError(err, VENDOR_MESSAGES.IMPORT_SQUARE_ERROR)
     } finally {
-        importing.value = false;
+        importing.value = false
     }
-};
+}
 
 const importSingle = async (item: SquareVendor) => {
-    importing.value = true;
+    importing.value = true
     try {
-        const response = await squareImportApi.importVendors([item]);
+        const response = await squareImport.importVendors([item])
         if (response.success && response.data) {
-            const result = response.data;
-            successFromResponse(response, VENDOR_MESSAGES.IMPORT_SQUARE_SUCCESS);
-            await fetchData();
+            successFromResponse(response, VENDOR_MESSAGES.IMPORT_SQUARE_SUCCESS)
+            await fetchData()
         } else {
-            errorFromError(response, VENDOR_MESSAGES.IMPORT_SQUARE_ERROR);
+            errorFromError(response, VENDOR_MESSAGES.IMPORT_SQUARE_ERROR)
         }
     } catch (err) {
-        console.error('Error importing vendor:', err);
-        errorFromError(err, VENDOR_MESSAGES.IMPORT_SQUARE_ERROR);
+        console.error('Error importing vendor:', err)
+        errorFromError(err, VENDOR_MESSAGES.IMPORT_SQUARE_ERROR)
     } finally {
-        importing.value = false;
+        importing.value = false
     }
-};
+}
 </script>

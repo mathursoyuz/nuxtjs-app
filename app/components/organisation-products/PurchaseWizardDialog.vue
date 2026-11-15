@@ -61,8 +61,21 @@
                             variant="tonal"
                             class="mb-4"
                         >
-                            This organisation needs an active payment card before procurement can be
-                            charged.
+                            <div class="d-flex align-center justify-space-between ga-3 flex-wrap">
+                                <span>
+                                    Add payment details before this procurement can be charged and
+                                    recorded.
+                                </span>
+                                <v-btn
+                                    v-if="canCreateOrganisationCard"
+                                    color="warning"
+                                    variant="outlined"
+                                    prepend-icon="mdi-credit-card-plus"
+                                    @click="addPaymentCardOpen = true"
+                                >
+                                    Add payment details
+                                </v-btn>
+                            </div>
                         </v-alert>
 
                         <v-alert
@@ -168,96 +181,14 @@
                     </v-window-item>
 
                     <v-window-item value="pending">
-                        <div class="d-flex justify-end mb-3">
-                            <v-btn
-                                prepend-icon="mdi-refresh"
-                                variant="tonal"
-                                :loading="loadingOrders"
-                                @click="loadOrders"
-                            >
-                                Refresh
-                            </v-btn>
-                        </div>
-                        <v-data-table
-                            :headers="pendingHeaders"
-                            :items="pendingOrders"
+                        <PendingProcurementOrders
+                            :orders="pendingOrders"
                             :loading="loadingOrders"
-                            item-value="id"
-                        >
-                            <template #item.orderNumber="{ item }">
-                                #{{ item.orderNumber }}
-                            </template>
-                            <template #item.parties="{ item }">
-                                <div class="d-flex align-center ga-2">
-                                    <span>
-                                        {{
-                                            item.sellerOrganisation?.name || 'Platform Organisation'
-                                        }}
-                                    </span>
-                                    <v-icon icon="tabler-arrow-right" size="16" />
-                                    <span>
-                                        {{
-                                            item.buyerOrganisation?.name ||
-                                            'Organisation #' + item.organisationId
-                                        }}
-                                    </span>
-                                </div>
-                            </template>
-                            <template #item.status="{ item }">
-                                <v-chip :color="statusColor(item.status)" size="small">
-                                    {{ formatStatus(item.status) }}
-                                </v-chip>
-                            </template>
-                            <template #item.totalAmount="{ item }">
-                                {{ money(item.totalAmount) }}
-                            </template>
-                            <template #item.items="{ item }">
-                                {{ item.items.reduce((total, line) => total + line.quantity, 0) }}
-                            </template>
-                            <template #item.lastAttempt="{ item }">
-                                <div v-if="lastAttempt(item)">
-                                    <div>{{ formatStatus(lastAttempt(item)?.status ?? '') }}</div>
-                                    <div class="text-caption text-error">
-                                        {{
-                                            item.lastPaymentError ||
-                                            lastAttempt(item)?.errorMessage ||
-                                            '—'
-                                        }}
-                                    </div>
-                                </div>
-                                <span v-else>Not attempted</span>
-                            </template>
-                            <template #item.createdAt="{ item }">
-                                {{ formatDate(item.createdAt) }}
-                            </template>
-                            <template #item.actions="{ item }">
-                                <div class="d-flex ga-2 flex-wrap">
-                                    <v-btn
-                                        size="small"
-                                        variant="tonal"
-                                        prepend-icon="mdi-eye"
-                                        @click="viewOrder(item)"
-                                    >
-                                        View details
-                                    </v-btn>
-                                    <v-btn
-                                        color="primary"
-                                        size="small"
-                                        prepend-icon="mdi-credit-card-refresh"
-                                        :disabled="!isChargeable(item)"
-                                        :loading="processingOrderId === item.id"
-                                        @click="charge(item)"
-                                    >
-                                        Charge order
-                                    </v-btn>
-                                </div>
-                            </template>
-                            <template #no-data>
-                                <div class="text-center pa-8 text-medium-emphasis">
-                                    No pending procurement orders.
-                                </div>
-                            </template>
-                        </v-data-table>
+                            :processing-order-id="processingOrderId"
+                            @refresh="loadOrders"
+                            @view="viewOrder"
+                            @charge="charge"
+                        />
                     </v-window-item>
                 </v-window>
             </v-card-text>
@@ -288,16 +219,24 @@
             can-write
             @updated="updateOrder"
         />
+        <AddOrganisationCreditCardDialog
+            v-model="addPaymentCardOpen"
+            :organisation-id="organisationId"
+            @submit="paymentCardAdded"
+        />
     </v-dialog>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { useNuxtApp } from '#app'
 import { useToast } from '~/composables/useToast'
 import type { OrganisationCreditCard } from '~/types/organisation-credit-card.types'
 import type { Location } from '~/types/location.types'
 import type { CommerceOrder, ProcurementCatalogItem, ProcurementOrder } from '~/types/order.types'
+import AddOrganisationCreditCardDialog from '~/components/organisations/AddOrganisationCreditCardDialog.vue'
+import PendingProcurementOrders from './PendingProcurementOrders.vue'
+import { ORGANISATION_CREDIT_CARD_PERMISSIONS } from '~/components/organisations/organisation-credit-card.permissions'
+import { useAccessStore } from '~/stores/access.store'
 
 interface Props {
     modelValue: boolean
@@ -310,14 +249,11 @@ const emit = defineEmits<{
     submit: []
 }>()
 
-const nuxtApp = useNuxtApp()
-const organisationProductApi =
-    nuxtApp.$organisationProductApi as import('~/services/api/wrappers/organisation-product.api').OrganisationProductApiService
-const creditCardApi =
-    nuxtApp.$organisationCreditCardApi as import('~/services/api/wrappers/organisation-credit-card.api').OrganisationCreditCardApiService
-const locationApi =
-    nuxtApp.$locationApi as import('~/services/api/wrappers/location.api').LocationApiService
+const organisationProductApi = useOrganisationProducts()
+const creditCardApi = useOrganisationCreditCards()
+const { refreshLocations } = useLocation()
 const { successFromResponse, errorFromError, error: showError } = useToast()
+const access = useAccessStore()
 
 const tab = ref<'purchase' | 'pending'>('purchase')
 const loading = ref(false)
@@ -336,6 +272,10 @@ const destinationLocationId = ref<number | null>(null)
 const selectedVariantIds = ref<Set<number>>(new Set())
 const quantities = ref<Record<number, number>>({})
 const isInternal = ref(false)
+const addPaymentCardOpen = ref(false)
+const canCreateOrganisationCard = computed(() =>
+    access.can(ORGANISATION_CREDIT_CARD_PERMISSIONS.CREATE, props.organisationId)
+)
 
 const productHeaders = [
     { title: 'Select', key: 'select', sortable: false },
@@ -345,17 +285,6 @@ const productHeaders = [
     { title: 'Platform available', key: 'availableQty' },
     { title: 'Quantity', key: 'quantity', sortable: false },
     { title: 'Total', key: 'total', sortable: false },
-]
-
-const pendingHeaders = [
-    { title: 'Order', key: 'orderNumber' },
-    { title: 'Procurement', key: 'parties', sortable: false },
-    { title: 'Status', key: 'status' },
-    { title: 'Quantity', key: 'items', sortable: false },
-    { title: 'Total', key: 'totalAmount' },
-    { title: 'Last attempt', key: 'lastAttempt', sortable: false },
-    { title: 'Created', key: 'createdAt' },
-    { title: 'Actions', key: 'actions', sortable: false },
 ]
 
 const variantRows = computed<ProcurementCatalogItem[]>(() => catalogItems.value)
@@ -470,32 +399,6 @@ const money = (value: number): string => {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value)
 }
 
-const formatDate = (value: string): string => {
-    return new Intl.DateTimeFormat('en-US', {
-        dateStyle: 'medium',
-        timeStyle: 'short',
-    }).format(new Date(value))
-}
-
-const formatStatus = (value: string): string => {
-    return value.replaceAll('_', ' ').toLowerCase()
-}
-
-const statusColor = (status: string): string => {
-    if (status === 'PAID' || status === 'COMPLETED') return 'success'
-    if (status === 'PAYMENT_FAILED') return 'error'
-    if (status === 'PENDING_PAYMENT') return 'warning'
-    return 'info'
-}
-
-const lastAttempt = (order: ProcurementOrder) => {
-    return order.attempts.at(-1)
-}
-
-const isChargeable = (order: ProcurementOrder): boolean => {
-    return order.status === 'PENDING_PAYMENT' || order.status === 'PAYMENT_FAILED'
-}
-
 const viewOrder = (order: ProcurementOrder): void => {
     selectedOrder.value = { ...order, orderType: 'PROCUREMENT' }
     showDetails.value = true
@@ -553,13 +456,13 @@ const loadDialog = async (): Promise<void> => {
     destinationLocationId.value = null
     activeCreditCard.value = null
     try {
-        const [locationResponse, cardResponse] = await Promise.all([
-            locationApi.refreshLocations(props.organisationId),
+        const [loadedLocations, cardResponse] = await Promise.all([
+            refreshLocations(props.organisationId),
             creditCardApi.refreshOrganisationCreditCards(props.organisationId),
             loadCatalog(),
             loadOrders(),
         ])
-        locations.value = locationResponse.data ?? []
+        locations.value = loadedLocations
         destinationLocationId.value =
             locations.value.find((location) => location.isActive)?.id ?? null
         activeCreditCard.value = cardResponse.data?.find((card) => card.isActive) ?? null
@@ -602,6 +505,12 @@ const createOrder = async (): Promise<void> => {
     } finally {
         processing.value = false
     }
+}
+
+const paymentCardAdded = async (): Promise<void> => {
+    addPaymentCardOpen.value = false
+    const response = await creditCardApi.refreshOrganisationCreditCards(props.organisationId)
+    activeCreditCard.value = response.data?.find((card) => card.isActive) ?? null
 }
 
 const charge = async (order: ProcurementOrder): Promise<void> => {

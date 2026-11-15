@@ -92,6 +92,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import { FILE_UPLOAD, FILE_UPLOAD_MESSAGES } from '~/constants/product.constants'
+import { useToast } from '~/composables/useToast'
 
 interface Props {
     modelValue: File[] | null | undefined
@@ -102,7 +103,7 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-    existingGallery: () => [],
+    existingGallery: (): never[] => [],
     uploadPath: 'products',
     canRemoveExisting: true,
 })
@@ -119,6 +120,7 @@ const runtimeConfig = useRuntimeConfig()
 const apiBaseUrl = runtimeConfig.public.apiBaseUrl
 const uploadPath = computed(() => props.uploadPath || 'products')
 const acceptedMimeTypes = FILE_UPLOAD.ACCEPTED_TYPES.join(',')
+const { error: showError } = useToast()
 
 const previewUrls = computed(() => {
     return internalValue.value.map((f) => (f instanceof File ? URL.createObjectURL(f) : ''))
@@ -142,11 +144,11 @@ watch(
     }
 )
 
-const triggerFileInput = () => {
+const triggerFileInput = (): void => {
     fileInput.value?.click()
 }
 
-const handleFileChange = (event: Event) => {
+const handleFileChange = (event: Event): void => {
     const target = event.target as HTMLInputElement
     const files = Array.from(target.files || [])
     if (files.length === 0) return
@@ -154,7 +156,7 @@ const handleFileChange = (event: Event) => {
     const remainingSlots =
         FILE_UPLOAD.MAX_GALLERY_FILES - currentImages.value.length - internalValue.value.length
     if (remainingSlots <= 0) {
-        alert(FILE_UPLOAD_MESSAGES.MAX_GALLERY_FILES)
+        showError(FILE_UPLOAD_MESSAGES.MAX_GALLERY_FILES)
         target.value = ''
         return
     }
@@ -163,18 +165,18 @@ const handleFileChange = (event: Event) => {
     files.forEach((file) => {
         if (validFiles.length >= remainingSlots) return
         if (file.size > FILE_UPLOAD.MAX_SIZE_BYTES) {
-            alert(FILE_UPLOAD_MESSAGES.MAX_SIZE(file.name))
+            showError(FILE_UPLOAD_MESSAGES.MAX_SIZE(file.name))
             return
         }
         if (!(FILE_UPLOAD.ACCEPTED_TYPES as readonly string[]).includes(file.type)) {
-            alert(FILE_UPLOAD_MESSAGES.INVALID_TYPE(file.name))
+            showError(FILE_UPLOAD_MESSAGES.INVALID_TYPE(file.name))
             return
         }
         validFiles.push(file)
     })
 
     if (files.length > validFiles.length && validFiles.length === remainingSlots) {
-        alert(FILE_UPLOAD_MESSAGES.MAX_GALLERY_FILES)
+        showError(FILE_UPLOAD_MESSAGES.MAX_GALLERY_FILES)
     }
 
     internalValue.value.push(...validFiles)
@@ -182,7 +184,7 @@ const handleFileChange = (event: Event) => {
     target.value = ''
 }
 
-const handleDrop = (event: DragEvent) => {
+const handleDrop = (event: DragEvent): void => {
     const files = Array.from(event.dataTransfer?.files || [])
     if (files.length === 0) return
 
@@ -194,12 +196,12 @@ const handleDrop = (event: DragEvent) => {
     handleFileChange(fakeEvent)
 }
 
-const removeNewFile = (index: number) => {
+const removeNewFile = (index: number): void => {
     internalValue.value.splice(index, 1)
     emit('update:modelValue', [...internalValue.value])
 }
 
-const removeExistingImage = (index: number) => {
+const removeExistingImage = (index: number): void => {
     const filename = currentImages.value[index]
     if (!filename) {
         return
@@ -212,17 +214,17 @@ const removeExistingImage = (index: number) => {
 
 <style scoped>
 .upload-zone {
-    border: 2px dashed rgba(155, 35, 53, 0.4);
+    border: 2px dashed rgb(var(--v-theme-primary) / 0.4);
     border-radius: 8px;
-    background-color: rgba(155, 35, 53, 0.02);
+    background-color: rgb(var(--v-theme-primary) / 0.02);
     cursor: pointer;
     transition: all 0.2s ease;
     min-height: 150px;
 }
 
 .upload-zone:hover {
-    border-color: rgba(155, 35, 53, 0.8);
-    background-color: rgba(155, 35, 53, 0.05);
+    border-color: rgb(var(--v-theme-primary) / 0.8);
+    background-color: rgb(var(--v-theme-primary) / 0.05);
 }
 
 .upload-zone-small {
@@ -233,14 +235,14 @@ const removeExistingImage = (index: number) => {
     position: relative;
     border-radius: 8px;
     overflow: hidden;
-    border: 1px solid rgba(0, 0, 0, 0.12);
+    border: 1px solid rgb(var(--v-theme-on-surface) / 0.12);
     width: 150px;
     height: 150px;
 }
 
 .gallery-preview-item.add-more {
-    border: 2px dashed rgba(155, 35, 53, 0.4);
-    background-color: rgba(155, 35, 53, 0.02);
+    border: 2px dashed rgb(var(--v-theme-primary) / 0.4);
+    background-color: rgb(var(--v-theme-primary) / 0.02);
     cursor: pointer;
     display: flex;
     flex-direction: column;
@@ -250,15 +252,15 @@ const removeExistingImage = (index: number) => {
 }
 
 .gallery-preview-item.add-more:hover {
-    border-color: rgba(155, 35, 53, 0.8);
-    background-color: rgba(155, 35, 53, 0.05);
+    border-color: rgb(var(--v-theme-primary) / 0.8);
+    background-color: rgb(var(--v-theme-primary) / 0.05);
 }
 
 .remove-btn {
     position: absolute;
     top: 4px;
     right: 4px;
-    background: rgba(0, 0, 0, 0.5);
+    background: rgb(var(--v-theme-on-surface) / 0.5);
 }
 
 .gap-2 {

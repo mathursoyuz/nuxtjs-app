@@ -76,7 +76,7 @@
                                         Fetched: {{ fetchedData.data.length }} product(s)
                                     </v-chip>
                                     <v-chip
-                                        v-if="selectedItems.length > 0"
+                                        v-if="canWrite && selectedItems.length > 0"
                                         color="primary"
                                         size="small"
                                     >
@@ -95,7 +95,7 @@
                                 </div>
                             </div>
 
-                            <div v-if="hasSelectedItems" class="mb-4">
+                            <div v-if="canWrite && hasSelectedItems" class="mb-4">
                                 <v-alert type="info" density="compact" class="mb-2">
                                     <div class="d-flex align-center justify-space-between">
                                         <span>
@@ -123,7 +123,7 @@
                             :items="fetchedData.data"
                             :loading="loading"
                             item-value="id"
-                            show-select
+                            :show-select="canWrite"
                             class="elevation-1"
                         >
                             <template #item.item_data.name="{ item }">
@@ -132,7 +132,7 @@
                             <template #item.item_data.category_id="{ item }">
                                 {{
                                     item.localCategoryName ||
-                                    (item.item_data as any)?.reporting_category?.id ||
+                                    item.item_data?.reporting_category?.id ||
                                     '-'
                                 }}
                             </template>
@@ -190,6 +190,7 @@
                                         View Raw
                                     </v-btn>
                                     <v-btn
+                                        v-if="canWrite"
                                         size="small"
                                         color="primary"
                                         variant="text"
@@ -244,8 +245,9 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { useNuxtApp } from '#app'
 import { useSquareImport } from '~/composables/useSquareImport'
+import { useCategory } from '~/composables/useCategory'
+import { useLocation } from '~/composables/useLocation'
 import { useToast } from '~/composables/useToast'
 import { PRODUCT_MESSAGES, GENERAL_MESSAGES } from '~/constants/messages.constants'
 import { useApiMessage } from '~/composables/useApiMessage'
@@ -253,18 +255,19 @@ import type { SquareProduct } from '~/types/square-import.types'
 import type { Category } from '~/types/category.types'
 import type { Location } from '~/types/location.types'
 import type { Product } from '~/types/product.types'
+import { SQUARE_SYNC_PERMISSIONS } from '~/constants/integration-permissions.constants'
+import { useAccessStore } from '~/stores/access.store'
 
 definePageMeta({
-    middleware: ['auth'],
+    middleware: ['auth', 'permission'],
+    access: { permission: SQUARE_SYNC_PERMISSIONS.READ },
 })
 
-const nuxtApp = useNuxtApp()
-const categoryApi =
-    nuxtApp.$categoryApi as import('~/services/api/wrappers/category.api').CategoryApiService
-const locationApi =
-    nuxtApp.$locationApi as import('~/services/api/wrappers/location.api').LocationApiService
-const productApi =
-    nuxtApp.$productApi as import('~/services/api/wrappers/product.api').ProductApiService
+const access = useAccessStore()
+const canWrite = computed(() => access.can(SQUARE_SYNC_PERMISSIONS.WRITE))
+
+const { fetchCategories } = useCategory()
+const { fetchLocations } = useLocation()
 
 const {
     loading,
@@ -273,7 +276,7 @@ const {
     selectedItems,
     hasSelectedItems,
     clearSelection,
-    squareImportApi,
+    operations: squareImport,
 } = useSquareImport<SquareProduct>()
 
 const { successFromResponse, errorFromError, success, error, warning, info } = useToast()
@@ -309,17 +312,9 @@ const filteredLocations = computed(() => {
 const loadLocalData = async () => {
     loadingLocalData.value = true
     try {
-        const [categoriesResponse, locationsResponse] = await Promise.all([
-            categoryApi.getAllCategories(),
-            locationApi.getAllLocations(),
-        ])
-
-        if (categoriesResponse.success && categoriesResponse.data) {
-            localCategories.value = categoriesResponse.data
-        }
-        if (locationsResponse.success && locationsResponse.data) {
-            localLocations.value = locationsResponse.data
-        }
+        const [categories, locations] = await Promise.all([fetchCategories(), fetchLocations()])
+        localCategories.value = categories
+        localLocations.value = locations
     } catch (error) {
         console.error('Error loading local data:', error)
     } finally {
@@ -351,7 +346,12 @@ const fetchData = async () => {
     loading.value = true
     clearSelection()
     try {
-        const params: any = {}
+        const params: {
+            categoryIds?: string[]
+            locationIds?: string[]
+            squareVariationIds?: string[]
+            skus?: string[]
+        } = {}
         if (filters.value.categoryIds && filters.value.categoryIds.length > 0) {
             params.categoryIds = filters.value.categoryIds
         }
@@ -371,7 +371,7 @@ const fetchData = async () => {
                 .filter((s) => s.length > 0)
         }
 
-        const response = await squareImportApi.searchProducts(params)
+        const response = await squareImport.searchProducts(params)
 
         if (response.success && response.data) {
             // Backend now returns: { message, data: [...] }
@@ -425,7 +425,7 @@ const bulkImport = async () => {
                 rawProductsToImport.push(rawProduct)
             }
         }
-        const response = await squareImportApi.importProducts(rawProductsToImport)
+        const response = await squareImport.importProducts(rawProductsToImport)
 
         if (response.success && response.data) {
             const result = response.data.result
@@ -467,7 +467,7 @@ const importSingle = async (item: SquareProduct) => {
             console.warn('Available map keys:', Array.from(rawProductsMap.value.keys()).slice(0, 5))
         }
 
-        const response = await squareImportApi.importProducts([productToImport])
+        const response = await squareImport.importProducts([productToImport])
         if (response.success && response.data) {
             const result = response.data.result
             const successCount = result.created + result.updated
@@ -501,8 +501,8 @@ const importSingle = async (item: SquareProduct) => {
 
 <style scoped>
 .raw-json {
-    background-color: #f5f5f5;
-    border: 1px solid #e0e0e0;
+    background-color: rgb(var(--v-theme-surface-variant));
+    border: 1px solid rgb(var(--v-border-color) / var(--v-border-opacity));
     border-radius: 4px;
     padding: 16px;
     font-family: 'Courier New', monospace;

@@ -133,6 +133,13 @@ const emit = defineEmits<{
     'update:draftBalances': [value: InventoryDraftBalance[]]
 }>()
 
+const emptyForm = (): InventoryDraftBalance => ({
+    locationId: 0,
+    onHand: 0,
+    lowStockThreshold: 0,
+    reason: INVENTORY_MESSAGES.DRAFT_REASON,
+})
+
 const form = reactive<InventoryDraftBalance>(emptyForm())
 const errors = reactive<Record<keyof InventoryDraftBalance, string>>({
     locationId: '',
@@ -145,28 +152,19 @@ const availableLocations = computed(() => {
     return props.locations.filter((location) => !used.has(location.value))
 })
 
-function emptyForm(): InventoryDraftBalance {
-    return {
-        locationId: 0,
-        onHand: 0,
-        lowStockThreshold: 0,
-        reason: INVENTORY_MESSAGES.DRAFT_REASON,
-    }
-}
-
-function locationName(locationId: number): string {
+const locationName = (locationId: number): string => {
     return (
         props.locations.find((location) => location.value === locationId)?.title ?? `#${locationId}`
     )
 }
 
-function clearErrors(): void {
+const clearErrors = (): void => {
     Object.keys(errors).forEach((field) => {
         errors[field as keyof InventoryDraftBalance] = ''
     })
 }
 
-function addBalance(): void {
+const addBalance = (): void => {
     clearErrors()
     const result = inventoryDraftBalanceSchema.safeParse(form)
     if (!result.success) {
@@ -184,14 +182,14 @@ function addBalance(): void {
     Object.assign(form, emptyForm())
 }
 
-function removeBalance(locationId: number): void {
+const removeBalance = (locationId: number): void => {
     emit(
         'update:draftBalances',
         props.draftBalances.filter((balance) => balance.locationId !== locationId)
     )
 }
 
-function close(): void {
+const close = (): void => {
     emit('update:modelValue', false)
 }
 

@@ -8,13 +8,289 @@ import type {
     UpdateCustomerDTO,
     CustomerShippingAddressDTO,
     PaginatedCustomersResponse,
+    Customer,
 } from '~/services/api/wrappers/customer.api'
 import {
     organisationContextRevision,
     isOrganisationContextCurrent,
 } from '~/services/context/organisation-context-reset.registry'
 
-export function useCustomer() {
+export const useCustomer = (): {
+    customers: globalThis.ComputedRef<
+        {
+            id: number
+            organisationId: number
+            email: string
+            firstName: string
+            lastName: string
+            avatar: string | null
+            phoneNumber: string
+            pickupLocation: number
+            signupLocation: number
+            deliveryMethod: number
+            cpi: string | null
+            dob: string | null
+            isAppUser: boolean
+            isActive: boolean
+            qbCustomerId?: string | null | undefined
+            isQbSynced?: boolean | undefined
+            qbSyncErrorReason?: string | null | undefined
+            qbLastSyncedAt?: string | null | undefined
+            squareCustomerId?: string | null | undefined
+            isSquareSynced?: boolean | undefined
+            squareSyncErrorReason?: string | null | undefined
+            squareLastSyncedAt?: string | null | undefined
+            createdAt: string
+            updatedAt: string | null
+            billing: {
+                billingEmail: string
+                company: string | null
+                address: string
+                city: string
+                stateCode: string
+                postalCode: string
+                countryCode: string
+            }
+            shipping: {
+                firstName: string | null
+                lastName: string | null
+                company: string | null
+                address: string
+                city: string
+                stateCode: string
+                postalCode: string
+                countryCode: string
+            }
+            shippingAddresses?:
+                | {
+                      id: number
+                      customerId: number
+                      type: number
+                      firstName: string
+                      lastName: string
+                      company: string | null
+                      address: string
+                      city: string
+                      stateCode: string
+                      postalCode: string
+                      countryCode: string
+                      isActive: boolean
+                      createdAt: string
+                      updatedAt: string | null
+                  }[]
+                | undefined
+        }[]
+    >
+    currentCustomer: globalThis.ComputedRef<{
+        id: number
+        organisationId: number
+        email: string
+        firstName: string
+        lastName: string
+        avatar: string | null
+        phoneNumber: string
+        pickupLocation: number
+        signupLocation: number
+        deliveryMethod: number
+        cpi: string | null
+        dob: string | null
+        isAppUser: boolean
+        isActive: boolean
+        qbCustomerId?: string | null | undefined
+        isQbSynced?: boolean | undefined
+        qbSyncErrorReason?: string | null | undefined
+        qbLastSyncedAt?: string | null | undefined
+        squareCustomerId?: string | null | undefined
+        isSquareSynced?: boolean | undefined
+        squareSyncErrorReason?: string | null | undefined
+        squareLastSyncedAt?: string | null | undefined
+        createdAt: string
+        updatedAt: string | null
+        billing: {
+            billingEmail: string
+            company: string | null
+            address: string
+            city: string
+            stateCode: string
+            postalCode: string
+            countryCode: string
+        }
+        shipping: {
+            firstName: string | null
+            lastName: string | null
+            company: string | null
+            address: string
+            city: string
+            stateCode: string
+            postalCode: string
+            countryCode: string
+        }
+        shippingAddresses?:
+            | {
+                  id: number
+                  customerId: number
+                  type: number
+                  firstName: string
+                  lastName: string
+                  company: string | null
+                  address: string
+                  city: string
+                  stateCode: string
+                  postalCode: string
+                  countryCode: string
+                  isActive: boolean
+                  createdAt: string
+                  updatedAt: string | null
+              }[]
+            | undefined
+    } | null>
+    loading: globalThis.ComputedRef<boolean>
+    error: globalThis.ComputedRef<string | null>
+    activeCustomers: globalThis.ComputedRef<
+        {
+            id: number
+            organisationId: number
+            email: string
+            firstName: string
+            lastName: string
+            avatar: string | null
+            phoneNumber: string
+            pickupLocation: number
+            signupLocation: number
+            deliveryMethod: number
+            cpi: string | null
+            dob: string | null
+            isAppUser: boolean
+            isActive: boolean
+            qbCustomerId?: string | null | undefined
+            isQbSynced?: boolean | undefined
+            qbSyncErrorReason?: string | null | undefined
+            qbLastSyncedAt?: string | null | undefined
+            squareCustomerId?: string | null | undefined
+            isSquareSynced?: boolean | undefined
+            squareSyncErrorReason?: string | null | undefined
+            squareLastSyncedAt?: string | null | undefined
+            createdAt: string
+            updatedAt: string | null
+            billing: {
+                billingEmail: string
+                company: string | null
+                address: string
+                city: string
+                stateCode: string
+                postalCode: string
+                countryCode: string
+            }
+            shipping: {
+                firstName: string | null
+                lastName: string | null
+                company: string | null
+                address: string
+                city: string
+                stateCode: string
+                postalCode: string
+                countryCode: string
+            }
+            shippingAddresses?:
+                | {
+                      id: number
+                      customerId: number
+                      type: number
+                      firstName: string
+                      lastName: string
+                      company: string | null
+                      address: string
+                      city: string
+                      stateCode: string
+                      postalCode: string
+                      countryCode: string
+                      isActive: boolean
+                      createdAt: string
+                      updatedAt: string | null
+                  }[]
+                | undefined
+        }[]
+    >
+    pagination: globalThis.ComputedRef<{
+        total: number
+        page: number
+        limit: number
+        totalPages: number
+    } | null>
+    fetchCustomers: (
+        organisationId: number | null | undefined,
+        page?: number,
+        limit?: number,
+        search?: string
+    ) => Promise<PaginatedCustomersResponse>
+    queryCustomers: (
+        organisationId: number | null | undefined,
+        page?: number,
+        limit?: number,
+        search?: string
+    ) => Promise<PaginatedCustomersResponse>
+    getCustomerRecord: (customerId: number) => Promise<Customer>
+    fetchCustomerById: (
+        customerId: number
+    ) => Promise<import('~/services/api/wrappers/customer.api').Customer>
+    createCustomer: (
+        data: CreateCustomerDTO
+    ) => Promise<import('~/services/api/wrappers/customer.api').Customer>
+    updateCustomer: (
+        customerId: number,
+        data: UpdateCustomerDTO
+    ) => Promise<import('~/services/api/wrappers/customer.api').Customer>
+    addShippingAddress: (
+        customerId: number,
+        data: CustomerShippingAddressDTO
+    ) => Promise<import('~/services/api/wrappers/customer.api').CustomerShippingAddress>
+    updateShippingAddress: (
+        customerId: number,
+        shippingId: number,
+        data: CustomerShippingAddressDTO
+    ) => Promise<import('~/services/api/wrappers/customer.api').CustomerShippingAddress>
+    deleteShippingAddress: (customerId: number, shippingId: number) => Promise<void>
+    checkEmailExists: (
+        email: string,
+        customerId?: number,
+        organisationId?: number
+    ) => Promise<boolean>
+    stageCreateAvatar: (organisationId: number, file: File) => Promise<string>
+    getCreateFormData: (organisationId: number) => Promise<
+        NonNullable<
+            Awaited<
+                ReturnType<
+                    (organisationId: number) => Promise<
+                        import('~/types/api.types').ApiResponse<{
+                            locations: import('~/types/location.types').Location[]
+                        }>
+                    >
+                >
+            >['data']
+        >
+    >
+    checkCreateEmailExists: (organisationId: number, email: string) => Promise<boolean>
+    uploadImage: (customerId: number, file: File) => Promise<void>
+    toggleActive: (
+        customerId: number,
+        isActive: boolean
+    ) => Promise<import('~/services/api/wrappers/customer.api').Customer>
+    syncCustomerToQB: (customerId: number) => Promise<{ created: boolean; qbId: string }>
+    importCustomersFromQB: () => Promise<{
+        created: number
+        updated: number
+        skipped: number
+        errors: Array<{ item: string; error: string }>
+    }>
+    importCustomersFromSquare: () => Promise<{
+        created: number
+        updated: number
+        skipped: number
+        errors: Array<{ item: string; error: string }>
+    }>
+    syncCustomerToSquare: (customerId: number) => Promise<{ created: boolean; squareId: string }>
+    deleteCustomer: (customerId: number) => Promise<void>
+} => {
     const nuxtApp = useNuxtApp()
     const customerStore = useCustomerStore()
     const customerApi =
@@ -61,6 +337,27 @@ export function useCustomer() {
         } finally {
             if (isOrganisationContextCurrent(contextRevision)) customerStore.setLoading(false)
         }
+    }
+
+    const queryCustomers = async (
+        organisationId: number | null | undefined,
+        page: number = 1,
+        limit: number = 25,
+        search?: string
+    ): Promise<PaginatedCustomersResponse> => {
+        const response = await customerApi.getAllCustomers(organisationId, page, limit, search)
+        if (!response.success || !response.data) {
+            throw new Error(response.message || 'Failed to load customers')
+        }
+        return response.data
+    }
+
+    const getCustomerRecord = async (customerId: number): Promise<Customer> => {
+        const response = await customerApi.getCustomerById(customerId)
+        if (!response.success || !response.data) {
+            throw new Error(response.message || 'Failed to load customer')
+        }
+        return response.data
     }
 
     const fetchCustomerById = async (
@@ -223,6 +520,34 @@ export function useCustomer() {
         organisationId?: number
     ): Promise<boolean> => {
         const response = await customerApi.checkEmailExists(email, customerId, organisationId)
+        return response.data?.available ?? false
+    }
+
+    const stageCreateAvatar = async (organisationId: number, file: File): Promise<string> => {
+        const response = await customerApi.stageCustomerAvatar(organisationId, file)
+        if (!response.success || !response.data?.token) {
+            throw new Error(response.message || 'Failed to stage customer avatar')
+        }
+        return response.data.token
+    }
+
+    const getCreateFormData = async (
+        organisationId: number
+    ): Promise<
+        NonNullable<Awaited<ReturnType<typeof customerApi.getCustomerCreateFormData>>['data']>
+    > => {
+        const response = await customerApi.getCustomerCreateFormData(organisationId)
+        if (!response.success || !response.data) {
+            throw new Error(response.message || 'Failed to load Add Customer form data')
+        }
+        return response.data
+    }
+
+    const checkCreateEmailExists = async (
+        organisationId: number,
+        email: string
+    ): Promise<boolean> => {
+        const response = await customerApi.checkCustomerCreateEmail(organisationId, email)
         return response.data?.available ?? false
     }
 
@@ -415,6 +740,8 @@ export function useCustomer() {
         activeCustomers: computed(() => customerStore.activeCustomers),
         pagination: computed(() => customerStore.pagination),
         fetchCustomers,
+        queryCustomers,
+        getCustomerRecord,
         fetchCustomerById,
         createCustomer,
         updateCustomer,
@@ -422,6 +749,9 @@ export function useCustomer() {
         updateShippingAddress,
         deleteShippingAddress,
         checkEmailExists,
+        stageCreateAvatar,
+        getCreateFormData,
+        checkCreateEmailExists,
         uploadImage,
         toggleActive,
         syncCustomerToQB,

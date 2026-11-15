@@ -293,6 +293,15 @@ const quantityLabel = computed(() =>
         : 'Quantity'
 )
 
+const movementDefaults = (): InventoryMovementFormData => ({
+    movementType: INVENTORY_MOVEMENT_TYPE.RESTOCK_RECEIVED,
+    locationId: 0,
+    destinationLocationId: undefined,
+    quantity: 1,
+    reason: '',
+    notes: '',
+})
+
 const { errors, handleSubmit, resetForm, defineField } = useForm<InventoryMovementFormData>({
     validationSchema: toTypedSchema(inventoryMovementSchema),
     initialValues: movementDefaults(),
@@ -314,25 +323,14 @@ const submitMovement = handleSubmit(async (form) => {
     emit('saved')
 })
 
-function movementDefaults(): InventoryMovementFormData {
-    return {
-        movementType: INVENTORY_MOVEMENT_TYPE.RESTOCK_RECEIVED,
-        locationId: 0,
-        destinationLocationId: undefined,
-        quantity: 1,
-        reason: '',
-        notes: '',
-    }
-}
-
-function beginThresholdUpdate(location: number, threshold: number): void {
+const beginThresholdUpdate = (location: number, threshold: number): void => {
     thresholdLocationId.value = location
     thresholdValue.value = threshold
     thresholdReason.value = ''
     thresholdError.value = ''
 }
 
-async function saveThreshold(): Promise<void> {
+const saveThreshold = async (): Promise<void> => {
     if (!thresholdLocationId.value) return
     const result = inventoryThresholdSchema.safeParse({
         locationId: thresholdLocationId.value,
@@ -348,34 +346,34 @@ async function saveThreshold(): Promise<void> {
     emit('saved')
 }
 
-function cancelThresholdUpdate(): void {
+const cancelThresholdUpdate = (): void => {
     thresholdLocationId.value = null
     thresholdReason.value = ''
     thresholdError.value = ''
 }
 
-function stockStatusColor(status: string): string {
+const stockStatusColor = (status: string): string => {
     if (status === INVENTORY_STOCK_STATUS.IN_STOCK) return 'success'
     if (status === INVENTORY_STOCK_STATUS.LOW_STOCK) return 'warning'
     return 'error'
 }
 
-function formatLabel(value: string): string {
+const formatLabel = (value: string): string => {
     return value.replaceAll('_', ' ').toLowerCase()
 }
 
-function formatDate(value: string): string {
+const formatDate = (value: string): string => {
     return new Intl.DateTimeFormat('en-US', {
         dateStyle: 'medium',
         timeStyle: 'short',
     }).format(new Date(value))
 }
 
-function signedQuantity(value: number): string {
+const signedQuantity = (value: number): string => {
     return value > 0 ? `+${value}` : String(value)
 }
 
-function close(): void {
+const close = (): void => {
     emit('update:modelValue', false)
 }
 

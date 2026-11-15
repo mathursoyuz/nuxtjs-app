@@ -9,7 +9,7 @@ export interface Toast {
     timestamp: Date
 }
 
-function generateId(): string {
+const generateId = (): string => {
     return `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`
 }
 
@@ -17,7 +17,7 @@ export const useToastStore = defineStore('toast', () => {
     const toasts = ref<Toast[]>([])
     const visibleToasts = computed(() => toasts.value.slice(-5).reverse())
 
-    function addToast(message: string, type: Toast['type'], timeout = 5000): string {
+    const addToast = (message: string, type: Toast['type'], timeout: number = 5000): string => {
         const toast: Toast = {
             id: generateId(),
             message,
@@ -34,28 +34,28 @@ export const useToastStore = defineStore('toast', () => {
         return toast.id
     }
 
-    function removeToast(id: string): void {
+    const removeToast = (id: string): void => {
         const index = toasts.value.findIndex((toast) => toast.id === id)
         if (index >= 0) toasts.value.splice(index, 1)
     }
 
-    function clearAll(): void {
+    const clearAll = (): void => {
         toasts.value = []
     }
 
-    function success(message: string, timeout = 5000): string {
+    const success = (message: string, timeout: number = 5000): string => {
         return addToast(message, 'success', timeout)
     }
 
-    function error(message: string, timeout = 5000): string {
+    const error = (message: string, timeout: number = 5000): string => {
         return addToast(message, 'error', timeout)
     }
 
-    function warning(message: string, timeout = 5000): string {
+    const warning = (message: string, timeout: number = 5000): string => {
         return addToast(message, 'warning', timeout)
     }
 
-    function info(message: string, timeout = 5000): string {
+    const info = (message: string, timeout: number = 5000): string => {
         return addToast(message, 'info', timeout)
     }
 

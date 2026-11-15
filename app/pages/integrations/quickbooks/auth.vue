@@ -27,41 +27,40 @@
 </template>
 
 <script setup lang="ts">
-import { SYSTEM_ROLE } from '~/constants/access.constants'
+import { QUICKBOOKS_PERMISSIONS } from '~/constants/integration-permissions.constants'
 
-import { ref, onMounted } from 'vue';
-import { useRoute } from 'vue-router';
-import { useQuickbooks } from '~/composables/useQuickbooks';
+import { ref, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
+import { useQuickbooks } from '~/composables/useQuickbooks'
 
 definePageMeta({
-    middleware: ['auth', 'role'],
-    roles: [SYSTEM_ROLE.PLATFORM_ADMIN],
-    public: true, // Allow access during OAuth flow
-});
+    middleware: ['auth', 'permission'],
+    access: { permission: QUICKBOOKS_PERMISSIONS.WRITE },
+})
 
-const route = useRoute();
-const { handleAuthCallback, loading, error } = useQuickbooks();
-const success = ref(false);
+const route = useRoute()
+const { handleAuthCallback, loading, error } = useQuickbooks()
+const success = ref(false)
 
 const handleAuth = () => {
-    const { initiateAuth } = useQuickbooks();
-    initiateAuth();
-};
+    const { initiateAuth } = useQuickbooks()
+    initiateAuth()
+}
 
 onMounted(async () => {
-    const code = route.query.code as string;
-    const realmId = route.query.realmId as string;
+    const code = route.query.code as string
+    const realmId = route.query.realmId as string
 
     if (code && realmId) {
         try {
-            await handleAuthCallback(code, realmId);
-            success.value = true;
+            await handleAuthCallback(code, realmId)
+            success.value = true
             setTimeout(() => {
-                navigateTo('/integrations/quickbooks');
-            }, 2000);
+                navigateTo('/integrations/quickbooks')
+            }, 2000)
         } catch (err) {
-            console.error('Auth callback error:', err);
+            console.error('Auth callback error:', err)
         }
     }
-});
+})
 </script>

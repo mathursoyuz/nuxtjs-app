@@ -37,12 +37,16 @@ const access = useAccessStore()
 const filters = useFilterStore()
 const canFilterAll = computed(() => access.canAcrossOrganisations(props.permission))
 const canFilterPlatform = computed(
-    () => props.includePlatform && access.can(props.permission) && access.platformOrganisationId !== null
+    () =>
+        props.includePlatform &&
+        access.can(props.permission) &&
+        access.platformOrganisationId !== null
 )
 const organisationItems = computed(() =>
-    access
-        .organisationsWithCrossOrganisationPermission(props.permission)
-        .map((organisation) => ({ title: `${organisation.name} · #${organisation.id}`, value: organisation.id }))
+    access.organisationsWithCrossOrganisationPermission(props.permission).map((organisation) => ({
+        title: `${organisation.name} · #${organisation.id}`,
+        value: organisation.id,
+    }))
 )
 const items = computed(() => [
     ...(canFilterAll.value
@@ -55,7 +59,7 @@ const items = computed(() => [
 ])
 const modelValue = computed(() => filters.organisationId ?? ALL_ORGANISATIONS)
 
-function setFilter(value: string | number | null) {
+const setFilter = (value: string | number | null): void => {
     if (value === null) return
     filters.setOrganisationId(value === ALL_ORGANISATIONS ? null : Number(value))
 }

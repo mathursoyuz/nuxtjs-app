@@ -26,7 +26,20 @@
                     variant="tonal"
                     class="mb-4"
                 >
-                    Add an active credit card before joining, rejoining, upgrading, or downgrading.
+                    <div class="d-flex align-center justify-space-between ga-3 flex-wrap">
+                        <span>
+                            Add payment details before the subscription can be charged and recorded.
+                        </span>
+                        <v-btn
+                            v-if="canAddPaymentMethod"
+                            color="error"
+                            variant="outlined"
+                            prepend-icon="mdi-credit-card-plus"
+                            @click="emit('add-payment-method')"
+                        >
+                            Add payment details
+                        </v-btn>
+                    </div>
                 </v-alert>
 
                 <section v-for="group in groups" :key="group.id" class="mb-6">
@@ -215,68 +228,7 @@
                 <template v-if="breakdowns.length">
                     <v-divider class="my-5" />
                     <h3 class="text-h6 mb-3">Change summary</h3>
-                    <v-table density="compact" class="mb-4">
-                        <thead>
-                            <tr>
-                                <th>Group</th>
-                                <th>Change</th>
-                                <th class="text-right">Current price</th>
-                                <th class="text-right">New price</th>
-                                <th class="text-right">Unused</th>
-                                <th class="text-right">Credit applied</th>
-                                <th class="text-right">Forfeited</th>
-                                <th class="text-right">Charge now</th>
-                                <th>Effective</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="item in breakdowns" :key="item.group.id">
-                                <td>{{ item.group.name }}</td>
-                                <td>{{ operationLabel(item.breakdown.operation) }}</td>
-                                <td class="text-right">
-                                    {{ formatMembershipMoney(item.breakdown.existingPriceAmount) }}
-                                </td>
-                                <td class="text-right">
-                                    {{ formatMembershipMoney(item.breakdown.newPriceAmount) }}
-                                </td>
-                                <td class="text-right">
-                                    {{ formatMembershipMoney(item.breakdown.unusedCreditAmount) }}
-                                </td>
-                                <td class="text-right">
-                                    {{
-                                        formatMembershipMoney(item.breakdown.creditDiscountApplied)
-                                    }}
-                                </td>
-                                <td class="text-right">
-                                    {{
-                                        formatMembershipMoney(item.breakdown.forfeitedCreditAmount)
-                                    }}
-                                </td>
-                                <td class="text-right">
-                                    {{ formatMembershipMoney(item.breakdown.finalAmountCharged) }}
-                                </td>
-                                <td>{{ item.breakdown.effectiveAt }}</td>
-                            </tr>
-                        </tbody>
-                        <tfoot>
-                            <tr class="font-weight-bold">
-                                <td colspan="4">Combined totals</td>
-                                <td class="text-right">
-                                    {{ formatMembershipMoney(totals.unusedCreditAmount) }}
-                                </td>
-                                <td class="text-right">
-                                    {{ formatMembershipMoney(totals.creditDiscountApplied) }}
-                                </td>
-                                <td class="text-right">
-                                    {{ formatMembershipMoney(totals.forfeitedCreditAmount) }}
-                                </td>
-                                <td class="text-right">
-                                    {{ formatMembershipMoney(totals.finalAmountCharged) }}
-                                </td>
-                                <td />
-                            </tr>
-                        </tfoot>
-                    </v-table>
+                    <MembershipChangeSummaryTable :breakdowns="breakdowns" :totals="totals" />
 
                     <PaymentCardSelectionTiles
                         v-if="needsCard"
@@ -309,11 +261,13 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import PaymentCardSelectionTiles from './PaymentCardSelectionTiles.vue'
+import MembershipChangeSummaryTable from './MembershipChangeSummaryTable.vue'
 import { MEMBERSHIP_STATUS } from '~/constants/membership.constants'
 import { useMemberships } from '~/composables/useMemberships'
 import { useToast } from '~/composables/useToast'
 import {
     groupMembershipOptions,
+    membershipBatchOperationLabel as operationLabel,
     membershipBatchBreakdown,
     membershipBatchOperation,
     type MembershipBatchGroup,
@@ -339,8 +293,13 @@ const props = defineProps<{
     memberships: Membership[]
     subscriptions: MembershipSubscription[]
     cards: SelectablePaymentCard[]
+    canAddPaymentMethod?: boolean
 }>()
-const emit = defineEmits<{ 'update:modelValue': [value: boolean]; saved: [] }>()
+const emit = defineEmits<{
+    'update:modelValue': [value: boolean]
+    saved: []
+    'add-payment-method': []
+}>()
 const manager = useMemberships()
 const { success, errorFromError } = useToast()
 const selections = ref<Record<number, number | 'CANCEL'>>({})
@@ -353,7 +312,7 @@ const submitting = ref(false)
 const groups = computed(() => groupMembershipOptions(props.memberships, props.subscriptions))
 const operationFor = (group: MembershipBatchGroup): MembershipBatchOperation =>
     membershipBatchOperation(group, selections.value[group.id])
-const breakdownFor = (group: MembershipBatchGroup) =>
+const breakdownFor = (group: MembershipBatchGroup): globalThis.MembershipBatchBreakdown =>
     membershipBatchBreakdown(
         group,
         selections.value[group.id],
@@ -419,15 +378,6 @@ const noChangeLabel = (group: MembershipBatchGroup): string => {
     if (group.subscription.status === MEMBERSHIP_STATUS.CANCELLED) return 'Remain cancelled.'
     return 'Keep the current subscription and any already scheduled change.'
 }
-const operationLabel = (operation: MembershipBatchOperation): string =>
-    ({
-        KEEP: 'No change',
-        JOIN: 'Join',
-        REJOIN: 'Rejoin',
-        UPGRADE: 'Upgrade',
-        DOWNGRADE: 'Downgrade',
-        CANCEL: 'Cancel',
-    })[operation]
 const operationColor = (operation: MembershipBatchOperation): string =>
     operation === 'CANCEL'
         ? 'error'

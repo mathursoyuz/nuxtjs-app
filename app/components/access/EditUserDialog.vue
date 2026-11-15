@@ -8,15 +8,13 @@
     >
         <v-card rounded="lg">
             <DialogsDialogHeader
-                :title="userId ? 'Edit user' : 'Create user'"
+                title="Edit user"
                 :organisation-name="contextName"
                 entity-label="User"
                 :entity-name="
                     form.firstName || form.lastName
                         ? `${form.firstName} ${form.lastName}`.trim()
-                        : userId
-                          ? 'Selected user'
-                          : 'New user'
+                        : 'Selected user'
                 "
                 :close-disabled="saving"
                 @close="close"
@@ -100,9 +98,7 @@
                                 hide-details="auto"
                                 :rules="[passwordRule]"
                                 :hint="
-                                    userId
-                                        ? 'Leave blank to keep the current password.'
-                                        : 'At least 8 characters.'
+                                    'Leave blank to keep the current password.'
                                 "
                                 persistent-hint
                             />
@@ -124,23 +120,12 @@
                         </v-col>
                     </v-row>
 
-                    <div v-if="userId" class="border rounded pa-3 mt-1 text-body-2">
+                    <div class="border rounded pa-3 mt-1 text-body-2">
                         System role:
                         <span class="font-weight-medium">
                             {{ SYSTEM_ROLE_LABELS[form.systemRole] }}
                         </span>
                     </div>
-                    <v-select
-                        v-else
-                        v-model="form.systemRole"
-                        :items="systemRoleOptions"
-                        label="System role"
-                        variant="outlined"
-                        density="compact"
-                        hide-details="auto"
-                        class="mt-1"
-                        :rules="[required]"
-                    />
 
                     <section v-if="options.canAssignRoles && acceptsGrants" class="mt-5">
                         <v-switch
@@ -293,7 +278,7 @@
                     :loading="saving"
                     :disabled="loading || !options"
                 >
-                    {{ userId ? 'Save' : 'Create user' }}
+                    Save
                 </v-btn>
             </v-card-actions>
         </v-card>
@@ -304,27 +289,26 @@
 import { SYSTEM_ROLE } from '~/constants/access.constants'
 
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
-import type { AccessApiService } from '~/services/api/wrappers/access.api'
 import { SYSTEM_ROLE_LABELS } from '~/types/access.types'
 import type {
-    CreateManagedUser,
     SystemRole,
     UpdateManagedUser,
     UserOrganisationAssignment,
     UserManagementOptions,
 } from '~/types/access.types'
+import { updateManagedUserSchema } from '~/schemas/access.schema'
 
 const props = defineProps<{
     modelValue: boolean
     organisationId: number
     contextName: string
-    userId?: number
+    userId: number
 }>()
 const emit = defineEmits<{
     'update:modelValue': [value: boolean]
     saved: []
 }>()
-const api = useNuxtApp().$accessApi as AccessApiService
+const api = useAccessManagement()
 const formRef = ref<{ validate: () => Promise<{ valid: boolean }>; resetValidation: () => void }>()
 const loading = ref(false)
 const saving = ref(false)
@@ -332,7 +316,17 @@ const error = ref('')
 const options = ref<UserManagementOptions | null>(null)
 const selectedOrganisationIds = ref<number[]>([])
 const organisationGrants = reactive<Record<number, UserOrganisationAssignment>>({})
-const emptyForm = () => ({
+const emptyForm = (): {
+    firstName: string
+    lastName: string
+    email: string
+    phoneNumber: string
+    password: string
+    confirmPassword: string
+    systemRole: SystemRole
+    assignmentActive: boolean
+    roleIds: number[]
+} => ({
     firstName: '',
     lastName: '',
     email: '',
@@ -357,23 +351,21 @@ const acceptsGrants = computed(
         form.systemRole === SYSTEM_ROLE.PLATFORM_USER ||
         form.systemRole === SYSTEM_ROLE.ORGANISATION_TEAM_USER
 )
-const systemRoleOptions = computed(
-    () =>
-        options.value?.systemRoles.map((value) => ({ title: SYSTEM_ROLE_LABELS[value], value })) ??
-        []
-)
-const required = (value: unknown) =>
+const required = (value: unknown): true | 'This field is required.' =>
     (typeof value === 'string' ? !!value.trim() : !!value) || 'This field is required.'
-const emailRule = (value: string) =>
+const emailRule = (value: string): true | 'Enter a valid email address.' =>
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) || 'Enter a valid email address.'
-const passwordRule = (value: string) => {
-    if (props.userId && !value) return true
+const passwordRule = (
+    value: string
+): true | 'Use at least 8 characters.' | 'Use a password of at most 72 bytes.' => {
+    if (!value) return true
     if (value.length < 8) return 'Use at least 8 characters.'
     return new TextEncoder().encode(value).length <= 72 || 'Use a password of at most 72 bytes.'
 }
-const confirmPasswordRule = (value: string) => value === form.password || 'Passwords do not match.'
+const confirmPasswordRule = (value: string): true | 'Passwords do not match.' =>
+    value === form.password || 'Passwords do not match.'
 
-function errorMessage(value: unknown) {
+const errorMessage = (value: unknown): string => {
     const response = value as {
         response?: { data?: { message?: string | string[] } }
         message?: string
@@ -383,10 +375,10 @@ function errorMessage(value: unknown) {
         ? message.join(' ')
         : message || response?.message || 'Unable to save user.'
 }
-function close() {
+const close = (): void => {
     if (!saving.value) emit('update:modelValue', false)
 }
-async function load() {
+const load = async (): Promise<void> => {
     const current = ++revision
     options.value = null
     error.value = ''
@@ -400,36 +392,25 @@ async function load() {
     try {
         const [optionsResponse, userResponse] = await Promise.all([
             api.userOptions(props.organisationId),
-            props.userId
-                ? api.managedUser(props.organisationId, props.userId)
-                : Promise.resolve(null),
+            api.managedUser(props.organisationId, props.userId),
         ])
         if (current !== revision) return
         if (!optionsResponse.data) throw new Error('User options could not be loaded.')
-        const user = userResponse?.data
-        if (props.userId && (!user || !user.canEdit))
+        const user = userResponse.data
+        if (!user || !user.canEdit)
             throw new Error('You no longer have permission to edit this user.')
         options.value = optionsResponse.data
-        if (user) {
-            Object.assign(form, {
-                firstName: user.firstName,
-                lastName: user.lastName,
-                email: user.email,
-                phoneNumber: user.phoneNumber,
-                systemRole: user.systemRole,
-                roleIds: [...user.roleIds],
-                assignmentActive: user.assignmentActive,
-            })
-        } else {
-            const preferred = options.value.systemRoles.find(
-                (role) =>
-                    role === SYSTEM_ROLE.PLATFORM_USER ||
-                    role === SYSTEM_ROLE.ORGANISATION_TEAM_USER
-            )
-            form.systemRole = preferred ?? options.value.systemRoles[0] ?? SYSTEM_ROLE.PLATFORM_USER
-        }
+        Object.assign(form, {
+            firstName: user.firstName,
+            lastName: user.lastName,
+            email: user.email,
+            phoneNumber: user.phoneNumber,
+            systemRole: user.systemRole,
+            roleIds: [...user.roleIds],
+            assignmentActive: user.assignmentActive,
+        })
         for (const organisation of options.value.organisations) {
-            const grant = user?.organisationAssignments.find(
+            const grant = user.organisationAssignments.find(
                 (item) => item.organisationId === organisation.id
             )
             organisationGrants[organisation.id] = {
@@ -438,10 +419,9 @@ async function load() {
                 isActive: grant?.isActive ?? true,
             }
         }
-        selectedOrganisationIds.value =
-            user?.organisationAssignments
-                .filter((grant) => !!organisationGrants[grant.organisationId])
-                .map((grant) => grant.organisationId) ?? []
+        selectedOrganisationIds.value = user.organisationAssignments
+            .filter((grant) => !!organisationGrants[grant.organisationId])
+            .map((grant) => grant.organisationId)
     } catch (value) {
         if (current === revision) {
             options.value = null
@@ -451,11 +431,12 @@ async function load() {
         if (current === revision) loading.value = false
     }
 }
-async function save() {
+const save = async (): Promise<void> => {
     if (saving.value || loading.value || !options.value) return
     const current = revision
     const validation = await formRef.value?.validate()
-    if (!validation?.valid || current !== revision) return
+    if (!validation?.valid || !updateManagedUserSchema.safeParse(form).success || current !== revision)
+        return
     const organisationId = props.organisationId
     const userId = props.userId
     saving.value = true
@@ -481,14 +462,7 @@ async function save() {
         }))
     }
     try {
-        if (userId) await api.updateManagedUser(organisationId, userId, data)
-        else
-            await api.createManagedUser(organisationId, {
-                ...data,
-                password: form.password,
-                confirmPassword: form.confirmPassword,
-                systemRole: form.systemRole,
-            } as CreateManagedUser)
+        await api.updateManagedUser(organisationId, userId, data)
         if (current !== revision) return
         emit('saved')
         emit('update:modelValue', false)

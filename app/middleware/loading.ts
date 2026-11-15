@@ -1,4 +1,4 @@
-import { useLoadingStore } from '~/stores/loading.store';
+import { useLoadingStore } from '~/stores/loading.store'
 
 /**
  * Loading middleware for page navigation
@@ -6,14 +6,14 @@ import { useLoadingStore } from '~/stores/loading.store';
  */
 export default defineNuxtRouteMiddleware((to, from) => {
     // Only run on organisation side
-    if (process.server) return;
+    if (import.meta.server) return
 
-    const loadingStore = useLoadingStore();
-    const taskId = `page-${to.path}`;
+    const loadingStore = useLoadingStore()
+    const taskId = `page-${to.path}`
 
     // Start loading when navigation begins
-    loadingStore.startTask(taskId, 'Loading page...');
+    loadingStore.startTask(taskId, 'Loading page...')
 
     // Stop loading will be handled by the page component's onMounted
     // This ensures spinner shows during navigation and until page data loads
-});
+})

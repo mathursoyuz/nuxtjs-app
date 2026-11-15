@@ -93,35 +93,15 @@
                         </v-card-text>
                     </v-card>
 
-                    <v-card variant="outlined" class="mb-5">
-                        <v-card-title>Product media</v-card-title>
-                        <v-card-text>
-                            <v-row>
-                                <v-col cols="12" md="4">
-                                    <div class="text-subtitle-2 mb-2">Thumbnail</div>
-                                    <ThumbnailUpload
-                                        :model-value="productImages.thumbnail"
-                                        :file-url="productThumbnailUrl"
-                                        @update:model-value="updateProductThumbnail"
-                                    />
-                                </v-col>
-                                <v-col cols="12" md="8">
-                                    <div class="text-subtitle-2 mb-2">Gallery</div>
-                                    <GalleryUpload
-                                        :can-remove-existing="
-                                            access.can(PRODUCT_PERMISSIONS.DELETE)
-                                        "
-                                        :model-value="productImages.gallery"
-                                        :existing-gallery="visibleProductGallery"
-                                        @update:model-value="
-                                            updateProductImages({ gallery: $event })
-                                        "
-                                        @remove-existing-image="removeProductGalleryImage"
-                                    />
-                                </v-col>
-                            </v-row>
-                        </v-card-text>
-                    </v-card>
+                    <EditProductMediaFields
+                        :images="productImages"
+                        :thumbnail-url="productThumbnailUrl"
+                        :existing-gallery="visibleProductGallery"
+                        :can-remove-existing="access.can(PRODUCT_PERMISSIONS.UPDATE)"
+                        @update:thumbnail="updateProductThumbnail"
+                        @update:gallery="updateProductImages({ gallery: $event })"
+                        @remove-existing-image="removeProductGalleryImage"
+                    />
 
                     <div class="d-flex align-center justify-space-between mb-3">
                         <div>
@@ -143,8 +123,7 @@
                         :images="variantImages[index] ?? emptyImageFiles()"
                         :index="index"
                         :can-remove="
-                            values.variants.length > 1 &&
-                            (!values.variants[index]?.id || access.can(PRODUCT_PERMISSIONS.DELETE))
+                            values.variants.length > 1 && access.can(PRODUCT_PERMISSIONS.UPDATE)
                         "
                         :component-variants="componentVariantOptions"
                         :can-manage-inventory="canManageInventory"
@@ -211,11 +190,10 @@ const access = useAccessStore()
 import { computed, ref, watch } from 'vue'
 import { toTypedSchema } from '@vee-validate/zod'
 import { useFieldArray, useForm } from 'vee-validate'
-import GalleryUpload from '~/components/products/GalleryUpload.vue'
+import EditProductMediaFields from '~/components/products/EditProductMediaFields.vue'
 import ProductVariantEditor from '~/components/products/ProductVariantEditor.vue'
 import PlatformOpeningInventoryDialog from '~/components/inventory/PlatformOpeningInventoryDialog.vue'
 import PlatformSupplyInventoryManagementDialog from '~/components/inventory/PlatformSupplyInventoryManagementDialog.vue'
-import ThumbnailUpload from '~/components/products/ThumbnailUpload.vue'
 import { INVENTORY_PERMISSIONS } from '~/components/inventory/inventory.permissions'
 import { useProductForm } from '~/composables/useProductForm'
 import { useToast } from '~/composables/useToast'
@@ -244,9 +222,9 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
     product: null,
-    categories: () => [],
-    locations: () => [],
-    availableProducts: () => [],
+    categories: (): never[] => [],
+    locations: (): never[] => [],
+    availableProducts: (): never[] => [],
 })
 
 const emit = defineEmits<{
@@ -263,6 +241,39 @@ const canManageInventory = computed(
 const config = useRuntimeConfig()
 const { saveProduct, validateAvailability, saving } = useProductForm()
 const toast = useToast()
+
+const emptyImageFiles = (entityId?: number): ImageFiles => ({
+    entityId,
+    thumbnail: null,
+    gallery: [],
+    removeExistingThumbnail: false,
+    removedExistingGallery: [],
+})
+
+const emptyVariant = (isDefault: boolean = false): ProductVariantFormData => ({
+    sku: '',
+    price: 0,
+    cog: 0,
+    stockManaged: true,
+    color: '',
+    size: '',
+    attributes: {},
+    inventory: [],
+    isDefault,
+    isActive: true,
+    bundleComponents: [],
+})
+
+const fallbackProduct = (): CreateProductFormData => ({
+    slug: '',
+    name: '',
+    description: null,
+    isFeatured: false,
+    isActive: true,
+    categories: [],
+    variants: [emptyVariant(true)],
+})
+
 const productImages = ref<ImageFiles>(emptyImageFiles())
 const variantImages = ref<ImageFiles[]>([])
 const visibleProductGallery = ref<string[]>([])
@@ -297,45 +308,7 @@ const {
     update: updateVariantAt,
 } = useFieldArray<ProductVariantFormData>('variants')
 
-function emptyImageFiles(entityId?: number): ImageFiles {
-    return {
-        entityId,
-        thumbnail: null,
-        gallery: [],
-        removeExistingThumbnail: false,
-        removedExistingGallery: [],
-    }
-}
-
-function emptyVariant(isDefault = false): ProductVariantFormData {
-    return {
-        sku: '',
-        price: 0,
-        cog: 0,
-        stockManaged: true,
-        color: '',
-        size: '',
-        attributes: {},
-        inventory: [],
-        isDefault,
-        isActive: true,
-        bundleComponents: [],
-    }
-}
-
-function fallbackProduct(): CreateProductFormData {
-    return {
-        slug: '',
-        name: '',
-        description: null,
-        isFeatured: false,
-        isActive: true,
-        categories: [],
-        variants: [emptyVariant(true)],
-    }
-}
-
-function editableProduct(): CreateProductFormData {
+const editableProduct = (): CreateProductFormData => {
     if (!props.product) return fallbackProduct()
     return {
         slug: props.product.slug,
@@ -365,7 +338,7 @@ function editableProduct(): CreateProductFormData {
     }
 }
 
-function resetDialog(): void {
+const resetDialog = (): void => {
     const formValues = editableProduct()
     resetForm({ values: formValues, errors: {}, touched: {} })
     productImages.value = emptyImageFiles(props.product?.id)
@@ -376,17 +349,17 @@ function resetDialog(): void {
     inventoryVariantIndex.value = null
 }
 
-function setName(name: string): void {
+const setName = (name: string): void => {
     setFieldValue('name', name)
     if (!slugWasEdited.value) setFieldValue('slug', toSlug(name))
 }
 
-function setSlug(slug: string): void {
+const setSlug = (slug: string): void => {
     slugWasEdited.value = true
     setFieldValue('slug', toSlug(slug))
 }
 
-function toSlug(value: string): string {
+const toSlug = (value: string): string => {
     return value
         .toLowerCase()
         .trim()
@@ -394,29 +367,29 @@ function toSlug(value: string): string {
         .replace(/^-|-$/g, '')
 }
 
-function toNumberArray(value: unknown): number[] {
+const toNumberArray = (value: unknown): number[] => {
     return Array.isArray(value) ? value.map(Number).filter(Number.isFinite) : []
 }
 
-function updateProductImages(patch: Partial<ImageFiles>): void {
+const updateProductImages = (patch: Partial<ImageFiles>): void => {
     productImages.value = { ...productImages.value, ...patch }
 }
 
-function updateProductThumbnail(thumbnail: File | null): void {
+const updateProductThumbnail = (thumbnail: File | null): void => {
     updateProductImages({
         thumbnail,
         removeExistingThumbnail: thumbnail === null && Boolean(props.product?.thumbnail),
     })
 }
 
-function removeProductGalleryImage(filename: string): void {
+const removeProductGalleryImage = (filename: string): void => {
     visibleProductGallery.value = visibleProductGallery.value.filter((image) => image !== filename)
     updateProductImages({
         removedExistingGallery: [...productImages.value.removedExistingGallery, filename],
     })
 }
 
-function updateVariant(index: number, variant: ProductVariantFormData): void {
+const updateVariant = (index: number, variant: ProductVariantFormData): void => {
     updateVariantAt(index, variant)
 }
 
@@ -425,7 +398,7 @@ const selectedInventoryVariant = computed(() =>
         ? null
         : (values.variants[inventoryVariantIndex.value] ?? null)
 )
-function isOpeningInventory(index: number): boolean {
+const isOpeningInventory = (index: number): boolean => {
     const current = values.variants[index]
     if (!current?.id) return true
     return (
@@ -437,39 +410,39 @@ const selectedInventoryIsDraft = computed(() => {
     return isOpeningInventory(inventoryVariantIndex.value)
 })
 
-function openInventory(index: number): void {
+const openInventory = (index: number): void => {
     const current = values.variants[index]
     if (!current) return
     inventoryVariantIndex.value = index
     inventoryDialogOpen.value = true
 }
 
-function updateSelectedInventory(inventory: InventoryDraftBalance[]): void {
+const updateSelectedInventory = (inventory: InventoryDraftBalance[]): void => {
     if (inventoryVariantIndex.value === null) return
     const current = values.variants[inventoryVariantIndex.value]
     if (!current || !selectedInventoryIsDraft.value) return
     updateVariantAt(inventoryVariantIndex.value, { ...current, inventory })
 }
 
-function handleInventorySaved(): void {
+const handleInventorySaved = (): void => {
     inventoryDialogOpen.value = false
     inventoryVariantIndex.value = null
 }
 
-function updateVariantImages(index: number, images: ImageFiles): void {
+const updateVariantImages = (index: number, images: ImageFiles): void => {
     variantImages.value = variantImages.value.map((current, currentIndex) =>
         currentIndex === index ? images : current
     )
 }
 
-function addVariant(): void {
+const addVariant = (): void => {
     appendVariant(emptyVariant(false))
     variantImages.value = [...variantImages.value, emptyImageFiles()]
 }
 
-function removeVariant(index: number): void {
+const removeVariant = (index: number): void => {
     if (values.variants.length === 1) return
-    if (values.variants[index]?.id && !access.can(PRODUCT_PERMISSIONS.DELETE)) return
+    if (!access.can(PRODUCT_PERMISSIONS.UPDATE)) return
     const removedWasDefault = values.variants[index]?.isDefault ?? false
     removeVariantAt(index)
     if (removedWasDefault && values.variants[0]) {
@@ -478,7 +451,7 @@ function removeVariant(index: number): void {
     variantImages.value = variantImages.value.filter((_, currentIndex) => currentIndex !== index)
 }
 
-function makeDefault(index: number): void {
+const makeDefault = (index: number): void => {
     values.variants.forEach((variant, currentIndex) => {
         updateVariantAt(currentIndex, {
             ...variant,
@@ -487,22 +460,24 @@ function makeDefault(index: number): void {
     })
 }
 
-function existingVariant(index: number) {
+const existingVariant = (
+    index: number
+): import('~/types/product.types').ProductVariant | undefined => {
     const entityId = variantImages.value[index]?.entityId
     return entityId ? props.product?.variants.find((variant) => variant.id === entityId) : undefined
 }
 
-function existingVariantThumbnail(index: number): string | null {
+const existingVariantThumbnail = (index: number): string | null => {
     if (variantImages.value[index]?.removeExistingThumbnail) return null
     return existingVariant(index)?.thumbnail ?? null
 }
 
-function existingVariantGallery(index: number): string[] {
+const existingVariantGallery = (index: number): string[] => {
     const removed = new Set(variantImages.value[index]?.removedExistingGallery ?? [])
     return (existingVariant(index)?.gallery ?? []).filter((image) => !removed.has(image))
 }
 
-function imageUrl(filename: string): string {
+const imageUrl = (filename: string): string => {
     return `${config.public.apiBaseUrl}/uploads/products/${filename}`
 }
 
@@ -533,11 +508,11 @@ const submitForm = handleSubmit(async (data) => {
     }
 })
 
-function save(): void {
+const save = (): void => {
     void submitForm()
 }
 
-function close(): void {
+const close = (): void => {
     inventoryDialogOpen.value = false
     inventoryVariantIndex.value = null
     emit('update:modelValue', false)

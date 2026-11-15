@@ -106,7 +106,6 @@
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { ROLE_PERMISSIONS } from '~/components/access/roles.permissions'
 import { useAccessStore } from '~/stores/access.store'
-import type { AccessApiService } from '~/services/api/wrappers/access.api'
 import type { AccessRole, RoleInput } from '~/types/access.types'
 import ConfirmDialog from '~/components/dialogs/ConfirmDialog.vue'
 definePageMeta({
@@ -114,11 +113,11 @@ definePageMeta({
     access: { permission: ROLE_PERMISSIONS.READ },
 })
 const access = useAccessStore()
-const api = useNuxtApp().$accessApi as AccessApiService
+const api = useAccessManagement()
 const organisationId = computed(() => access.actingOrganisationId)
 const canReadRoles = computed(() => access.can(ROLE_PERMISSIONS.READ))
-const canCreateRole = computed(() => access.can(ROLE_PERMISSIONS.WRITE))
-const canUpdateRole = computed(() => access.can(ROLE_PERMISSIONS.WRITE))
+const canCreateRole = computed(() => access.can(ROLE_PERMISSIONS.CREATE))
+const canUpdateRole = computed(() => access.can(ROLE_PERMISSIONS.UPDATE))
 const canDeleteRole = computed(() => access.can(ROLE_PERMISSIONS.DELETE))
 const contextName = computed(
     () =>
@@ -142,7 +141,7 @@ const roleHeaders = [
     { title: 'Actions', key: 'actions', sortable: false },
 ]
 let request = 0
-function clear() {
+const clear = (): void => {
     request++
     roles.value = []
     catalogue.value = []
@@ -152,7 +151,7 @@ function clear() {
     roleToDelete.value = null
     loading.value = saving.value = false
 }
-function message(cause: unknown) {
+const message = (cause: unknown): string => {
     const response = cause as {
         response?: { data?: { message?: string | string[] } }
         message?: string
@@ -162,7 +161,7 @@ function message(cause: unknown) {
         ? text.join(' ')
         : text || response?.message || 'Unable to save role.'
 }
-async function load() {
+const load = async (): Promise<void> => {
     const current = ++request
     error.value = ''
     const targetOrganisationId = organisationId.value
@@ -185,7 +184,7 @@ async function load() {
         if (current === request) loading.value = false
     }
 }
-function editRole(role?: AccessRole) {
+const editRole = (role?: AccessRole): void => {
     if (role ? !canUpdateRole.value : !canCreateRole.value) return
     editingRoleId.value = role?.id
     Object.assign(roleForm, {
@@ -197,7 +196,7 @@ function editRole(role?: AccessRole) {
     dialogError.value = ''
     roleDialog.value = true
 }
-async function saveRole() {
+const saveRole = async (): Promise<void> => {
     if (
         !organisationId.value ||
         (editingRoleId.value ? !canUpdateRole.value : !canCreateRole.value) ||
@@ -223,7 +222,7 @@ async function saveRole() {
         if (current === request) saving.value = false
     }
 }
-async function deleteRole() {
+const deleteRole = async (): Promise<void> => {
     if (!organisationId.value || !canDeleteRole.value || !roleToDelete.value || saving.value) return
     const current = request
     saving.value = true

@@ -218,11 +218,18 @@ const canReadMemberships = computed(
 const canWriteMemberships = computed(
     () =>
         customerOrganisationId.value > 0 &&
-        access.can(CUSTOMER_MEMBERSHIP_SUBSCRIPTION_PERMISSIONS.WRITE, customerOrganisationId.value)
+        (access.can(
+            CUSTOMER_MEMBERSHIP_SUBSCRIPTION_PERMISSIONS.CREATE,
+            customerOrganisationId.value
+        ) ||
+            access.can(
+                CUSTOMER_MEMBERSHIP_SUBSCRIPTION_PERMISSIONS.UPDATE,
+                customerOrganisationId.value
+            ))
 )
 
 // Load customer data once when dialog opens
-const loadCustomerData = async () => {
+const loadCustomerData = async (): Promise<void> => {
     if (!props.customer?.id) {
         fullCustomerData.value = null
         return
@@ -252,7 +259,7 @@ const loadCustomerData = async () => {
 }
 
 // Handle tab submit - refresh customer data
-const handleTabSubmit = async () => {
+const handleTabSubmit = async (): Promise<void> => {
     emit('submit')
     // Refresh customer data after successful update
     await loadCustomerData()

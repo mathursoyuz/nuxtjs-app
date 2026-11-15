@@ -1,4 +1,4 @@
-import type { CachedApiClient } from '../CachedApiClient'
+import HttpFactory from '@/repository/factory'
 import type { ApiResponse } from '~/types/api.types'
 import type {
     CheckSkuResponse,
@@ -8,97 +8,101 @@ import type {
     UpdateProductDTO,
 } from '~/types/product.types'
 
+export interface ProductImportResult {
+    created: number
+    updated: number
+    skipped: number
+    errors: Array<{ item: string; error: string }>
+}
+
 /**
  * Product API wrapper service
  */
-export class ProductApiService {
-    constructor(private readonly cachedApi: CachedApiClient) {}
-
+export class ProductApiService extends HttpFactory {
     async getAllProducts(): Promise<ApiResponse<Product[]>> {
-        return this.cachedApi.get<Product[]>('/products', undefined, 'products:all', 5 * 60 * 1000)
+        return await this.call<Product[]>('GET', '/products', undefined, {
+            cacheKey: 'products:all',
+            ttl: 5 * 60 * 1000,
+        })
     }
 
     async getProductById(id: number): Promise<ApiResponse<Product>> {
-        return this.cachedApi.get<Product>(
-            `/products/${id}`,
-            undefined,
-            `products:${id}`,
-            5 * 60 * 1000
-        )
+        return await this.call<Product>('GET', `/products/${id}`, undefined, {
+            cacheKey: `products:${id}`,
+            ttl: 5 * 60 * 1000,
+        })
     }
 
     async checkSku(sku: string, variantId?: number): Promise<ApiResponse<CheckSkuResponse>> {
-        return this.cachedApi.post<CheckSkuResponse>('/products/check-sku', {
+        const data = {
             sku,
             ...(variantId ? { variantId } : {}),
-        })
+        }
+        return await this.call<CheckSkuResponse, typeof data>('POST', '/products/check-sku', data)
     }
 
     async checkSlug(slug: string, productId?: number): Promise<ApiResponse<CheckSkuResponse>> {
-        return this.cachedApi.post<CheckSkuResponse>('/products/check-slug', {
+        const data = {
             slug,
             ...(productId ? { productId } : {}),
-        })
+        }
+        return await this.call<CheckSkuResponse, typeof data>('POST', '/products/check-slug', data)
     }
 
     async createProduct(data: CreateProductDTO): Promise<ApiResponse<Product>> {
         // Don't send files here - images are uploaded separately
-        const response = await this.cachedApi.post<Product>(
-            '/products',
-            data,
-            undefined,
-            'products:.*'
-        )
-        return response
+        return await this.call<Product, CreateProductDTO>('POST', '/products', data, {
+            invalidatePattern: 'products:.*',
+        })
     }
 
     async updateProduct(id: number, data: UpdateProductDTO): Promise<ApiResponse<Product>> {
         // Don't send files here - images are uploaded separately
-        const response = await this.cachedApi.put<Product>(
+        return await this.call<Product, UpdateProductDTO>(
+            'PUT',
             `/products/${id}`,
             data,
-            undefined,
-            'products:.*'
+            { invalidatePattern: 'products:.*' }
         )
-        return response
     }
 
     async deleteProduct(id: number): Promise<ApiResponse<void>> {
-        const response = await this.cachedApi.delete<void>(`/products/${id}`)
-        this.cachedApi.invalidatePattern('products:.*')
+        const response = await this.call<void>('DELETE', `/products/${id}`)
+        this.invalidateCachePattern('products:.*')
         return response
     }
 
     async toggleActive(id: number, isActive: boolean): Promise<ApiResponse<ToggleProductResponse>> {
-        const response = await this.cachedApi.patch<ToggleProductResponse>(
+        const response = await this.call<ToggleProductResponse, { isActive: boolean }>(
+            'PATCH',
             `/products/${id}/toggle-active`,
             { isActive }
         )
-        this.cachedApi.invalidate(`products:${id}`)
-        this.cachedApi.invalidatePattern('products:.*')
+        this.invalidateCacheKey(`products:${id}`)
+        this.invalidateCachePattern('products:.*')
         return response
     }
 
     async refreshProducts(): Promise<ApiResponse<Product[]>> {
-        return this.cachedApi.get<Product[]>(
-            '/products',
-            undefined,
-            'products:all',
-            undefined,
-            true
-        )
+        return await this.call<Product[]>('GET', '/products', undefined, {
+            cacheKey: 'products:all',
+            skipCache: true,
+        })
     }
 
     async uploadProductImages(productId: number, formData: FormData): Promise<ApiResponse<void>> {
-        return this.cachedApi.patch<void>(
+        return await this.call<void, FormData>(
+            'PATCH',
             `/products/${productId}/uploadProductImages`,
             formData,
             {
-                headers: {
-                    'Content-Type': 'multipart/form-data',
+                config: {
+                    headers: {
+                        'Content-Type': 'multipart/form-data',
+                    },
                 },
-            },
-            `products:${productId}`
+                invalidatePattern: `products:${productId}`,
+            }
         )
     }
 
@@ -107,33 +111,36 @@ export class ProductApiService {
         variantId: number,
         formData: FormData
     ): Promise<ApiResponse<void>> {
-        return this.cachedApi.patch<void>(
+        return await this.call<void, FormData>(
+            'PATCH',
             `/products/${productId}/variants/${variantId}/uploadProductImages`,
             formData,
             {
-                headers: {
-                    'Content-Type': 'multipart/form-data',
+                config: {
+                    headers: {
+                        'Content-Type': 'multipart/form-data',
+                    },
                 },
-            },
-            `products:${productId}`
+                invalidatePattern: `products:${productId}`,
+            }
         )
     }
 
     async removeVariantThumbnail(productId: number, variantId: number): Promise<ApiResponse<void>> {
-        return this.cachedApi.patch<void>(
+        return await this.call<void, Record<string, never>>(
+            'PATCH',
             `/products/${productId}/variants/${variantId}/remove-thumbnail`,
             {},
-            undefined,
-            `products:${productId}`
+            { invalidatePattern: `products:${productId}` }
         )
     }
 
     async removeProductThumbnail(productId: number): Promise<ApiResponse<void>> {
-        return this.cachedApi.patch<void>(
+        return await this.call<void, Record<string, never>>(
+            'PATCH',
             `/products/${productId}/remove-thumbnail`,
             {},
-            undefined,
-            'products:.*'
+            { invalidatePattern: 'products:.*' }
         )
     }
 
@@ -141,10 +148,11 @@ export class ProductApiService {
         productId: number,
         filename: string
     ): Promise<ApiResponse<void>> {
-        return this.cachedApi.delete<void>(
+        return await this.call<void>(
+            'DELETE',
             `/products/${productId}/gallery/${encodeURIComponent(filename)}`,
             undefined,
-            'products:.*'
+            { invalidatePattern: 'products:.*' }
         )
     }
 
@@ -153,23 +161,27 @@ export class ProductApiService {
         variantId: number,
         filename: string
     ): Promise<ApiResponse<void>> {
-        return this.cachedApi.delete<void>(
+        return await this.call<void>(
+            'DELETE',
             `/products/${productId}/variants/${variantId}/gallery/${encodeURIComponent(filename)}`,
             undefined,
-            'products:.*'
+            { invalidatePattern: 'products:.*' }
         )
     }
 
     async syncProductToQB(
         productId: number
     ): Promise<ApiResponse<{ created: boolean; qbId: string }>> {
-        const response = await this.cachedApi.post<{ created: boolean; qbId: string }>(
+        const response = await this.call<
+            { created: boolean; qbId: string },
+            Record<string, never>
+        >(
+            'POST',
             `/quickbooks-sync/products/${productId}/sync-to-qb`,
             {},
-            undefined,
-            `products:.*`
+            { invalidatePattern: 'products:.*' }
         )
-        this.cachedApi.invalidatePattern('products:.*')
+        this.invalidateCachePattern('products:.*')
         return response
     }
 
@@ -181,21 +193,16 @@ export class ProductApiService {
         )
     }
 
-    async importAllProductsFromSquare(): Promise<
-        ApiResponse<{
-            created: number
-            updated: number
-            skipped: number
-            errors: Array<{ item: string; error: string }>
-        }>
-    > {
-        const response = await this.cachedApi.post<{
-            created: number
-            updated: number
-            skipped: number
-            errors: Array<{ item: string; error: string }>
-        }>('/square-sync/products', {}, undefined, 'products:.*')
-        this.cachedApi.invalidatePattern('products:.*')
+    async importAllProductsFromSquare(): Promise<ApiResponse<ProductImportResult>> {
+        const response = await this.call<ProductImportResult, Record<string, never>>(
+            'POST',
+            '/square-sync/products',
+            {},
+            { invalidatePattern: 'products:.*' }
+        )
+        this.invalidateCachePattern('products:.*')
         return response
     }
 }
+
+export default ProductApiService

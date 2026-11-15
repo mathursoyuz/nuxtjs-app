@@ -1,9 +1,11 @@
 export const CUSTOMER_ORDER_PERMISSIONS = {
     READ: 'customer-orders.read',
-    WRITE: 'customer-orders.write',
+    CREATE: 'customer-orders.create',
+    UPDATE: 'customer-orders.update',
 } as const
 
 export const PROCUREMENT_ORDER_PERMISSIONS = {
     READ: 'procurement-orders.read',
-    WRITE: 'procurement-orders.write',
+    CREATE: 'procurement-orders.create',
+    UPDATE: 'procurement-orders.update',
 } as const

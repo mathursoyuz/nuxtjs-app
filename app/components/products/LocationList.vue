@@ -28,11 +28,15 @@
                 <v-list-item-title>{{ location.title }}</v-list-item-title>
             </v-list-item>
             <v-list-item v-if="filteredLocations.length === 0">
-                <v-list-item-title class="text-medium-emphasis">No locations found</v-list-item-title>
+                <v-list-item-title class="text-medium-emphasis">
+                    No locations found
+                </v-list-item-title>
             </v-list-item>
         </v-list>
         <div v-if="selected.length > 0" class="mt-3">
-            <div class="text-caption text-medium-emphasis mb-2">Selected ({{ selected.length }})</div>
+            <div class="text-caption text-medium-emphasis mb-2">
+                Selected ({{ selected.length }})
+            </div>
             <div class="d-flex flex-wrap gap-2">
                 <v-chip
                     v-for="locId in selected"
@@ -49,62 +53,62 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed } from 'vue'
 
 interface Props {
-    selected: number[];
-    available: Array<{ title: string; value: number }>;
+    selected: number[]
+    available: Array<{ title: string; value: number }>
 }
 
-const props = defineProps<Props>();
+const props = defineProps<Props>()
 
 const emit = defineEmits<{
-    'update:selected': [value: number[]];
-}>();
+    'update:selected': [value: number[]]
+}>()
 
-const searchQuery = ref('');
+const searchQuery = ref('')
 
 const filteredLocations = computed(() => {
     if (!searchQuery.value) {
-        return props.available;
+        return props.available
     }
-    const query = searchQuery.value.toLowerCase();
-    return props.available.filter((loc) => loc.title.toLowerCase().includes(query));
-});
+    const query = searchQuery.value.toLowerCase()
+    return props.available.filter((loc) => loc.title.toLowerCase().includes(query))
+})
 
 const isSelected = (locationId: number): boolean => {
-    return props.selected.includes(locationId);
-};
+    return props.selected.includes(locationId)
+}
 
-const toggleLocation = (locationId: number) => {
-    const newSelected = [...props.selected];
-    const index = newSelected.indexOf(locationId);
-    
+const toggleLocation = (locationId: number): void => {
+    const newSelected = [...props.selected]
+    const index = newSelected.indexOf(locationId)
+
     if (index > -1) {
-        newSelected.splice(index, 1);
+        newSelected.splice(index, 1)
     } else {
-        newSelected.push(locationId);
+        newSelected.push(locationId)
     }
-    
-    emit('update:selected', newSelected);
-};
 
-const removeLocation = (locationId: number) => {
-    const newSelected = props.selected.filter((id) => id !== locationId);
-    emit('update:selected', newSelected);
-};
+    emit('update:selected', newSelected)
+}
+
+const removeLocation = (locationId: number): void => {
+    const newSelected = props.selected.filter((id) => id !== locationId)
+    emit('update:selected', newSelected)
+}
 
 const getLocationName = (locationId: number): string => {
-    const location = props.available.find((loc) => loc.value === locationId);
-    return location?.title || `Location ${locationId}`;
-};
+    const location = props.available.find((loc) => loc.value === locationId)
+    return location?.title || `Location ${locationId}`
+}
 </script>
 
 <style scoped>
 .location-list {
     max-height: 300px;
     overflow-y: auto;
-    border: 1px solid rgba(0, 0, 0, 0.12);
+    border: 1px solid rgb(var(--v-theme-on-surface) / 0.12);
     border-radius: 4px;
 }
 

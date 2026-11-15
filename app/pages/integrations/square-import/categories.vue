@@ -23,7 +23,7 @@
                                         Fetched: {{ fetchedData.data.length }} category(ies)
                                     </v-chip>
                                     <v-chip
-                                        v-if="selectedItems.length > 0"
+                                        v-if="canWrite && selectedItems.length > 0"
                                         color="primary"
                                         size="small"
                                     >
@@ -42,7 +42,7 @@
                                 </div>
                             </div>
 
-                            <div v-if="hasSelectedItems" class="mb-4">
+                            <div v-if="canWrite && hasSelectedItems" class="mb-4">
                                 <v-alert type="info" density="compact" class="mb-2">
                                     <div class="d-flex align-center justify-space-between">
                                         <span>
@@ -69,7 +69,7 @@
                             :items="fetchedData.data"
                             :loading="loading"
                             item-value="id"
-                            show-select
+                            :show-select="canWrite"
                             class="elevation-1"
                         >
                             <template #item.category_data.name="{ item }">
@@ -112,6 +112,7 @@
                                         View Raw
                                     </v-btn>
                                     <v-btn
+                                        v-if="canWrite"
                                         size="small"
                                         :color="
                                             item.localCategory?.isSquareSynced
@@ -171,16 +172,22 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useSquareImport } from '~/composables/useSquareImport'
 import { useToast } from '~/composables/useToast'
 import { CATEGORY_MESSAGES } from '~/constants/messages.constants'
 import { useApiMessage } from '~/composables/useApiMessage'
 import type { SquareCategory } from '~/types/square-import.types'
+import { SQUARE_SYNC_PERMISSIONS } from '~/constants/integration-permissions.constants'
+import { useAccessStore } from '~/stores/access.store'
 
 definePageMeta({
-    middleware: ['auth'],
+    middleware: ['auth', 'permission'],
+    access: { permission: SQUARE_SYNC_PERMISSIONS.READ },
 })
+
+const access = useAccessStore()
+const canWrite = computed(() => access.can(SQUARE_SYNC_PERMISSIONS.WRITE))
 
 const {
     loading,
@@ -189,7 +196,7 @@ const {
     selectedItems,
     hasSelectedItems,
     clearSelection,
-    squareImportApi,
+    operations: squareImport,
 } = useSquareImport<SquareCategory>()
 
 const { successFromResponse, errorFromError, success, error, warning, info } = useToast()
@@ -222,7 +229,7 @@ const fetchData = async () => {
     loading.value = true
     clearSelection()
     try {
-        const response = await squareImportApi.searchCategories()
+        const response = await squareImport.searchCategories()
 
         if (response.success && response.data) {
             // Backend now returns: { message, data: [...] }
@@ -276,7 +283,7 @@ const bulkImport = async () => {
                 rawCategoriesToImport.push(rawCategory)
             }
         }
-        const response = await squareImportApi.importCategories(rawCategoriesToImport)
+        const response = await squareImport.importCategories(rawCategoriesToImport)
 
         if (response.success && response.data) {
             const result = response.data.result
@@ -317,7 +324,7 @@ const importSingle = async (item: SquareCategory) => {
             console.warn(`Raw category not found for ID: ${itemId}, using enriched category`)
         }
 
-        const response = await squareImportApi.importCategories([categoryToImport])
+        const response = await squareImport.importCategories([categoryToImport])
         if (response.success && response.data) {
             const result = response.data.result
             const successCount = result.created + result.updated
@@ -350,8 +357,8 @@ const importSingle = async (item: SquareCategory) => {
 
 <style scoped>
 .raw-json {
-    background-color: #f5f5f5;
-    border: 1px solid #e0e0e0;
+    background-color: rgb(var(--v-theme-surface-variant));
+    border: 1px solid rgb(var(--v-border-color) / var(--v-border-opacity));
     border-radius: 4px;
     padding: 16px;
     font-family: 'Courier New', monospace;
